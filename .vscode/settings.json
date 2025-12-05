@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "timer.h": "c",
+        "sys_config.h": "c",
+        "atomic_util.h": "c",
+        "stdint.h": "c",
+        "event_manager.h": "c",
+        "timer_interface.h": "c",
+        "timer_manager.h": "c"
+    }
+}
