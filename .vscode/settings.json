@@ -7,5 +7,6 @@
         "event_manager.h": "c",
         "timer_interface.h": "c",
         "timer_manager.h": "c"
-    }
+    },
+    "idf.pythonInstallPath": "D:\\Environment\\Espressif\\tools\\idf-python\\3.11.2\\python.exe"
 }
