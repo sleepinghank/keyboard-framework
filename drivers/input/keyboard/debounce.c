@@ -7,6 +7,7 @@
 #include "timer.h"
 #include "print.h"
 #include <string.h>
+#include "debug.h"
 
 // Debounce algorithm selection
 #ifndef DEBOUNCE_ALGORITHM

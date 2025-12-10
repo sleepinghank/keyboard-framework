@@ -2,19 +2,36 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "matrix.h"
-#include "keyboard.h"
+#include "../../drivers/input/keyboard/matrix.h"
+
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 // Combo key structure
-typedef struct {
-    keypos_t key[4];      /**< Keys that make up the combo (max 4 keys) */
-    uint16_t keycode;     /**< Keycode to send when combo is triggered */
-    uint8_t count;        /**< Number of keys in this combo */
+typedef struct combo_t {
+    const uint16_t *keys;
+    uint16_t        keycode;
+#ifdef EXTRA_SHORT_COMBOS
+    uint8_t state;
+#else
+    bool     disabled;
+    bool     active;
+#    if defined(EXTRA_EXTRA_LONG_COMBOS)
+    uint32_t state;
+#    elif defined(EXTRA_LONG_COMBOS)
+    uint16_t state;
+#    else
+    uint8_t state;
+#    endif
+#endif
 } combo_t;
+
+#define COMBO(ck, ca) \
+    { .keys = &(ck)[0], .keycode = (ca) }
+#define COMBO_ACTION(ck) \
+    { .keys = &(ck)[0] }
 
 // Combo state
 typedef struct {

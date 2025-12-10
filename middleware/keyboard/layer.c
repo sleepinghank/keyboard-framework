@@ -4,8 +4,10 @@
  */
 
 #include "layer.h"
-#include "print.h"
+#include "debug.h"
 #include <string.h>
+#include "../../keyboards/product_config.h"
+#include "keycode.h"
 
 // Layer state
 static layer_state_t layer_state = 0;
@@ -195,47 +197,6 @@ void default_layer_set(layer_state_t state) {
 layer_state_t default_layer_state_get(void) {
     return default_layer_state;
 }
-
-/**
- * @brief Convert matrix position to keycode
- *
- * This function searches through layers to find the keycode for a given position.
- * It starts with the highest active layer and works down.
- *
- * @param layer Current layer state
- * @param row Matrix row
- * @param col Matrix column
- * @return Keycode at position
- */
-uint16_t keymap_key_to_keycode(layer_state_t layer, uint8_t row, uint8_t col) {
-    // Validate parameters
-    if (row >= MATRIX_ROWS || col >= MATRIX_COLS) {
-        dprintf("Keymap: ERROR - Invalid position (%d, %d)\n", row, col);
-        return KC_NO;
-    }
-
-    // Combine layer state with default layer
-    layer_state_t search_state = layer | default_layer_state;
-
-    // Search from highest layer to lowest
-    for (int8_t current_layer = MAX_LAYER_COUNT - 1; current_layer >= 0; current_layer--) {
-        if (search_state & LAYER_BIT(current_layer)) {
-            // Check if keymap exists for this layer
-            if (current_layer < num_keymaps) {
-                uint16_t keycode = keymaps[current_layer][row][col];
-
-                // Skip transparent keys (they pass through to lower layers)
-                if (keycode != KC_TRANSPARENT) {
-                    return keycode;
-                }
-            }
-        }
-    }
-
-    // Fallback - return KC_NO if nothing found
-    return KC_NO;
-}
-
 /**
  * @brief Update tri-layer state
  *

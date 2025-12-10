@@ -1,30 +1,30 @@
-/*
-Copyright 2011,2012,2013 Jun Wako <wakojun@gmail.com>
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
-
+#include <stdbool.h>
 #include "timer.h"
+
+
+#define ACTION_DEBUG
+//#define COMBO_ENABLE
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+// Matrix configuration (from product_config.h)
+#ifndef MATRIX_ROWS
+#define MATRIX_ROWS 8
+#endif
+
+#ifndef MATRIX_COLS
+#define MATRIX_COLS 13
+#endif
+
+#ifndef MATRIX_HAS_GHOST
+#define MATRIX_HAS_GHOST 0
+#endif
+
 
 /* key matrix position */
 typedef struct {
@@ -86,47 +86,36 @@ static inline bool IS_ENCODEREVENT(const keyevent_t event) {
  */
 #define MAKE_TICK_EVENT MAKE_EVENT(0, 0, false, TICK_EVENT)
 
-#ifdef ENCODER_MAP_ENABLE
-/* Encoder events */
-#    define MAKE_ENCODER_CW_EVENT(enc_id, press) MAKE_EVENT(KEYLOC_ENCODER_CW, (enc_id), (press), ENCODER_CW_EVENT)
-#    define MAKE_ENCODER_CCW_EVENT(enc_id, press) MAKE_EVENT(KEYLOC_ENCODER_CCW, (enc_id), (press), ENCODER_CCW_EVENT)
-#endif // ENCODER_MAP_ENABLE
 
-/* it runs once at early stage of startup before keyboard_init. */
-void keyboard_setup(void);
-/* it runs once after initializing host side protocol, debug and MCU peripherals. */
+/**
+ * @brief Initialize keyboard system
+ */
 void keyboard_init(void);
-/* it runs repeatedly in main loop */
+
+/**
+ * @brief Main keyboard task loop
+ *
+ * This function should be called repeatedly in the main loop
+ * It handles matrix scanning, debouncing, key processing, and action execution
+ */
 void keyboard_task(void);
-/* it runs whenever code has to behave differently on a slave */
-bool is_keyboard_master(void);
-/* it runs whenever code has to behave differently on left vs right split */
-bool is_keyboard_left(void);
 
-void keyboard_pre_init_kb(void);
-void keyboard_pre_init_user(void);
-void keyboard_post_init_kb(void);
-void keyboard_post_init_user(void);
+/**
+ * @brief Process key event from matrix
+ *
+ * @param row Row of the key
+ * @param col Column of the key
+ * @param pressed true if key is pressed, false if released
+ */
+void keyboard_process_key(uint8_t row, uint8_t col, bool pressed);
 
-void housekeeping_task(void);      // To be executed by the main loop in each backend TMK protocol
-void housekeeping_task_kb(void);   // To be overridden by keyboard-level code
-void housekeeping_task_user(void); // To be overridden by user/keymap-level code
-
-uint32_t last_input_activity_time(void);    // Timestamp of the last matrix or encoder or pointing device activity
-uint32_t last_input_activity_elapsed(void); // Number of milliseconds since the last matrix or encoder or pointing device activity
-
-uint32_t last_matrix_activity_time(void);    // Timestamp of the last matrix activity
-uint32_t last_matrix_activity_elapsed(void); // Number of milliseconds since the last matrix activity
-
-uint32_t last_encoder_activity_time(void);    // Timestamp of the last encoder activity
-uint32_t last_encoder_activity_elapsed(void); // Number of milliseconds since the last encoder activity
-
-uint32_t last_pointing_device_activity_time(void);    // Timestamp of the last pointing device activity
-uint32_t last_pointing_device_activity_elapsed(void); // Number of milliseconds since the last  pointing device activity
-
-void set_activity_timestamps(uint32_t matrix_timestamp, uint32_t encoder_timestamp, uint32_t pointing_device_timestamp); // Set the timestamps of the last matrix and encoder activity
-
-uint32_t get_matrix_scan_rate(void);
+/**
+ * @brief Housekeeping task
+ *
+ * Called on each iteration of the keyboard task loop
+ * Can be used for background tasks and maintenance
+ */
+void housekeeping_task(void);
 
 #ifdef __cplusplus
 }

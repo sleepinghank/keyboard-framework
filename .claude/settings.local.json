@@ -1,9 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir:*)",
-      "Bash(findstr:*)",
-      "Bash(ls:*)"
+      "Bash(cmake:*)",
+      "Bash(ninja:*)",
+      "Bash(cat:*)",
+      "Bash(iconv:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(ln:*)",
+      "Bash(tree:*)",
+      "Bash(tee:*)",
+      "Bash(mkdir:*)",
+      "Bash(C:/msys64/mingw64/bin/gcc.exe:*)",
+      "Bash(where:*)",
+      "Bash(arm-none-eabi-gcc:*)",
+      "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\":*)",
+      "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\" -std=gnu11 -E middleware/keyboard/custom_function.c -I middleware/keyboard -I middleware)",
+      "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\" -std=gnu11 -c middleware/keyboard/custom_function.c -I middleware/keyboard -I middleware -I drivers/input/keyboard -I hal -I utils/logging -o /tmp/test.o)"
     ],
     "deny": [],
     "ask": []

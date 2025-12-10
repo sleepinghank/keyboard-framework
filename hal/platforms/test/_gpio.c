@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- #include "_gpio.h"
+ #include "gpio.h"
  #include "pin_defs.h"
  #include <stdint.h>
  #include <stdio.h>

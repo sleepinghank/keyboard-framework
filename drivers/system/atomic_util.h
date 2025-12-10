@@ -32,9 +32,9 @@
     }
     
     __INLINE void __interrupt_enable__(__interrupt_state_t *__s) {
-        if (__s != NULL) {
+        // if (__s != NULL) {
             // SYS_RecoverIrq(__s->irqv);
-        }
+        // }
         // __asm__ volatile("" ::: "memory");
     }
     

@@ -29,7 +29,8 @@ volatile uint32_t timer_count = 0;
 // 获取当前RTC周期数（32位）
 // 此函数必须在原子操作保护下调用
 static inline uint32_t get_rtc_cycles(void) {
-    return RTC_GetCycle32k();
+    // return RTC_GetCycle32k();
+    return 1;
 }
 
 void timer_init(void) {

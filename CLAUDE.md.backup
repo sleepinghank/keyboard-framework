@@ -1,0 +1,87 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+This is a **modular keyboard framework** designed for multi-mode wireless keyboards and touchpads. It provides a cross-platform, layered architecture supporting multiple MCU platforms (PixArt 2860, WCH CH584, Nordic nRF52 series). The framework is inspired by QMK firmware's key processing pipeline and implements a clean separation of concerns through HAL (Hardware Abstraction Layer), driver, middleware, and application layers.
+
+## Repository Structure
+
+```
+keyboard-framework/
+├── hal/                        # Hardware Abstraction Layer
+│   ├── interface/              # HAL interfaces (GPIO, ADC, PWM, I2C, UART, Timer, Power)
+│   └── platforms/              # Platform-specific HAL implementations
+├── drivers/                    # Device Drivers
+│   ├── communication/          # BLE, USB, 2.4G wireless protocols
+│   ├── input/                  # Keyboard matrix, touchpad, buttons
+│   ├── output/                 # LEDs, backlight, indicators
+│   ├── storage/                # EEPROM, Flash storage
+│   ├── power/                  # Battery monitoring, power management
+│   └── system/                 # Timers, watchdog, event management
+├── middleware/                 # Middleware Services
+│   ├── config/                 # Configuration management
+│   ├── protocol/               # HID protocol processing
+│   └── keyboard/               # Key mapping, combo handling
+├── keyboards/                  # Product-specific configurations
+│   └── keymaps/                # Key layout definitions
+├── application/                # Application layer
+│   └── main.c                  # Main application entry
+├── utils/                      # Utilities (ring buffer, CRC, logger)
+└── test/                       # Test utilities and Unity framework
+```
+
+## Build System
+
+### Configuration
+- **CMake**: Minimum version 3.29
+- **C Standard**: GNU C11
+- **Build Generators**: Visual Studio 17 2022 or Ninja
+- **Target Platform**: ARM MCUs (cross-compiled)
+
+### Build Commands
+
+#### For MCU Development (ARM Cross-Compiler)
+
+```bash
+# ARM GCC (arm-none-eabi-gcc) must be installed
+# Configure and build with Ninja
+cd D:/Code/C_Project/keyboard-framework
+mkdir cmake-build-debug && cd cmake-build-debug
+
+# Configure with ARM cross-compiler
+cmake -G Ninja -DCMAKE_C_COMPILER=arm-none-eabi-gcc -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY ..
+
+# Build the project
+ninja
+
+# Clean rebuild
+cd ..
+rm -rf cmake-build-debug
+mkdir cmake-build-debug && cd cmake-build-debug
+cmake -G Ninja -DCMAKE_C_COMPILER=arm-none-eabi-gcc -DCMAKE_SYSTEM_NAME=Generic -DCMAKE_SYSTEM_PROCESSOR=arm -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY ..
+ninja
+```
+
+#### With Environment Variable (Alternative)
+
+```bash
+cd D:/Code/C_Project/keyboard-framework
+set CC=arm-none-eabi-gcc
+mkdir cmake-build-debug && cd cmake-build-debug
+cmake -G Ninja -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY ..
+ninja
+```
+
+#### For CLion IDE
+
+CLion automatically detects CMake and uses the configured compiler. Ensure `CMAKE_C_COMPILER` is set to `arm-none-eabi-gcc` in CMakeLists.txt before importing.
+
+### CMake Configuration Key Points
+
+- Source files are manually listed in CMakeLists.txt (not auto-discovered)
+- The main executable is built from `main.c`
+- ARM embedded linker flags: `-nostartfiles -lgcc -lc -lnosys`
+- Include paths configured for all major directories
+- Currently builds only core modules: matrix, debounce, timer, action, layer

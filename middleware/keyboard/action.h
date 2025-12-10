@@ -4,43 +4,33 @@
 #include <stdbool.h>
 #include "keyboard.h"
 #include "layer.h"
+#include "action_code.h"
+#include "keycode.h"
+#include "progmem.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Action types
-typedef enum {
-    ACTION_NO = 0,
-    ACTION_KEY,             /**< Regular key press/release */
-    ACTION_MODS,            /**< Modifier keys */
-    ACTION_LAYER_TAP,       /**< Layer tap (tap = keycode, hold = layer) */
-    ACTION_LAYER_MOD,       /**< Layer mod (layer active when held with mod) */
-    ACTION_MODS_TAP,        /**< Mod tap (tap = keycode, hold = modifier) */
-    ACTION_FUNCTION,        /**< Custom function */
-    ACTION_MACRO,           /**< Macro execution */
-} action_type_t;
-
-// Action structure
+/* tapping count and state */
 typedef struct {
-    action_type_t type;     /**< Action type */
-    uint8_t id;             /**< Action ID */
-    uint8_t parameters;     /**< Additional parameters */
-} action_t;
+    bool    interrupted : 1;
+    bool    reserved2 : 1;
+    bool    reserved1 : 1;
+    bool    reserved0 : 1;
+    uint8_t count : 4;
+} tap_t;
 
-// Action state for tapping
+/* Key event container for recording */
 typedef struct {
-    uint8_t count;          /**< Tap count */
-    bool interrupted;       /**< Whether tapping was interrupted */
-    bool reserved[2];       /**< Reserved for future use */
-    uint16_t keycode;       /**< Associated keycode */
-} tap_state_t;
-
-// Action record for tracking
-typedef struct {
-    keyevent_t event;       /**< Key event that triggered this action */
-    tap_state_t tap;        /**< Tap state (for tapping actions) */
-} action_record_t;
+    keyevent_t event;
+#ifndef NO_ACTION_TAPPING
+    tap_t tap;
+#endif
+#if defined(COMBO_ENABLE) || defined(REPEAT_KEY_ENABLE)
+    uint16_t keycode;
+#endif
+} keyrecord_t;
 
 // Key processing state
 extern uint8_t current_mods;        /**< Current modifier state */
@@ -51,7 +41,8 @@ extern uint8_t weak_mods;           /**< Weak modifier state */
 void action_exec(keyevent_t event);
 action_t action_for_key(layer_state_t layer, keypos_t key);
 action_t action_for_keycode(uint16_t keycode);
-void process_action(action_record_t* record, action_t action);
+void process_action(keyrecord_t* record, action_t action);
+void process_action_tapping(keyrecord_t* record, action_t action);
 
 // Key registration
 void register_code(uint8_t code);
@@ -88,11 +79,21 @@ void layer_switch(uint8_t new_layer);
 
 // Utility functions
 bool is_tap_action(action_t action);
-bool is_mod_action(action_t action);
 
-// Weak callback hooks
-void action_keypress(keyevent_t event);
-void action_keyrelease(keyevent_t event);
+#ifdef ACTION_DEBUG
+#    include "..\..\utils\logging\debug.h"
+#    include "..\..\utils\logging\print.h"
+#    define ac_dprintf(...) dprintf(__VA_ARGS__)
+#else
+#    define ac_dprintf(...) \
+        do {                \
+        } while (0)
+#endif
+
+void debug_event(keyevent_t event);
+void debug_record(keyrecord_t record);
+void debug_action(action_t action);
+
 
 #ifdef __cplusplus
 }

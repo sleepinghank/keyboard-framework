@@ -1,12 +1,11 @@
 cmake_minimum_required(VERSION 3.29)
+
 project(keyboard_framework C)
 
 set(CMAKE_C_STANDARD 11)
 
-
 # 包含目录
 include_directories(
-    .
     application
     drivers
     drivers/communication
@@ -22,16 +21,33 @@ include_directories(
     middleware/protocol
     keyboards
     utils
-    utils/debug
+    utils/logging
 )
 
-# 源文件列表（排除application/main.c）
-file(GLOB_RECURSE SOURCE_FILES
-    "drivers/*.c"
-    "hal/platforms/${PLATFORM}/*.c"
-    "middleware/*.c"
-    "utils/*.c"
+# 添加源文件 - 仅核心模块
+set(SOURCES
+    # 应用程序入口
+    main.c
+
+    # 驱动层 - 输入设备（核心）
+    drivers/input/keyboard/matrix.c
+    drivers/input/keyboard/debounce.c
+    drivers/system/timer.c
+
+    # 中间件 - 键盘处理
+    middleware/keyboard/action.c
+#    middleware/keyboard/combo.c
+#    middleware/keyboard/custom_function.c
+    middleware/keyboard/keyboard.c
+    middleware/keyboard/layer.c
+
+    # 硬件抽象层 - 测试平台实现
+    hal/platforms/test/_gpio.c
+
+    utils/logging/debug.c
+    utils/logging/print.c
+    utils/logging/sendchar.c
+    utils/bitwise.c
 )
 
-
-add_executable(keyboard_framework main.c)
+add_executable(keyboard_framework ${SOURCES})

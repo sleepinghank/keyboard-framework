@@ -167,7 +167,7 @@ bool macro_is_playing(uint8_t macro_id);
  * @param keycode Keycode being processed
  * @return true to continue processing, false to skip
  */
-bool process_record_user(action_record_t* record, uint16_t keycode);
+bool process_record_user(keyrecord_t* record, uint16_t keycode);
 
 /**
  * @brief Process quantum keycodes
@@ -178,7 +178,7 @@ bool process_record_user(action_record_t* record, uint16_t keycode);
  * @param keycode Quantum keycode
  * @return true to continue processing, false to skip
  */
-bool process_record_quantum(action_record_t* record, uint16_t keycode);
+bool process_record_quantum(keyrecord_t* record, uint16_t keycode);
 
 #ifdef __cplusplus
 }

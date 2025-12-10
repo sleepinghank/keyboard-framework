@@ -12,6 +12,10 @@
 extern "C" {
 #endif
 
+#if !defined(LAYER_STATE_8BIT) && !defined(LAYER_STATE_16BIT) && !defined(LAYER_STATE_32BIT)
+#    define LAYER_STATE_16BIT
+#endif
+
 // Layer state type definitions
 #if defined(LAYER_STATE_8BIT)
 typedef uint8_t layer_state_t;
@@ -47,19 +51,6 @@ layer_state_t layer_state_xor(layer_state_t state);
 bool layer_state_cmp(layer_state_t state, uint8_t layer);
 bool layer_state_is(uint8_t layer);
 uint8_t get_highest_layer(layer_state_t state);
-
-/**
- * @brief Get the current keycode for a given position
- *
- * This function looks up the keycode for a given matrix position.
- * It searches through active layers from highest to lowest priority.
- *
- * @param layer Current active layer state
- * @param row Matrix row (0-indexed)
- * @param col Matrix column (0-indexed)
- * @return The keycode at the given position
- */
-uint16_t keymap_key_to_keycode(layer_state_t layer, uint8_t row, uint8_t col);
 
 /**
  * @brief Default layer management

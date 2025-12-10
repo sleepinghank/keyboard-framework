@@ -171,12 +171,12 @@ bool macro_is_playing(uint8_t macro_id) {
 #endif
 
 // User callback hooks (weak implementations)
-__attribute__((weak)) bool process_record_user(action_record_t* record, uint16_t keycode) {
+bool process_record_user(keyrecord_t* record, uint16_t keycode) {
     // User can override this to handle custom keycodes
     return true; // Continue processing
 }
 
-__attribute__((weak)) bool process_record_quantum(action_record_t* record, uint16_t keycode) {
+bool process_record_quantum(keyrecord_t* record, uint16_t keycode) {
     // User can override this to handle quantum keycodes
     return true; // Continue processing
 }
