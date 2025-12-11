@@ -17,7 +17,8 @@
       "Bash(arm-none-eabi-gcc:*)",
       "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\":*)",
       "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\" -std=gnu11 -E middleware/keyboard/custom_function.c -I middleware/keyboard -I middleware)",
-      "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\" -std=gnu11 -c middleware/keyboard/custom_function.c -I middleware/keyboard -I middleware -I drivers/input/keyboard -I hal -I utils/logging -o /tmp/test.o)"
+      "Bash(\"C:\\msys64\\mingw64\\bin\\cc.exe\" -std=gnu11 -c middleware/keyboard/custom_function.c -I middleware/keyboard -I middleware -I drivers/input/keyboard -I hal -I utils/logging -o /tmp/test.o)",
+      "Bash(gcc:*)"
     ],
     "deny": [],
     "ask": []

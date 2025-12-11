@@ -22,10 +22,9 @@
 #include "battery.h"
 #include "indicator.h"
 #include "transport.h"
-#include "rtc_timer.h"
 
 extern uint8_t         pairing_indication;
-extern host_driver_t   chibios_driver;
+extern host_driver_t   usb_driver;
 extern report_buffer_t kb_rpt;
 extern uint32_t        retry_time_buffer;
 extern uint8_t         retry;

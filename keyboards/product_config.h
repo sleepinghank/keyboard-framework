@@ -67,3 +67,7 @@
 
 // Feature toggles
 #define ENABLE_COMPILE_KEYCODE
+
+
+// #define NKRO_ENABLE
+#define EXTRAKEY_ENABLE

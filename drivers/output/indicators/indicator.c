@@ -21,7 +21,6 @@
 #include "eeconfig.h"
 #include "bluetooth_config.h"
 #include "config.h"
-#include "rtc_timer.h"
 
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
 #    ifdef LED_MATRIX_ENABLE

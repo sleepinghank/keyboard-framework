@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "keyboard.h"
 #include "action.h"
 #include "bitwise.h"
+#include "action_code.h"
 
 #ifdef DYNAMIC_KEYMAP_ENABLE
 #    ifndef DYNAMIC_KEYMAP_LAYER_COUNT
@@ -170,5 +171,6 @@ uint8_t layer_switch_get_layer(keypos_t key);
 action_t layer_switch_get_action(keypos_t key);
 
 
-uint16_t get_record_keycode(keyrecord_t *record, bool update_layer_cache);
-uint16_t get_event_keycode(keyevent_t event, bool update_layer_cache);
+/* action for key */
+action_t action_for_key(uint8_t layer, keypos_t key);
+action_t action_for_keycode(uint16_t keycode);

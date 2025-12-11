@@ -23,10 +23,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "keycode_config.h"
 #include <string.h>
 
+static uint8_t real_mods;
+static uint8_t  weak_mods;
+
 extern keymap_config_t keymap_config;
 
-static uint8_t real_mods = 0;
-static uint8_t weak_mods = 0;
+
+
 #ifdef KEY_OVERRIDE_ENABLE
 static uint8_t weak_override_mods = 0;
 static uint8_t suppressed_mods    = 0;
@@ -224,7 +227,7 @@ bool is_oneshot_layer_active(void) {
 void oneshot_set(bool active) {
     if (keymap_config.oneshot_enable != active) {
         keymap_config.oneshot_enable = active;
-        eeconfig_update_keymap(keymap_config.raw);
+//        eeconfig_update_keymap(keymap_config.raw);
         clear_oneshot_layer_state(ONESHOT_OTHER_KEY_PRESSED);
         dprintf("Oneshot: active: %d\n", active);
     }
@@ -298,7 +301,7 @@ void send_6kro_report(void) {
     /* Only send the report if there are changes to propagate to the host. */
     if (memcmp(keyboard_report, &last_report, sizeof(report_keyboard_t)) != 0) {
         memcpy(&last_report, keyboard_report, sizeof(report_keyboard_t));
-        host_keyboard_send(keyboard_report);
+//        host_keyboard_send(keyboard_report);
     }
 #    ifdef APDAPTIVE_NKRO_ENABLE
     kb_report_changed &= ~KB_RPT_STD;

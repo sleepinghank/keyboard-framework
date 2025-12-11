@@ -22,6 +22,7 @@
 
 #include "keycode.h"
 #include "action_code.h"
+#include <stdbool.h>
 
 uint16_t keycode_config(uint16_t keycode);
 uint8_t  mod_config(uint8_t mod);

@@ -16,7 +16,6 @@
 
 #include "report.h"
 #include "action_util.h"
-#include "host.h"
 #include "keycode_config.h"
 #include "debug.h"
 #include "util.h"

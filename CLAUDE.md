@@ -361,3 +361,450 @@ graph TD
       Y --> Z
 ```
 
+
+
+媒体键发送流程
+
+```mermaid
+  graph TD
+      A[按键按下/释放] --> B[action_exec]
+      B --> C[process_record]
+      C --> D[process_record_handler]
+      D --> E[process_action]
+
+      E --> F{动作类型判断}
+      F -->|ACT_USAGE| G[检查页面类型]
+      G -->|PAGE_CONSUMER| H[调用 host_consumer_send]
+      G -->|PAGE_SYSTEM| I[调用 host_system_send]
+
+      H --> J[构建 report_extra_t]
+      I --> J
+
+      J --> K[检查重复发送]
+      K -->|新 usage| L[调用 driver->send_extra]
+      K -->|重复 usage| M[丢弃]
+
+      L --> N{传输方式}
+      N -->|USB| O[调用 USB 驱动]
+      N -->|BLE| P[调用蓝牙驱动]
+
+      O --> Q[USB 端点发送]
+      P --> R[蓝牙协议发送]
+
+      Q --> S[完成]
+      R --> S
+```
+
+ 三模无线键盘管理系统架构分析
+
+  系统层次结构
+
+  ┌─────────────────────────────────────────┐
+  │         传输层 (Transport Layer)         │  USB / Bluetooth / 2.4G 模式切换
+  ├─────────────────────────────────────────┤
+  │       无线管理层 (Wireless Layer)        │  状态机、事件队列、HID报告处理
+  ├─────────────────────────────────────────┤
+  │        服务层 (Service Layer)           │  指示灯、电池、报告缓冲、定时器
+  ├─────────────────────────────────────────┤
+  │        驱动层 (Driver Layer)            │  蓝牙芯片驱动、低功耗管理
+  └─────────────────────────────────────────┘
+
+  核心文件结构
+
+  1. 传输层管理: transport.c/h - 三模式切换控制
+  2. 无线核心: wireless.c/h - 状态机与事件处理
+  3. 指示灯: indicator.c/h - LED状态指示
+  4. 电池管理: battery.c/h - 电量监测
+  5. 报告缓冲: report_buffer.c/h - HID报告队列
+  6. 低功耗: lpm.c/h - 功耗控制
+  7. 蓝牙驱动: lkbt51.c/h - 蓝牙芯片通信
+
+  完整流程图
+
+  1. 系统初始化流程
+  2. 
+```mermaid
+  graph TD
+      A[系统上电] --> B[wireless_init]
+      B --> C[初始化事件队列]
+      C --> D[初始化指示灯]
+      D --> E[初始化电池管理]
+      E --> F[初始化低功耗管理]
+      F --> G[初始化RTC定时器]
+      G --> H[加载EEPROM配置]
+      H --> I[wireless_set_transport 注册回调]
+      I --> J[设置初始状态 WT_INITIALIZED]
+```
+
+  2. 三模式切换流程
+
+```mermaid
+  graph TD
+      A[set_transport] --> B{目标模式}
+      B -->|USB| C[usb_transport_enable]
+      B -->|蓝牙| D[bt_transport_enable]
+      B -->|2.4G| E[p24g_transport_enable]
+
+      C --> F[切换到chibios_driver]
+      C --> G[断开无线连接]
+      C --> H[停止低功耗定时器]
+    
+      D --> I[切换到wireless_driver]
+      D --> J[断开当前连接]
+      D --> K[延时50ms]
+      K --> L[wireless_connect_ex]
+      L --> M[重置低功耗定时器]
+    
+      E --> N[切换到wireless_driver]
+      E --> O[断开蓝牙连接]
+      E --> P[延时50ms]
+      P --> Q[连接2.4G]
+      Q --> R[重置低功耗定时器]
+    
+      H --> S[transport_changed 回调]
+      M --> S
+      R --> S
+      S --> T[重新初始化LED驱动]
+      T --> U[设置RGB/LED矩阵超时]
+```
+
+  3. 蓝牙配对流程
+
+```mermaid
+  graph TD
+      A[wireless_pairing] --> B[检查电池电量]
+      B -->|低电| C[返回]
+      B -->|正常| D[wireless_pairing_ex]
+      D --> E[调用lkbt51_become_discoverable]
+      E --> F[设置状态 WT_PARING]
+      F --> G[设置配对指示]
+      G --> H[发送EVT_DISCOVERABLE事件]
+      H --> I[等待主机配对]
+      I --> J{配对成功?}
+      J -->|是| K[收到EVT_CONNECTED事件]
+      J -->|否| L{超时?}
+      L -->|是| M[进入WT_DISCONNECTED]
+      L -->|否| I
+
+      K --> N[wireless_enter_connected]
+      N --> O[清除键盘状态]
+      O --> P[启用NKRO]
+      P --> Q[更新电池电量到模块]
+      Q --> R[设置连接指示]
+```
+
+  4. 蓝牙连接流程
+
+```mermaid
+  graph TD
+      A[wireless_connect] --> B[检查电池]
+      B -->|低电| C[返回]
+      B --> D[wireless_transport.connect_ex]
+      D --> E[调用lkbt51_connect]
+      E --> F[设置状态 WT_RECONNECTING]
+      F --> G[设置重连指示]
+      G --> H[蓝牙模块发起连接]
+      H --> I{连接成功?}
+      I -->|是| J[发送EVT_CONNECTED]
+      I -->|否| K{重连超时?}
+      K -->|是| L[发送EVT_DISCONNECTED]
+      K -->|否| H
+
+      J --> M[wireless_enter_connected]
+      L --> N[wireless_enter_disconnected]
+```
+
+  5. HID报告发送流程
+
+```mermaid
+  graph TD
+      A[按键事件] --> B[wireless_send_keyboard]
+      B --> C[检查电池电量]
+      C -->|低电| D[返回]
+      C -->|正常| E{无线状态}
+
+      E -->|WT_PARING| F{处于PIN码输入?}
+      F -->|是| G[允许发送]
+      F -->|否| H[返回]
+    
+      E -->|WT_CONNECTED| G
+      E -->|其他| I[wireless_connect 自动重连]
+    
+      G --> J{启用报告缓冲?}
+      J -->|是| K[report_buffer_enqueue]
+      J -->|否| L[直接调用transport回调]
+    
+      K --> M[队列是否为空?]
+      M -->|是| N[report_buffer_task 立即发送]
+      M -->|否| O[等待发送]
+    
+      L --> P[wireless_transport.send_keyboard]
+      P --> Q[调用lkbt51_send_keyboard]
+      Q --> R[SPI发送到蓝牙芯片]
+    
+      N --> S[完成]
+      O --> T[定时器触发发送]
+      T --> R
+      I --> U[延时后重试]
+      U --> A
+```
+
+  6. 无线状态机
+
+```mermaid
+  stateDiagram-v2
+      [*] --> WT_RESET : 系统复位
+      WT_RESET --> WT_INITIALIZED : 初始化完成
+
+      WT_INITIALIZED --> WT_DISCONNECTED : 准备就绪
+      WT_DISCONNECTED --> WT_PARING : 开始配对
+      WT_DISCONNECTED --> WT_RECONNECTING : 发起连接
+    
+      WT_PARING --> WT_CONNECTED : 配对成功
+      WT_PARING --> WT_DISCONNECTED : 配对失败/超时
+      WT_PARING --> WT_SUSPEND : 进入休眠
+    
+      WT_RECONNECTING --> WT_CONNECTED : 连接成功
+      WT_RECONNECTING --> WT_DISCONNECTED : 连接失败
+    
+      WT_CONNECTED --> WT_DISCONNECTED : 连接断开
+      WT_CONNECTED --> WT_SUSPEND : 休眠
+    
+      WT_SUSPEND --> WT_RECONNECTING : 唤醒
+      WT_SUSPEND --> WT_DISCONNECTED : 唤醒后断连
+```
+
+  7. 事件处理流程
+
+```mermaid
+  graph TD
+      A[硬件中断/定时器] --> B[创建wireless_event_t]
+      B --> C[wireless_event_enqueue]
+      C --> D[添加到事件队列]
+      D --> E[wireless_task 轮询]
+      E --> F[wireless_event_dequeue]
+      F --> G{事件类型}
+
+      G -->|EVT_RESET| H[wireless_enter_reset]
+      G -->|EVT_DISCOVERABLE| I[wireless_enter_discoverable]
+      G -->|EVT_CONNECTED| J[wireless_enter_connected]
+      G -->|EVT_DISCONNECTED| K[wireless_enter_disconnected]
+      G -->|EVT_RECONNECTING| L[wireless_enter_reconnecting]
+      G -->|EVT_SLEEP| M[wireless_enter_sleep]
+      G -->|EVT_BT_PINCODE_ENTRY| N[进入PIN码输入]
+      G -->|EVT_HID_INDICATOR| O[更新LED状态]
+    
+      H --> P[indicator_set 设置指示]
+      I --> P
+      J --> P
+      K --> P
+      L --> P
+      M --> P
+      N --> Q[禁用NKRO]
+      O --> R[led_update_ports]
+```
+
+
+  8. 指示灯控制流程
+
+```mermaid
+  graph TD
+      A[indicator_set] --> B{传输模式}
+      B -->|USB| C[返回]
+      B -->|无线| D[检查状态变化]
+
+      D --> E{当前状态}
+      E -->|WT_DISCONNECTED| F[设置断开指示]
+      E -->|WT_CONNECTED| G[设置连接指示]
+      E -->|WT_PARING| H[设置配对指示]
+      E -->|WT_RECONNECTING| I[设置重连指示]
+      E -->|WT_SUSPEND| J[设置休眠指示]
+    
+      F --> K[更新LED矩阵]
+      G --> K
+      H --> K
+      I --> K
+      J --> K
+    
+      K --> L[启动定时器回调]
+      L --> M[indicator_timer_cb]
+      M --> N{指示类型}
+    
+      N -->|INDICATOR_ON| O[保持LED亮]
+      N -->|INDICATOR_BLINK| P[闪烁LED]
+      N -->|INDICATOR_ON_OFF| Q[定时开关]
+      N -->|INDICATOR_OFF| R[关闭LED]
+    
+      O --> S[设置背光超时]
+      P --> S
+      Q --> S
+      R --> S
+```
+
+  9. 电池管理流程
+```mermaid
+  graph TD
+      A[battery_task 定时任务] --> B[读取ADC电压]
+      B --> C[battery_calculate_voltage]
+      C --> D[计算电量百分比]
+      D --> E{电量状态}
+
+      E -->|电量空| F[wireless_low_battery_shutdown]
+      E -->|低电量| G[indicator_battery_low_enable]
+      E -->|正常| H[更新显示]
+    
+      F --> I[清空键盘状态]
+      I --> J[发送空报告]
+      J --> K[等待300ms]
+      K --> L[断开连接]
+      L --> M[进入深度休眠]
+    
+      G --> N[启动低电指示]
+      N --> O[定时闪烁LED]
+      O --> P[检查是否需要关机]
+      P -->|是| F
+      P -->|否| Q[继续监控]
+    
+      H --> R[更新电池图标]
+      R --> S[通知蓝牙模块电量]
+```
+  10. 低功耗管理流程
+
+```mermaid
+  graph TD
+      A[lpm_task] --> B[检查USB连接]
+      B -->|USB连接| C[返回_RUN模式]
+      B -->|无USB| D[检查空闲时间]
+
+      D --> E{空闲超时?}
+      E -->|否| F[返回_RUN模式]
+      E -->|是| G{无线状态}
+    
+      G -->|WT_CONNECTED| H[进入_STOP模式]
+      G -->|WT_PARING| I[进入_STANDBY模式]
+      G -->|其他| J[进入_SLEEP模式]
+    
+      H --> K[保持蓝牙连接]
+      K --> L[等待唤醒事件]
+      I --> M[等待配对]
+      J --> N[完全休眠]
+    
+      L --> O[按键唤醒]
+      M --> O
+      N --> P[外部事件唤醒]
+    
+      O --> Q[lpm_timer_reset]
+      P --> Q
+      Q --> R[退出低功耗]
+```
+
+  11. 报告缓冲机制
+
+```mermaid
+  graph TD
+      A[report_buffer_enqueue] --> B[检查队列是否满]
+      B -->|满| C[覆盖最旧报告]
+      B -->|否| D[添加到队列尾部]
+
+      D --> E[report_buffer_task]
+      E --> F{队列为空?}
+      F -->|是| G[返回]
+      F -->|否| H[检查发送间隔]
+    
+      H --> I{间隔时间到?}
+      I -->|否| J[等待]
+      I -->|是| K[report_buffer_dequeue]
+    
+      K --> L{报告类型}
+      L -->|KB| M[wireless_transport.send_keyboard]
+      L -->|NKRO| N[wireless_transport.send_nkro]
+      L -->|CONSUMER| O[wireless_transport.send_consumer]
+    
+      M --> P[发送到蓝牙模块]
+      N --> P
+      O --> P
+    
+      P --> Q[发送成功?]
+      Q -->|是| R[更新重试计数]
+      Q -->|否| S[重试计数+1]
+      S --> T{达到最大重试?}
+      T -->|否| U[重新入队]
+      T -->|是| V[丢弃报告]
+    
+      R --> W[继续发送下一条]
+      U --> E
+      V --> W
+      J --> E
+```
+
+  12. 2.4G模式流程
+
+```mermaid
+  graph TD
+      A[set_transport TRANSPORT_P2P4] --> B[禁用蓝牙]
+      B --> C[延时1ms]
+      C --> D[启用2.4G模块]
+      D --> E[禁用USB]
+      E --> F[重置低功耗定时器]
+
+      F --> G[wireless_connect_ex P24G_INDEX]
+      G --> H[调用p24g_transport_enable]
+      H --> I[切换到wireless_driver]
+      I --> J[断开当前连接]
+      J --> K[延时50ms]
+      K --> L[连接2.4G主机]
+    
+      L --> M[进入WT_RECONNECTING]
+      M --> N[设置2.4G指示]
+      N --> O[等待连接完成]
+      O --> P{连接成功?}
+      P -->|是| Q[EVT_CONNECTED]
+      P -->|否| R{超时?}
+      R -->|否| O
+      R -->|是| S[EVT_DISCONNECTED]
+    
+      Q --> T[切换LED指示为绿色]
+      S --> U[切换LED指示为熄灭]
+```
+
+  迁移建议
+
+  1. 目录结构
+
+  建议在项目中创建以下目录：
+  drivers/communication/
+  ├── bluetooth/
+  │   ├── bt_driver.h          # 蓝牙驱动接口
+  │   ├── bt_driver.c          # 蓝牙芯片驱动(如lkbt51)
+  │   └── bt_protocol.h        # 蓝牙协议定义
+  ├── p2p4g/
+  │   ├── p24g_driver.h        # 2.4G驱动接口
+  │   └── p24g_driver.c        # 2.4G模块驱动
+  └── usb/
+      ├── usb_driver.h         # USB驱动接口
+      └── usb_driver.c         # USB HID驱动
+
+  middleware/wireless/
+  ├── wireless_manager.h       # 无线管理层接口
+  ├── wireless_manager.c       # 状态机与事件处理
+  ├── transport_manager.h      # 传输层管理
+  ├── transport_manager.c      # 模式切换
+  ├── battery_service.h        # 电池服务
+  ├── battery_service.c        # 电量管理
+  ├── indicator_service.h      # 指示灯服务
+  ├── indicator_service.c      # LED控制
+  └── report_buffer.h          # 报告缓冲
+
+  2. 关键接口设计
+
+  需要实现统一的驱动接口，包括：
+  - init() - 初始化
+  - connect() - 连接
+  - disconnect() - 断开
+  - send_keyboard() - 发送键盘报告
+  - send_mouse() - 发送鼠标报告
+  - send_consumer() - 发送媒体键报告
+
+  3. 状态机实现
+
+  采用事件驱动状态机，支持7种状态转换，确保无线连接的稳定性和可靠性。

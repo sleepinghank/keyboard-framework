@@ -3,13 +3,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "keyboard.h"
-#include "layer.h"
+#include "action_layer.h"
 #include "action_code.h"
 #include "keycode.h"
 #include "progmem.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+/* Utilities for actions.  */
+#if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
+extern bool disable_action_cache;
 #endif
 
 /* tapping count and state */
@@ -32,15 +37,9 @@ typedef struct {
 #endif
 } keyrecord_t;
 
-// Key processing state
-extern uint8_t current_mods;        /**< Current modifier state */
-extern uint8_t real_mods;           /**< Real modifier state */
-extern uint8_t weak_mods;           /**< Weak modifier state */
-
 // Action execution
 void action_exec(keyevent_t event);
-action_t action_for_key(layer_state_t layer, keypos_t key);
-action_t action_for_keycode(uint16_t keycode);
+
 void process_action(keyrecord_t* record, action_t action);
 void process_action_tapping(keyrecord_t* record, action_t action);
 
@@ -94,6 +93,8 @@ void debug_event(keyevent_t event);
 void debug_record(keyrecord_t record);
 void debug_action(action_t action);
 
+uint16_t get_record_keycode(keyrecord_t *record, bool update_layer_cache);
+uint16_t get_event_keycode(keyevent_t event, bool update_layer_cache);
 
 #ifdef __cplusplus
 }

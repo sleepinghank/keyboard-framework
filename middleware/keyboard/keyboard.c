@@ -6,7 +6,7 @@
 #include "keyboard.h"
 #include "../../drivers/input/keyboard/matrix.h"
 #include "../../drivers/input/keyboard/debounce.h"
-#include "layer.h"
+#include "action_layer.h"
 #include "action.h"
 #include "keymap_common.h"
 #include "combo.h"
@@ -15,46 +15,11 @@
 #include "print.h"
 #include "debug.h"
 #include <string.h>
-#include "../../keyboards/keymaps/default_keymap.h"
+#include "keymap_introspection.h"
 
 // Matrix state tracking
 static matrix_row_t matrix_previous[MATRIX_ROWS] = {0};
 static bool matrix_has_changed = false;
-
-// Get the number of layers defined in the keymap, stored in firmware rather than any other persistent storage
-uint8_t keymap_layer_count_raw(void);
-// Get the number of layers defined in the keymap, potentially stored dynamically
-uint8_t keymap_layer_count(void);
-
-// Get the keycode for the keymap location, stored in firmware rather than any other persistent storage
-uint16_t keycode_at_keymap_location_raw(uint8_t layer_num, uint8_t row, uint8_t column);
-// Get the keycode for the keymap location, potentially stored dynamically
-uint16_t keycode_at_keymap_location(uint8_t layer_num, uint8_t row, uint8_t column);
-
-#define NUM_KEYMAP_LAYERS_RAW ((uint8_t)(sizeof(keymaps) / ((MATRIX_ROWS) * (MATRIX_COLS) * sizeof(uint16_t))))
-
-uint8_t keymap_layer_count_raw(void) {
-    return NUM_KEYMAP_LAYERS_RAW;
-}
-
-__attribute__((weak)) uint8_t keymap_layer_count(void) {
-    return keymap_layer_count_raw();
-}
-
-
-uint16_t keycode_at_keymap_location_raw(uint8_t layer_num, uint8_t row, uint8_t column) {
-    if (layer_num < NUM_KEYMAP_LAYERS_RAW && row < MATRIX_ROWS && column < MATRIX_COLS) {
-        return pgm_read_word(&keymaps[layer_num][row][column]);
-    }
-    return KC_TRNS;
-}
-
-__attribute__((weak)) uint16_t keycode_at_keymap_location(uint8_t layer_num, uint8_t row, uint8_t column) {
-    return keycode_at_keymap_location_raw(layer_num, row, column);
-}
-
-
-
 
 /**
  * @brief Initialize keyboard system
@@ -68,11 +33,10 @@ void keyboard_init(void) {
     // Initialize debounce
     debounce_init(MATRIX_ROWS);
 
-    // Initialize layer system
-    layer_init();
-
+    #ifdef COMBO_ENABLE
     // Initialize combo system
     combo_init();
+    #endif
 
     // Initialize custom functions
     #if TAP_DANCE_ENABLE
@@ -141,10 +105,10 @@ static inline bool has_ghost_in_row(uint8_t row, matrix_row_t rowdata) {
  * @return false Matrix didn't change
  */
 static bool matrix_task(void) {
-    if (!matrix_can_read()) {
-//        generate_tick_event();
-        return false;
-    }
+//    if (!matrix_can_read()) {
+////        generate_tick_event();
+//        return false;
+//    }
 
     static matrix_row_t matrix_previous[MATRIX_ROWS];
 
@@ -201,10 +165,10 @@ void keyboard_task(void) {
 //        last_matrix_activity_trigger();
         activity_has_occurred = true;
     }
-
+    #ifdef COMBO_ENABLE
     // Process combos
     combo_task();
-
+    #endif
     // Process custom functions
     #if TAP_DANCE_ENABLE
     tap_dance_task();
@@ -245,9 +209,11 @@ void keyboard_process_key(uint8_t row, uint8_t col, bool pressed) {
 
     dprintf("Keyboard: Key event at (%d, %d) - %s\n", row, col, pressed ? "pressed" : "released");
 
+    #ifdef COMBO_ENABLE
     // Process combo events
     combo_event(event);
 
+    #endif
     // Process action
     action_exec(event);
 }

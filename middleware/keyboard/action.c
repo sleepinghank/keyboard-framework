@@ -17,8 +17,6 @@
 
 // Modifier state
 uint8_t current_mods = 0;
-uint8_t real_mods = 0;
-uint8_t weak_mods = 0;
 
 // Tapping configuration (from product_config.h)
 #ifndef TAPPING_TERM
@@ -33,6 +31,7 @@ uint8_t weak_mods = 0;
 #define QUICK_TAP_TERM 100
 #endif
 
+bool disable_action_cache = false;
 
 void debug_event(keyevent_t event) {
     ac_dprintf("%04X%c(%u)", (event.key.row << 8 | event.key.col), (event.pressed ? 'd' : 'u'), event.time);
@@ -59,11 +58,9 @@ void action_exec(keyevent_t event) {
         .event = event,
     };
 
-    /* Get current layer state */
-    layer_state_t layer_state = layer_state_get();
 
     /* Get the action for this key position */
-    action_t action = action_for_key(layer_state, event.key);
+    action_t action = layer_switch_get_action(event.key);
 
 #ifdef COMBO_ENABLE
     /* Process combo handling first */
@@ -268,10 +265,10 @@ void process_action(keyrecord_t *record, action_t action) {
         case ACT_USAGE:
             switch (action.usage.page) {
                 case PAGE_SYSTEM:
-                    host_system_send(event.pressed ? action.usage.code : 0);
+                    // host_system_send(event.pressed ? action.usage.code : 0);
                     break;
                 case PAGE_CONSUMER:
-                    host_consumer_send(event.pressed ? action.usage.code : 0);
+                    // host_consumer_send(event.pressed ? action.usage.code : 0);
                     break;
             }
             break;
@@ -658,135 +655,6 @@ void tap_code_delay(uint8_t code, uint16_t delay) {
     wait_ms(delay);
     unregister_code(code);
 }
-
-/**
- * @brief Register modifier keys
- *
- * @param mods Modifier bitmask
- */
-void register_mods(uint8_t mods) {
-    real_mods |= mods;
-    current_mods |= mods;
-    dprintf("Action: Registered mods 0x%02X\n", mods);
-}
-
-/**
- * @brief Unregister modifier keys
- *
- * @param mods Modifier bitmask
- */
-void unregister_mods(uint8_t mods) {
-    real_mods &= ~mods;
-    current_mods &= ~mods;
-    dprintf("Action: Unregistered mods 0x%02X\n", mods);
-}
-
-/**
- * @brief Register weak modifier keys
- *
- * Weak mods are temporary and cleared on key press
- *
- * @param mods Modifier bitmask
- */
-void register_weak_mods(uint8_t mods) {
-    weak_mods |= mods;
-    current_mods |= mods;
-    dprintf("Action: Registered weak mods 0x%02X\n", mods);
-}
-
-/**
- * @brief Unregister weak modifier keys
- *
- * @param mods Modifier bitmask
- */
-void unregister_weak_mods(uint8_t mods) {
-    weak_mods &= ~mods;
-    current_mods &= ~mods;
-    dprintf("Action: Unregistered weak mods 0x%02X\n", mods);
-}
-
-/**
- * @brief Clear all modifiers
- */
-void clear_mods(void) {
-    real_mods = 0;
-    current_mods = 0;
-    dprintf("Action: Cleared all mods\n");
-}
-
-/**
- * @brief Clear all weak modifiers
- */
-void clear_weak_mods(void) {
-    current_mods &= ~weak_mods;
-    weak_mods = 0;
-}
-
-/**
- * @brief Get current weak modifiers
- *
- * @return Weak modifier state
- */
-uint8_t get_weak_mods(void) {
-    return weak_mods;
-}
-
-/**
- * @brief Get current real modifiers
- *
- * @return Real modifier state
- */
-uint8_t get_real_mods(void) {
-    return real_mods;
-}
-
-/**
- * @brief Get current modifiers
- *
- * @return Current modifier state
- */
-uint8_t get_mods(void) {
-    return current_mods;
-}
-
-
-/**
- * @brief Handle layer mod action
- *
- * Activate layer when modifier is held
- *
- * @param layer Layer to activate
- * @param mods Modifiers to activate with
- * @param key Key position
- */
-void action_layer_mod(uint8_t layer, uint8_t mods, keypos_t key) {
-    dprintf("Action: Layer mod - layer %d, mods 0x%02X\n", layer, mods);
-
-    // When mods are pressed, activate layer
-    if (real_mods & mods) {
-        layer_on(layer);
-    } else {
-        layer_off(layer);
-    }
-}
-
-
-/**
- * @brief Switch to a layer
- *
- * @param new_layer Layer to switch to
- */
-void layer_switch(uint8_t new_layer) {
-    if (new_layer >= MAX_LAYER_COUNT) {
-        dprintf("Action: ERROR - Invalid layer %d\n", new_layer);
-        return;
-    }
-
-    layer_clear();
-    layer_on(new_layer);
-    dprintf("Action: Switched to layer %d\n", new_layer);
-}
-
 /**
  * @brief Clear the entire keyboard state
  */
@@ -1045,5 +913,62 @@ void process_action_tapping(keyrecord_t *record, action_t action) {
                 unregister_code(action.key.code);
             }
             break;
+    }
+}
+
+/* Convert record into usable keycode via the contained event. */
+uint16_t get_record_keycode(keyrecord_t *record, bool update_layer_cache) {
+#if defined(COMBO_ENABLE) || defined(REPEAT_KEY_ENABLE)
+    if (record->keycode) {
+        return record->keycode;
+    }
+#endif
+    return get_event_keycode(record->event, update_layer_cache);
+}
+
+/* Convert event into usable keycode. Checks the layer cache to ensure that it
+ * retains the correct keycode after a layer change, if the key is still pressed.
+ * "update_layer_cache" is to ensure that it only updates the layer cache when
+ * appropriate, otherwise, it will update it and cause layer tap (and other keys)
+ * from triggering properly.
+ */
+uint16_t get_event_keycode(keyevent_t event, bool update_layer_cache) {
+#if !defined(NO_ACTION_LAYER) && !defined(STRICT_LAYER_RELEASE)
+    /* TODO: Use store_or_get_action() or a similar function. */
+    if (!disable_action_cache) {
+        uint8_t layer;
+
+        if (event.pressed && update_layer_cache) {
+            layer = layer_switch_get_layer(event.key);
+            update_source_layers_cache(event.key, layer);
+        } else {
+            layer = read_source_layers_cache(event.key);
+        }
+        return keymap_key_to_keycode(layer, event.key);
+    } else
+#endif
+        return keymap_key_to_keycode(layer_switch_get_layer(event.key), event.key);
+}
+
+
+/** \brief Adds the given physically pressed modifiers and sends a keyboard report immediately.
+ *
+ * \param mods A bitfield of modifiers to register.
+ */
+__attribute__((weak)) void register_mods(uint8_t mods) {
+    if (mods) {
+        add_mods(mods);
+        send_keyboard_report();
+    }
+}
+
+/** \brief Removes the given physically pressed modifiers and sends a keyboard report immediately.
+ *
+ * \param mods A bitfield of modifiers to unregister.
+ */
+__attribute__((weak)) void unregister_mods(uint8_t mods) {
+    if (mods) {
+        del_mods(mods);
+        send_keyboard_report();
     }
 }

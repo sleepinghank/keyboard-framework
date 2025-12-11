@@ -6,7 +6,8 @@
 
 #include "layout_jis_113.h"
 #include "../../middleware/keyboard/keycode.h"
-
+#include "../../utils/progmem.h"
+#include <stdint.h>
 enum layers {
     MAC_BASE,
     MAC_FN,

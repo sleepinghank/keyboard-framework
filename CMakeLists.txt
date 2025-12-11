@@ -18,6 +18,7 @@ include_directories(
     middleware
     middleware/config
     middleware/keyboard
+    middleware/keyboard/keymap_extras
     middleware/protocol
     keyboards
     utils
@@ -37,9 +38,14 @@ set(SOURCES
     # 中间件 - 键盘处理
     middleware/keyboard/action.c
 #    middleware/keyboard/combo.c
-#    middleware/keyboard/custom_function.c
+    middleware/keyboard/custom_function.c
     middleware/keyboard/keyboard.c
-    middleware/keyboard/layer.c
+    middleware/keyboard/action_util.c
+    middleware/keyboard/keymap_common.c
+    middleware/keyboard/action_layer.c
+    middleware/keyboard/keymap_introspection.c
+    middleware/keyboard/report.c
+    middleware/keyboard/keycode_config.c
 
     # 硬件抽象层 - 测试平台实现
     hal/platforms/test/_gpio.c

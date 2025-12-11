@@ -16,7 +16,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "keymap_common.h"
-#include "keymap_introspection.h"
 #include "report.h"
 #include "keycode.h"
 #include "action_layer.h"
@@ -24,6 +23,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug.h"
 #include "keycode_config.h"
 #include "quantum_keycodes.h"
+#include "keymap_introspection.h"
 
 #ifdef ENCODER_MAP_ENABLE
 #    include "encoder.h"
@@ -37,16 +37,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #    include "process_midi.h"
 #endif
 
-extern keymap_config_t keymap_config;
 
 #include <inttypes.h>
-
-/* converts key to action */
-action_t action_for_key(uint8_t layer, keypos_t key) {
-    // 16bit keycodes - important
-    uint16_t keycode = keymap_key_to_keycode(layer, key);
-    return action_for_keycode(keycode);
-};
 
 action_t action_for_keycode(uint16_t keycode) {
     // keycode remapping
@@ -191,6 +183,13 @@ action_t action_for_keycode(uint16_t keycode) {
     }
     return action;
 }
+
+/* converts key to action */
+action_t action_for_key(uint8_t layer, keypos_t key) {
+    // 16bit keycodes - important
+    uint16_t keycode = keymap_key_to_keycode(layer, key);
+    return action_for_keycode(keycode);
+};
 
 // translates key to keycode
 uint16_t keymap_key_to_keycode(uint8_t layer, keypos_t key) {

@@ -16,12 +16,14 @@
 
 #include "keycode_config.h"
 
+keymap_config_t keymap_config;
+
 /** \brief keycode_config
  *
  * This function is used to check a specific keycode against the bootmagic config,
  * and will return the corrected keycode, when appropriate.
  */
-__attribute__((weak)) uint16_t keycode_config(uint16_t keycode) {
+uint16_t keycode_config(uint16_t keycode) {
     switch (keycode) {
         case KC_CAPS_LOCK:
         case KC_LOCKING_CAPS_LOCK:
@@ -121,7 +123,7 @@ __attribute__((weak)) uint16_t keycode_config(uint16_t keycode) {
  *  and will remove or replace mods, based on that.
  */
 
-__attribute__((weak)) uint8_t mod_config(uint8_t mod) {
+uint8_t  mod_config(uint8_t mod) {
     /**
      * Note: This function is for the 5-bit packed mods, NOT the full 8-bit mods.
      * More info about the mods can be seen in modifiers.h.
