@@ -1,4 +1,4 @@
-/* Copyright 2022~2023 @ lokher (https://www.keychron.com)
+/* Copyright 2022 @ lokher (https://www.keychron.com)
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,11 +15,13 @@
  */
 
 #pragma once
+#include <stdint.h>
+#include <stdbool.h>
 
 enum {
     BAT_NOT_CHARGING = 0,
     BAT_CHARGING,
-    BAT_FULL_CHARGED,
+    BAT_CHARGING_FINISHED,
 };
 
 #ifndef FULL_VOLTAGE_VALUE
@@ -47,15 +49,14 @@ enum {
 #endif
 
 void battery_init(void);
-void battery_stop(void);
-
-void     battery_measure(void);
-void     battery_calculate_voltage(bool vol_src_bt, uint16_t value);
+void battery_measure(void);
+void     battery_calculte_voltage(uint16_t value);
 void     battery_set_voltage(uint16_t value);
 uint16_t battery_get_voltage(void);
-uint8_t  battery_get_percentage(void);
-bool     battery_is_empty(void);
-bool     battery_is_critical_low(void);
+uint8_t battery_get_percentage(void);
+void indicator_battery_low_enable(bool enable);
+bool battery_is_empty(void);
+bool battery_is_critical_low(void);
 bool     battery_power_on_sample(void);
 
 void battery_task(void);

@@ -16,8 +16,10 @@
 
 #pragma once
 
-#include "config.h"
-#include "bluetooth.h"
+#include "../../keyboards/product_config.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include "../../communication/bluetooth/bt_driver.h"
 
 /* Indication of pairing */
 #ifndef INDICATOR_CONFIG_PARING
@@ -81,7 +83,20 @@
 
 typedef enum { INDICATOR_NONE, INDICATOR_OFF, INDICATOR_ON, INDICATOR_ON_OFF, INDICATOR_BLINK, INDICATOR_LAST } indicator_type_t;
 
-typedef struct PACKED {
+typedef union {
+    uint8_t raw;
+    struct {
+        bool    num_lock : 1;
+        bool    caps_lock : 1;
+        bool    scroll_lock : 1;
+        bool    compose : 1;
+        bool    kana : 1;
+        uint8_t reserved : 3;
+    };
+} led_t;
+
+
+typedef struct {
     indicator_type_t type;
     uint32_t         on_time;
     uint32_t         off_time;
@@ -91,7 +106,7 @@ typedef struct PACKED {
     uint32_t         elapsed;
 } indicator_config_t;
 
-typedef struct PACKED {
+typedef struct {
     uint8_t value;
     bool    saved;
 } backlight_state_t;

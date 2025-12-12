@@ -18,6 +18,18 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Type of an enumeration of the possible BT state.*/
+typedef enum {
+    BLUETOOTH_RESET,
+    BLUETOOTH_INITIALIZED,  // 1
+    BLUETOOTH_DISCONNECTED, // 2
+    BLUETOOTH_CONNECTED,    // 3
+    BLUETOOTH_PARING,       // 4
+    BLUETOOTH_RECONNECTING, // 5
+    BLUETOOTH_SUSPEND
+} bluetooth_state_t;
+
+
 // 蓝牙驱动实例 - 适配wt_func_t接口
 typedef struct {
     // 生命周期管理

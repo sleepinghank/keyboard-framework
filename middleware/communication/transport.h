@@ -23,7 +23,7 @@ typedef enum {
     TRANSPORT_P2P4      = 0x01 << 2,
     TRANSPORT_MAX,
 } transport_t;
-
+#define P24G_INDEX 24
 // 驱动切换通知函数声明
 void transport_notify_driver_switch(transport_t new_transport);
 

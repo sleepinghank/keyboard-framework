@@ -181,13 +181,13 @@ error_code_t platform_timer_start(uint8_t timerId,  TimerMode_e timerMode, uint3
     {
         // LOG_INFO(TAG ,"启动软件定时器ID:%d", timerId);
         timer_used[timerId] = 1;
-        port_timer_start(timerId, timerMode, timing, count, timerCallback, userData);
+//        port_timer_start(timerId, timerMode, timing, count, timerCallback, userData);
     }
     else if(timerId >= 0 && timerId <= 15)//硬件定时器
     {
         // LOG_INFO(TAG ,"启动硬件定时器ID:%d", timerId);
         timer_used[timerId] = 1;
-        port_timer_start(timerId, timerMode, timing, count, timerCallback, userData);
+//        port_timer_start(timerId, timerMode, timing, count, timerCallback, userData);
     }
 
     return NO_ERROR;
@@ -205,7 +205,7 @@ error_code_t platform_timer_stop(uint8_t timerId)
     else if(timerId >= 0 && timerId <= 15)//硬件定时器
     {
         timer_used[timerId] = 0;
-        port_timer_stop(timerId);
+//        port_timer_stop(timerId);
     }
     return NO_ERROR;
 }

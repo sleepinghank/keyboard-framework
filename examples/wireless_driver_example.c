@@ -27,7 +27,7 @@
 #include "../../middleware/communication/transport.h"
 #include "../../drivers/output/indicators/indicator.h"
 #include "../../drivers/power/battery.h"
-#include "../../drivers/system/lpm.h"
+#include "communication/lpm.h"
 
 /**
  * @brief 无线驱动初始化示例

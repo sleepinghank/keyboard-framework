@@ -17,10 +17,12 @@
 
 #include "wireless.h"
 #include "report_buffer.h"
-#include "../../drivers/system/lpm.h"
+#include "lpm.h"
+#include "../../drivers/system/wait.h"
 #include "../../drivers/power/battery.h"
 #include "../../drivers/output/indicators/indicator.h"
 #include "transport.h"
+#include "host_driver.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -28,7 +30,7 @@
 // #include "keychron_raw_hid.h"
 
 extern uint8_t         pairing_indication;
-extern host_driver_t   usb_driver;
+host_driver_t   usb_driver;
 extern report_buffer_t kb_rpt;
 extern uint32_t        retry_time_buffer;
 extern uint8_t         retry;
@@ -37,7 +39,7 @@ static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 
 // 双驱动管理
-extern wt_func_t  wireless_transport;  // 保持向后兼容
+wt_func_t  wireless_transport;  // 保持向后兼容
 static wt_func_t  *current_driver = NULL;  // 当前使用的驱动
 static bt_driver_t *bt_driver = NULL;      // 蓝牙驱动实例
 static p24g_driver_t *p24g_driver = NULL;  // 2.4G驱动实例
@@ -340,7 +342,7 @@ static void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
     uint8_t previous_state = wireless_state;
     led_state              = 0;
     if (get_transport() & TRANSPORT_WIRELESS)
-        led_update_kb((led_t)led_state);
+//        led_update_kb((led_t)led_state);
 
     wireless_state = WT_DISCONNECTED;
 
@@ -425,7 +427,7 @@ uint8_t wreless_keyboard_leds(void) {
     return 0;
 }
 
-extern keymap_config_t keymap_config;
+//extern keymap_config_t keymap_config;
 
 void wireless_send_keyboard(report_keyboard_t *report) {
     if (battery_is_critical_low()) return;
@@ -536,15 +538,15 @@ void wireless_low_battery_shutdown(void) {
     wait_ms(50);      // wait a while for bt module to free buffer by sending report
 
     // Release all keys by sending empty reports
-    if (keymap_config.nkro) {
-        report_nkro_t empty_nkro_report;
-        memset(&empty_nkro_report, 0, sizeof(empty_nkro_report));
-        wireless_transport.send_nkro(&empty_nkro_report.mods);
-    } else {
-        report_keyboard_t empty_report;
-        memset(&empty_report, 0, sizeof(empty_report));
-        wireless_transport.send_keyboard(&empty_report.mods);
-    }
+//    if (keymap_config.nkro) {
+//        report_nkro_t empty_nkro_report;
+//        memset(&empty_nkro_report, 0, sizeof(empty_nkro_report));
+//        wireless_transport.send_nkro(&empty_nkro_report.mods);
+//    } else {
+//        report_keyboard_t empty_report;
+//        memset(&empty_report, 0, sizeof(empty_report));
+//        wireless_transport.send_keyboard(&empty_report.mods);
+//    }
     wait_ms(10);
     wireless_transport.send_consumer(0);
     wait_ms(10);
@@ -610,7 +612,7 @@ void wireless_task(void) {
     report_buffer_task();
 #endif
     indicator_task();
-    keychron_wireless_common_task();
+//    keychron_wireless_common_task();
     battery_task();
     lpm_task();
 }
@@ -636,7 +638,7 @@ bool process_record_wireless(uint16_t keycode, keyrecord_t *record) {
         }
     }
 
-    if (!process_record_keychron_wireless(keycode, record)) return false;
+//    if (!process_record_keychron_wireless(keycode, record)) return false;
 
     return true;
 }

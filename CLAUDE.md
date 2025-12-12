@@ -767,44 +767,64 @@ graph TD
       S --> U[切换LED指示为熄灭]
 ```
 
-  迁移建议
+### 指示灯实现流程
 
-  1. 目录结构
+  A. 初始化流程 (indicator_init)
 
-  建议在项目中创建以下目录：
-  drivers/communication/
-  ├── bluetooth/
-  │   ├── bt_driver.h          # 蓝牙驱动接口
-  │   ├── bt_driver.c          # 蓝牙芯片驱动(如lkbt51)
-  │   └── bt_protocol.h        # 蓝牙协议定义
-  ├── p2p4g/
-  │   ├── p24g_driver.h        # 2.4G驱动接口
-  │   └── p24g_driver.c        # 2.4G模块驱动
-  └── usb/
-      ├── usb_driver.h         # USB驱动接口
-      └── usb_driver.c         # USB HID驱动
+```mermaid
+  graph TD
+      A[indicator_init] --> B[清零配置]
+      B --> C[初始化蓝牙LED引脚]
+      C --> D[初始化2.4G LED引脚]
+      D --> E[初始化通用LED引脚]
+      E --> F[初始化低电量LED]
+      F --> G[设置默认状态为熄灭]
+```
 
-  middleware/wireless/
-  ├── wireless_manager.h       # 无线管理层接口
-  ├── wireless_manager.c       # 状态机与事件处理
-  ├── transport_manager.h      # 传输层管理
-  ├── transport_manager.c      # 模式切换
-  ├── battery_service.h        # 电池服务
-  ├── battery_service.c        # 电量管理
-  ├── indicator_service.h      # 指示灯服务
-  ├── indicator_service.c      # LED控制
-  └── report_buffer.h          # 报告缓冲
+  B. 状态设置流程 (indicator_set)
 
-  2. 关键接口设计
+```mermaid
+  graph TD
+      A[indicator_set] --> B{检查是否为USB模式?}
+      B -->|是| C[直接返回无指示]
+      B -->|否| D[检查状态是否变化]
+      D --> E{状态变化?}
+      E -->|否| F[返回]
+      E -->|是| G[设置新状态]
+      G --> H{无线状态判断}
+      H -->|WT_DISCONNECTED| I[应用断开配置]
+      H -->|WT_CONNECTED| J[应用连接配置]
+      H -->|WT_PARING| K[应用配对配置]
+      H -->|WT_RECONNECTING| L[应用重连配置]
+      H -->|WT_SUSPEND| M[应用休眠配置]
+      I --> N[设置LED颜色/引脚]
+      J --> N
+      K --> N
+      L --> N
+      M --> N
+      N --> O[启动定时器]
+      O --> P[设置背光超时]
+```
 
-  需要实现统一的驱动接口，包括：
-  - init() - 初始化
-  - connect() - 连接
-  - disconnect() - 断开
-  - send_keyboard() - 发送键盘报告
-  - send_mouse() - 发送鼠标报告
-  - send_consumer() - 发送媒体键报告
+  C. 定时器回调处理 (indicator_timer_cb)
 
-  3. 状态机实现
-
-  采用事件驱动状态机，支持7种状态转换，确保无线连接的稳定性和可靠性。
+```mermaid
+  graph TD
+      A[定时器触发] --> B[获取指示灯类型]
+      B --> C{类型判断}
+      C -->|INDICATOR_ON| D[常亮处理]
+      C -->|INDICATOR_BLINK| E[闪烁处理]
+      C -->|INDICATOR_ON_OFF| F[开关处理]
+      C -->|INDICATOR_OFF| G[关闭处理]
+      D --> H[检查持续时间]
+      E --> H
+      F --> H
+      G --> H
+      H --> I{时间到?}
+      I -->|否| J[更新LED状态]
+      I -->|是| K[清除LED状态]
+      J --> L[设置下一周期]
+      K --> M[重置低功耗定时器]
+      L --> N[完成]
+      M --> N
+```

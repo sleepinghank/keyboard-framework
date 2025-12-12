@@ -15,17 +15,19 @@
  */
 
 #include "wireless.h"
-#include "indicator.h"
+#include "../../drivers/output/indicators/indicator.h"
 #include "lpm.h"
-#include "mousekey.h"
 #include "transport.h"
-#include "lkbt51.h"
+#include "host_driver.h"
+#include "keycode_config.h"
+#include "host.h"
+#include "../../drivers/system/wait.h"
 
 #ifndef REINIT_LED_DRIVER
 #    define REINIT_LED_DRIVER 0
 #endif
 
-
+extern host_driver_t usb_driver;
 extern host_driver_t   wireless_driver;
 extern keymap_config_t keymap_config;
 extern wt_func_t       wireless_transport;
@@ -102,19 +104,19 @@ __attribute__((weak)) void usb_transport_enable(bool enable) {
         if (host_get_driver() != &usb_driver) {
 #if !defined(KEEP_USB_CONNECTION_IN_WIRELESS_MODE)
             usb_power_connect();
-            usb_start(&USBD1);
+//            usb_start(&USBD1);
 #endif
             host_set_driver(&usb_driver);
         }
     } else {
-        if (USB_DRIVER.state == USB_ACTIVE) {
-            report_keyboard_t empty_report = {0};
-            usb_driver.send_keyboard(&empty_report);
-        }
+//        if (USB_DRIVER.state == USB_ACTIVE) {
+//            report_keyboard_t empty_report = {0};
+//            usb_driver.send_keyboard(&empty_report);
+//        }
 
 #if !defined(KEEP_USB_CONNECTION_IN_WIRELESS_MODE)
-        usbStop(&USBD1);
-        usbDisconnectBus(&USBD1);
+//        usbStop(&USBD1);
+//        usbDisconnectBus(&USBD1);
         usb_power_disconnect();
 #endif
     }
@@ -234,48 +236,48 @@ void transport_changed(transport_t new_transport) {
 }
 
 void usb_remote_wakeup(void) {
-    if (USB_DRIVER.state == USB_SUSPENDED) {
-        while (USB_DRIVER.state == USB_SUSPENDED) {
-            wireless_pre_task();
-            if (get_transport() != TRANSPORT_USB) {
-                suspend_wakeup_init_quantum();
-                return;
-            }
-            /* Do this in the suspended state */
-            suspend_power_down(); // on AVR this deep sleeps for 15ms
-            /* Remote wakeup */
-            if (suspend_wakeup_condition()
-#ifdef ENCODER_ENABLE
-                || encoder_read()
-#endif
-                ) {
-                usbWakeupHost(&USB_DRIVER);
-                wait_ms(300);
-#ifdef MOUSEKEY_ENABLE
-                // Wiggle to wakeup
-                mousekey_on(KC_MS_LEFT);
-                mousekey_send();
-                wait_ms(10);
-                mousekey_on(KC_MS_RIGHT);
-                mousekey_send();
-                wait_ms(10);
-                mousekey_off((KC_MS_RIGHT));
-                mousekey_send();
-#else
-                set_mods(0x02);
-                send_keyboard_report();
-                wait_ms(10);
-                del_mods(0x02);
-                send_keyboard_report();
-#endif
-            }
-        }
-        /* Woken up */
-        // variables has been already cleared by the wakeup hook
-        send_keyboard_report();
-#ifdef MOUSEKEY_ENABLE
-        mousekey_send();
-#endif /* MOUSEKEY_ENABLE */
-        usb_event_queue_task();
-    }
+//    if (USB_DRIVER.state == USB_SUSPENDED) {
+//        while (USB_DRIVER.state == USB_SUSPENDED) {
+//            wireless_pre_task();
+//            if (get_transport() != TRANSPORT_USB) {
+//                suspend_wakeup_init_quantum();
+//                return;
+//            }
+//            /* Do this in the suspended state */
+//            suspend_power_down(); // on AVR this deep sleeps for 15ms
+//            /* Remote wakeup */
+//            if (suspend_wakeup_condition()
+//#ifdef ENCODER_ENABLE
+//                || encoder_read()
+//#endif
+//                ) {
+//                usbWakeupHost(&USB_DRIVER);
+//                wait_ms(300);
+//#ifdef MOUSEKEY_ENABLE
+//                // Wiggle to wakeup
+//                mousekey_on(KC_MS_LEFT);
+//                mousekey_send();
+//                wait_ms(10);
+//                mousekey_on(KC_MS_RIGHT);
+//                mousekey_send();
+//                wait_ms(10);
+//                mousekey_off((KC_MS_RIGHT));
+//                mousekey_send();
+//#else
+//                set_mods(0x02);
+//                send_keyboard_report();
+//                wait_ms(10);
+//                del_mods(0x02);
+//                send_keyboard_report();
+//#endif
+//            }
+//        }
+//        /* Woken up */
+//        // variables has been already cleared by the wakeup hook
+//        send_keyboard_report();
+//#ifdef MOUSEKEY_ENABLE
+//        mousekey_send();
+//#endif /* MOUSEKEY_ENABLE */
+//        usb_event_queue_task();
+//    }
 }

@@ -14,13 +14,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "quantum.h"
 #include "indicator.h"
-#include "transport.h"
-#include "battery.h"
-#include "eeconfig.h"
-#include "bluetooth_config.h"
-#include "config.h"
+//#include "transport.h"
+#include "../../power/battery.h"
+//#include "eeconfig.h"
+#include "../../../keyboards/product_config.h"
+#include <string.h>
+#include "../../../hal/gpio.h"
+#include "../../drivers/system/timer.h"
+
 
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
 #    ifdef LED_MATRIX_ENABLE
@@ -172,6 +174,29 @@ void indicator_eeconfig_reload(void) {
     LED_DRIVER_EECONFIG_RELOAD();
 }
 
+#else
+void indicator_enable(void) {
+
+}
+
+inline void indicator_disable(void) {
+
+}
+
+void indicator_set_backlit_timeout(uint32_t time) {
+
+}
+
+static inline void indicator_reset_backlit_time(void) {
+
+}
+
+bool indicator_is_enabled(void) {
+    return false;
+}
+
+void indicator_eeconfig_reload(void) {
+}
 #endif
 
 bool indicator_is_running(void) {
@@ -276,14 +301,14 @@ static void indicator_timer_cb(void *arg) {
     }
 
     if (indicator_config.value == 0) {
-        indicator_eeconfig_reload();
-        if (!LED_DRIVER_IS_ENABLED()) indicator_disable();
+//        indicator_eeconfig_reload();
+//        if (!LED_DRIVER_IS_ENABLED()) indicator_disable();
     }
 }
 
 void indicator_set(bluetooth_state_t state, uint8_t host_index) {
-    if (get_transport() != TRANSPORT_BLUETOOTH) return;
-    dprintf("indicator set: %d, %d\n", state, host_index);
+//    if (get_transport() != TRANSPORT_BLUETOOTH) return;
+//    dprintf("indicator set: %d, %d\n", state, host_index);
 
     static uint8_t current_state = 0;
     static uint8_t current_host  = 0;
@@ -300,11 +325,11 @@ void indicator_set(bluetooth_state_t state, uint8_t host_index) {
         return;
     }
 
-    indicator_timer_buffer = sync_timer_read32();
+    indicator_timer_buffer = timer_read32();
 
     /* Turn on backlight mode for indicator */
     indicator_enable();
-    indicator_reset_backlit_time();
+//    indicator_reset_backlit_time();
 
     switch (state) {
         case BLUETOOTH_DISCONNECTED:
@@ -316,10 +341,10 @@ void indicator_set(bluetooth_state_t state, uint8_t host_index) {
             indicator_timer_cb((void *)&indicator_config.type);
 
             if (battery_is_critical_low()) {
-                indicator_set_backlit_timeout(1000);
+//                indicator_set_backlit_timeout(1000);
             } else {
                 /* Set timer so that user has chance to turn on the backlight when is off */
-                indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
+//                indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             }
             break;
 
@@ -329,28 +354,28 @@ void indicator_set(bluetooth_state_t state, uint8_t host_index) {
                 indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : host_index;
                 indicator_timer_cb((void *)&indicator_config.type);
             }
-            indicator_set_backlit_timeout(DECIDE_TIME(CONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
+//            indicator_set_backlit_timeout(DECIDE_TIME(CONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
         case BLUETOOTH_PARING:
             INDICATOR_SET(pairing);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : LED_ON | host_index;
             indicator_timer_cb((void *)&indicator_config.type);
-            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
+//            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
         case BLUETOOTH_RECONNECTING:
             INDICATOR_SET(reconnecting);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : LED_ON | host_index;
             indicator_timer_cb((void *)&indicator_config.type);
-            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
+//            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
         case BLUETOOTH_SUSPEND:
             INDICATOR_SET(disconnected);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : host_index;
             indicator_timer_cb((void *)&indicator_config.type);
-            indicator_set_backlit_timeout(100);
+//            indicator_set_backlit_timeout(100);
             break;
 
         default:
@@ -362,7 +387,7 @@ void indicator_set(bluetooth_state_t state, uint8_t host_index) {
 
 void indicator_stop(void) {
     indicator_config.value = 0;
-    indicator_eeconfig_reload();
+//    indicator_eeconfig_reload();
 
     if (indicator_is_enabled()) {
         indicator_enable();
@@ -375,12 +400,12 @@ void indicator_stop(void) {
 void indicator_battery_low_enable(bool enable) {
     if (enable) {
         if (bat_low_blink_duration == 0) {
-            bat_low_blink_duration = bat_low_pin_indicator = sync_timer_read32() | 1;
+            bat_low_blink_duration = bat_low_pin_indicator = timer_read32() | 1;
         } else
-            bat_low_blink_duration = sync_timer_read32() | 1;
+            bat_low_blink_duration = timer_read32() | 1;
     } else {
 #    if defined(BAT_LOW_LED_PIN)
-        writePin(BAT_LOW_LED_PIN, !BAT_LOW_LED_PIN_ON_STATE);
+//        writePin(BAT_LOW_LED_PIN, !BAT_LOW_LED_PIN_ON_STATE);
 #    else
         bat_low_led_pin_state = false;
 #    endif
@@ -420,16 +445,16 @@ void indicator_battery_low_backlit_enable(bool enable) {
 
 void indicator_battery_low(void) {
 #if defined(BAT_LOW_LED_PIN) || defined(BAT_LOW_LED_PIN_STATE)
-    if (bat_low_pin_indicator && sync_timer_elapsed32(bat_low_pin_indicator) > (LOW_BAT_LED_BLINK_PERIOD)) {
+    if (bat_low_pin_indicator && timer_elapsed32(bat_low_pin_indicator) > (LOW_BAT_LED_BLINK_PERIOD)) {
 #    if defined(BAT_LOW_LED_PIN)
         togglePin(BAT_LOW_LED_PIN);
 #    else
         bat_low_led_pin_state = !bat_low_led_pin_state;
 #    endif
-        bat_low_pin_indicator = sync_timer_read32() | 1;
+        bat_low_pin_indicator = timer_read32() | 1;
         // Turn off low battery indication if we reach the duration
 #    if defined(BAT_LOW_LED_PIN)
-        if (sync_timer_elapsed32(bat_low_blink_duration) > LOW_BAT_LED_BLINK_DURATION && palReadLine(BAT_LOW_LED_PIN) != BAT_LOW_LED_PIN_ON_STATE) {
+        if (timer_elapsed32(bat_low_blink_duration) > LOW_BAT_LED_BLINK_DURATION/** && palReadLine(BAT_LOW_LED_PIN) != BAT_LOW_LED_PIN_ON_STATE**/) {
 #    elif defined(BAT_LOW_LED_PIN_STATE)
         if (sync_timer_elapsed32(bat_low_blink_duration) > LOW_BAT_LED_BLINK_DURATION) {
 #    endif
@@ -464,11 +489,11 @@ void indicator_battery_low(void) {
 }
 
 void indicator_task(void) {
-    bat_level_animiation_task();
+//    bat_level_animiation_task();
 
-    if (indicator_config.value && sync_timer_elapsed32(indicator_timer_buffer) >= next_period) {
+    if (indicator_config.value && timer_elapsed32(indicator_timer_buffer) >= next_period) {
         indicator_timer_cb((void *)&type);
-        indicator_timer_buffer = sync_timer_read32();
+        indicator_timer_buffer = timer_read32();
     }
 
     indicator_battery_low();

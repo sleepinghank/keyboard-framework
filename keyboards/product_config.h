@@ -71,3 +71,27 @@
 
 // #define NKRO_ENABLE
 #define EXTRAKEY_ENABLE
+
+/* Backlit disable timeout when keyboard is disconnected(unit: second) */
+#        define DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT 40
+
+/* Backlit disable timeout when keyboard is connected(unit: second) */
+#        define CONNECTED_BACKLIGHT_DISABLE_TIMEOUT 600
+
+#ifndef BT_HOST_DEVICES_COUNT
+#    define BT_HOST_DEVICES_COUNT 3
+#endif
+
+#define P2P4G_HOST_DEVICES_COUNT 1
+
+#define BAT_LOW_LED_PIN 1
+#define BAT_LOW_LED_PIN_ON_STATE 1
+
+//  Uint: Second, the timer restarts on key activities.
+#ifndef CONNECTED_IDLE_TIME
+#    define CONNECTED_IDLE_TIME 7200
+#endif
+
+//#define RGB_MATRIX_ENABLE
+
+

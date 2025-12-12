@@ -30,7 +30,7 @@ typedef void (*TimerCallback_t)(uint8_t timerId,void* userData);
 extern uint8_t platform_timer_get_free_id(TimerType_e timerType);
 
 //启动一个定时器
-extern error_code_t platform_timer_start(uint8_t timerId, TimerMode_e timerMode, u32_t timing, u32_t count, TimerCallback_t timerCallback, void* userData);
+extern error_code_t platform_timer_start(uint8_t timerId, TimerMode_e timerMode, uint32_t timing, uint32_t count, TimerCallback_t timerCallback, void* userData);
 
 //停止一个定时器
 extern error_code_t platform_timer_stop(uint8_t  timerId);

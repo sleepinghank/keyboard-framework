@@ -22,18 +22,22 @@
  *
  ******************************************************************************/
 
-#include "quantum.h"
-#if defined(PROTOCOL_CHIBIOS)
-#    include <usb_main.h>
-#endif
-#include "bluetooth.h"
-#include "indicator.h"
+//#include "quantum.h"
+//#if defined(PROTOCOL_CHIBIOS)
+//#    include <usb_main.h>
+//#endif
+//#include "bluetooth.h"
+#include "output/indicators/indicator.h"
 #include "lpm.h"
 #include "transport.h"
-#include "battery.h"
+#include "../../drivers/power/battery.h"
+#include "../../drivers/system/timer.h"
+#include <string.h>
+#include "../drivers/input/keyboard/matrix.h"
+#include "wireless.h"
 
 extern matrix_row_t          matrix[MATRIX_ROWS];
-extern bluetooth_transport_t bluetooth_transport;
+extern wt_func_t bluetooth_transport;
 
 static uint32_t     lpm_timer_buffer;
 static bool         lpm_time_up               = false;
@@ -52,7 +56,7 @@ void lpm_init(void) {
 
 inline void lpm_timer_reset(void) {
     lpm_time_up      = false;
-    lpm_timer_buffer = sync_timer_read32();
+    lpm_timer_buffer = timer_read32();
 }
 
 void lpm_timer_stop(void) {
@@ -74,19 +78,19 @@ __attribute__((weak)) bool usb_power_connected(void) {
 }
 
 void lpm_task(void) {
-    if (!lpm_time_up && sync_timer_elapsed32(lpm_timer_buffer) > RUN_MODE_PROCESS_TIME) {
+    if (!lpm_time_up && timer_elapsed32(lpm_timer_buffer) > RUN_MODE_PROCESS_TIME) {
         lpm_time_up      = true;
         lpm_timer_buffer = 0;
     }
 
-    if (get_transport() == TRANSPORT_BLUETOOTH && lpm_time_up && !indicator_is_running()
-#ifdef LED_MATRIX_ENABLE
-        && led_matrix_is_driver_shutdown()
-#endif
-#ifdef RGB_MATRIX_ENABLE
-        && rgb_matrix_is_driver_shutdown()
-#endif
-        && !lpm_any_matrix_action() && !battery_power_on_sample())
+//    if (get_transport() == TRANSPORT_BLUETOOTH && lpm_time_up && !indicator_is_running()
+//#ifdef LED_MATRIX_ENABLE
+//        && led_matrix_is_driver_shutdown()
+//#endif
+//#ifdef RGB_MATRIX_ENABLE
+//        && rgb_matrix_is_driver_shutdown()
+//#endif
+//        && !lpm_any_matrix_action() && !battery_power_on_sample())
 
-        enter_power_mode(LOW_POWER_MODE);
+//        enter_power_mode(PM_STOP);
 }

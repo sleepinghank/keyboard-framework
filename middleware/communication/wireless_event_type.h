@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <stdint.h>
 
 /* Type of an enumeration of the possible wireless events.*/
 typedef enum {

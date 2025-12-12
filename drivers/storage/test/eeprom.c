@@ -16,6 +16,8 @@
 
 #include "eeprom.h"
 
+#define TOTAL_EEPROM_BYTE_COUNT 512
+
 static uint8_t buffer[TOTAL_EEPROM_BYTE_COUNT];
 
 uint8_t eeprom_read_byte(const uint8_t *addr) {
