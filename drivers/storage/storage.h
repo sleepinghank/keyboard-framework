@@ -1,0 +1,132 @@
+/**
+ * @file storage.h
+ * @brief 统一存储模块 - 大结构体存储方案
+ * @version 1.0.0
+ * @date 2025-12-15
+ *
+ * 设计特点:
+ * - 使用大结构体存储所有配置，易于扩展
+ * - 统一的读写机制，基于CRC16校验
+ * - 读写锁防止并发访问冲突
+ * - 支持出厂设置重置
+ */
+
+#pragma once
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+
+/* 存储配置 */
+#define STORAGE_EEPROM_BASE_ADDR   0    // EEPROM基地址
+#define STORAGE_MAGIC_NUMBER      0xABCD // 存储魔术数字
+#define STORAGE_VERSION           1     // 配置版本号
+
+/* 数据结构定义 */
+
+// 存储头部
+typedef struct {
+    uint16_t crc16;        // CRC16校验和
+    uint8_t  length;       // 数据长度 (0xFF表示无效)
+    uint8_t  version;      // 版本号
+} storage_header_t;
+
+// 所有配置的集合结构体
+typedef struct {
+    // 系统配置
+    uint8_t fn_lock_state;              // Fn锁状态 (0-1)
+    uint8_t device_type;                // 设备类型 (0-7)
+    uint8_t backlight_brightness;       // 背光亮度 (0-100)
+    uint8_t language;                   // 语言设置 (0-255)
+    uint8_t led_mode;                   // LED模式 (0-255)
+
+    // 用户配置
+    uint16_t gesture_map[32];           // 手势映射数组 (64字节)
+    uint8_t macro_data[32];             // 宏数据 (32字节)
+    uint16_t shortcuts[16];             // 快捷键数组 (32字节)
+    uint32_t user_preferences[4];       // 用户偏好设置 (16字节)
+} storage_config_t;
+
+// 存储池结构
+typedef struct {
+    storage_header_t header;            // 存储头部 (4字节)
+    storage_config_t config;            // 配置数据区 (256字节)
+} storage_pool_t;
+
+// 锁结构
+typedef struct {
+    bool write_lock;       // 写入锁状态
+    uint8_t owner_id;      // 持有锁的任务ID
+    bool pending_write;    // 是否有待写入的数据
+} storage_lock_t;
+
+// 写入回调函数类型
+typedef void (*storage_write_callback_t)(bool success);
+
+/* API接口 */
+
+// 初始化存储模块
+void storage_init(void);
+
+// 读取配置到指定结构体
+bool storage_load_config(storage_config_t *config);
+
+// 保存配置到EEPROM
+bool storage_save_config(const storage_config_t *config);
+
+// 获取默认配置
+void storage_get_default_config(storage_config_t *config);
+
+// 直接获取配置指针 (最高效)
+storage_config_t* storage_get_config_ptr(void);
+
+// 验证配置数据完整性
+bool storage_validate_config(const storage_config_t *config);
+
+// 验证EEPROM中的数据
+bool storage_validate_eeprom_data(void);
+
+// 重置为出厂设置
+void storage_factory_reset(void);
+
+// 设置写入完成回调
+void storage_set_write_callback(storage_write_callback_t callback);
+
+// 检查存储是否已初始化
+bool storage_is_initialized(void);
+
+// 获取存储版本号
+uint8_t storage_get_version(void);
+
+// 计算配置数据的CRC16
+uint16_t storage_calculate_crc16(const storage_config_t *config);
+
+/* 便捷宏 */
+
+// 快速访问配置字段
+#define STORAGE_GET_FN_LOCK()           (storage_get_config_ptr()->fn_lock_state)
+#define STORAGE_SET_FN_LOCK(val)        (storage_get_config_ptr()->fn_lock_state = (val))
+
+#define STORAGE_GET_DEVICE_TYPE()       (storage_get_config_ptr()->device_type)
+#define STORAGE_SET_DEVICE_TYPE(val)    (storage_get_config_ptr()->device_type = (val))
+
+#define STORAGE_GET_BACKLIGHT()         (storage_get_config_ptr()->backlight_brightness)
+#define STORAGE_SET_BACKLIGHT(val)      (storage_get_config_ptr()->backlight_brightness = (val))
+
+#define STORAGE_GET_LANGUAGE()          (storage_get_config_ptr()->language)
+#define STORAGE_SET_LANGUAGE(val)       (storage_get_config_ptr()->language = (val))
+
+#define STORAGE_GET_LED_MODE()          (storage_get_config_ptr()->led_mode)
+#define STORAGE_SET_LED_MODE(val)       (storage_get_config_ptr()->led_mode = (val))
+
+// 获取手势映射数组指针
+#define STORAGE_GET_GESTURE_MAP_PTR()   (storage_get_config_ptr()->gesture_map)
+
+// 获取宏数据指针
+#define STORAGE_GET_MACRO_DATA_PTR()    (storage_get_config_ptr()->macro_data)
+
+// 获取快捷键数组指针
+#define STORAGE_GET_SHORTCUTS_PTR()     (storage_get_config_ptr()->shortcuts)
+
+// 获取用户偏好数组指针
+#define STORAGE_GET_PREFERENCES_PTR()   (storage_get_config_ptr()->user_preferences)

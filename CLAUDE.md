@@ -828,3 +828,316 @@ graph TD
       L --> N[完成]
       M --> N
 ```
+
+### 存储模块实现
+
+1. 整体架构设计
+
+```mermaid
+  graph TD
+      A[应用层] --> B[存储模块API层]
+      B --> C[系统配置模块]
+      B --> D[用户配置模块]
+      B --> E[通用接口模块]
+
+      C --> F[存储核心模块]
+      D --> F
+      E --> F
+    
+      F --> G[读写锁管理]
+      F --> H[CRC校验]
+      F --> I[内存数据池]
+      F --> J[模块管理器]
+    
+      J --> K[系统配置区]
+      J --> L[用户配置区]
+    
+      F --> M[EEPROM驱动接口]
+      M --> N[eeprom.h底层方法]
+```
+
+  2. 数据结构设计
+
+  A. 存储头部结构
+
+```c
+  typedef struct {
+      uint16_t crc16;        // CRC16校验和
+      uint8_t  length;       // 数据长度 (0xFF表示无效)
+      uint8_t  version;      // 版本号
+      uint32_t timestamp;    // 时间戳
+  } storage_header_t;
+```
+  B. 模块定义结构
+
+```c
+  typedef struct {
+      uint16_t id;           // 模块ID
+      uint16_t offset;       // 在数据池中的偏移
+      uint16_t size;         // 数据大小
+      void *default_data;    // 默认数据指针
+      const char *name;      // 模块名称
+  } storage_module_t;
+```
+
+  C. 存储池结构
+```c
+  typedef struct {
+      storage_header_t header;           // 存储头部
+      uint8_t system_config[SYSTEM_CONFIG_SIZE];   // 系统配置区
+      uint8_t user_config[USER_CONFIG_SIZE];       // 用户配置区
+  } storage_pool_t;
+```
+
+  D. 锁结构
+
+```c
+  typedef struct {
+      bool write_lock;       // 写入锁状态
+      uint32_t owner_id;     // 持有锁的任务ID
+      bool pending_write;    // 是否有待写入的数据
+  } storage_lock_t;
+```
+
+  3. 模块分类定义
+
+  A. 系统配置模块
+
+```c
+  // 系统配置ID定义
+  #define SYS_CONFIG_FN_LOCK       0x0001  // Fn锁状态
+  #define SYS_CONFIG_DEVICE_TYPE   0x0002  // 设备类型
+  #define SYS_CONFIG_BACKLIGHT     0x0003  // 背光配置
+  #define SYS_CONFIG_LANGUAGE      0x0004  // 语言设置
+  #define SYS_CONFIG_LED_MODE      0x0005  // LED模式
+
+  // 系统配置数据结构
+  typedef struct {
+      uint8_t fn_lock_state : 1;        // Fn锁状态 (1位)
+      uint8_t device_type : 3;          // 设备类型 (3位)
+      uint8_t backlight_brightness : 5; // 背光亮度 (5位)
+      uint8_t language;                 // 语言设置
+      uint8_t led_mode;                 // LED模式
+  } system_config_t;
+```
+
+  B. 用户配置模块
+```c
+  // 用户配置ID定义
+  #define USER_CONFIG_GESTURE_MAP      0x1001  // 手势映射
+  #define USER_CONFIG_MACRO_DATA       0x1002  // 宏数据
+  #define USER_CONFIG_CUSTOM_SHORTCUTS 0x1003  // 自定义快捷键
+  #define USER_CONFIG_USER_PREFERENCES 0x1004  // 用户偏好
+
+  // 用户配置数据结构
+  typedef struct {
+      uint16_t gesture_enum[32];  // 手势枚举数组
+      uint8_t macro_enabled;      // 宏启用标志
+      uint8_t reserved[31];       // 保留空间
+  } user_config_t;
+```
+
+  4. CRC校验和存储机制
+
+  A. 存储布局
+
+  ┌─────────────────────────────────────┐
+  │         存储池 (storage_pool_t)         │
+  ├─────────────────────────────────────┤
+  │  storage_header_t (8字节)            │
+  │  ┌──────────┬──────┬──────┬────────┐ │
+  │  │ crc16(2) │len(1)│ver(1)│timestamp(4)│ │
+  │  └──────────┴──────┴──────┴────────┘ │
+  │                                     │
+  │  系统配置区 (SYSTEM_CONFIG_SIZE)     │
+  │  ├─ Fn锁状态      (1字节)           │
+  │  ├─ 设备类型      (1字节)           │
+  │  ├─ 背光配置      (1字节)           │
+  │  ├─ 语言设置      (1字节)           │
+  │  └─ LED模式       (1字节)           │
+  │                                     │
+  │  用户配置区 (USER_CONFIG_SIZE)       │
+  │  ├─ 手势映射      (64字节)          │
+  │  ├─ 宏数据        (32字节)          │
+  │  ├─ 快捷键        (32字节)          │
+  │  └─ 用户偏好      (32字节)          │
+  └─────────────────────────────────────┘
+
+  B. 校验流程
+
+```mermaid
+  graph TD
+      A[读取存储头部] --> B[检查长度是否0xFF]
+      B -->|是| C[数据无效,67使用默认配置]
+      B -->|否| D[计算CRC16校验和]
+      D --> E{校验和匹配?}
+      E -->|是| F[数据有效,加载到内存]
+      E -->|否| G[数据损坏,模块使用默认值]
+      C --> H[初始化完成]
+      F --> H
+      G --> H
+```
+
+  5. 读写锁机制
+
+  A. 锁状态机
+
+```mermaid
+  stateDiagram-v2
+      [*] --> UNLOCKED : 初始状态
+      UNLOCKED --> WRITING : 请求写入
+      WRITING --> UNLOCKED : 写入完成/失败
+      WRITING --> PENDING : 写入中又有新请求
+      PENDING --> WRITING : 继续写入
+      PENDING --> UNLOCKED : 写入完成
+```
+
+  B. 锁操作流程
+```c
+  // 获取写入锁
+  bool storage_lock_acquire(uint32_t owner_id) {
+      if (storage_lock.write_lock) {
+          storage_lock.pending_write = true;
+          return false;
+      }
+      storage_lock.write_lock = true;
+      storage_lock.owner_id = owner_id;
+      return true;
+  }
+
+  // 释放写入锁
+  void storage_lock_release(uint32_t owner_id) {
+      if (storage_lock.owner_id == owner_id) {
+          storage_lock.write_lock = false;
+          storage_lock.owner_id = 0;
+
+          if (storage_lock.pending_write) {
+              storage_lock.pending_write = false;
+              // 自动触发下一次写入
+              storage_trigger_write();
+          }
+      }
+  }
+```
+
+  6. 初始化和内存管理流程
+
+  A. 初始化流程
+
+```mermaid
+  graph TD
+      A[storage_init] --> B[初始化EEPROM]
+      B --> C[读取存储头部]
+      C --> D{长度是否为0xFF?}
+      D -->|是| E[所有模块使用默认配置]
+      D -->|否| F[计算CRC16校验]
+      F --> G{校验是否通过?}
+      G -->|是| H[加载数据到内存池]
+      G -->|否| I[损坏的模块使用默认值]
+      H --> J[初始化完成]
+      E --> J
+      I --> J
+```
+
+  B. 写入流程
+
+```mermaid
+  graph TD
+      A[调用写入API] --> B[更新内存数据]
+      B --> C[获取写入锁]
+      C --> D{锁获取成功?}
+      D -->|否| E[等待锁释放]
+      D -->|是| F[计算CRC16]
+      F --> G[写入EEPROM]
+      G --> H{写入成功?}
+      H -->|是| I[更新头部信息]
+      H -->|否| J[标记写入失败]
+      I --> K[调用成功回调]
+      J --> L[调用失败回调]
+      K --> M[释放锁]
+      L --> M
+      M --> N[写入流程结束]
+      E --> O[锁释放后自动重试]
+      O --> C
+```
+
+  C. 读取流程
+
+  应用请求读取 → 直接从内存池读取 → 返回数据
+  (无需访问EEPROM)
+
+  7. API接口设计
+
+  A. 系统配置API
+
+```c
+  // 初始化
+  void storage_init(void);
+
+  // 系统配置
+  bool storage_sys_config_read(uint16_t config_id, void *data, uint16_t size);
+  bool storage_sys_config_write(uint16_t config_id, const void *data, uint16_t size);
+  bool storage_sys_config_set_default(uint16_t config_id);
+
+  // 用户配置
+  bool storage_user_config_read(uint16_t config_id, void *data, uint16_t size);
+  bool storage_user_config_write(uint16_t config_id, const void *data, uint16_t size);
+  bool storage_user_config_set_default(uint16_t config_id);
+
+  // 回调函数类型
+  typedef void (*storage_write_callback_t)(uint16_t config_id, bool success);
+```
+
+  B. 使用示例
+
+```c
+  // 写入系统配置
+  system_config_t config = {
+      .fn_lock_state = 1,
+      .device_type = 2,
+      .backlight_brightness = 80,
+      .language = 1,
+      .led_mode = 3
+  };
+
+  storage_sys_config_write(SYS_CONFIG_BACKLIGHT, &config, sizeof(config));
+
+  // 读取用户配置
+  user_config_t user_cfg;
+  storage_user_config_read(USER_CONFIG_GESTURE_MAP, &user_cfg, sizeof(user_cfg));
+```
+
+  8. 内存管理策略
+
+  A. 内存池结构
+```c
+  // 全局内存池
+  static storage_pool_t g_storage_pool;
+
+  // 模块注册表
+  static const storage_module_t g_modules[] = {
+      {SYS_CONFIG_FN_LOCK, offsetof(storage_pool_t, system_config), 1, &default_fn_lock, "FnLock"},
+      {SYS_CONFIG_DEVICE_TYPE, offsetof(storage_pool_t, system_config) + 1, 1, &default_device_type, "DeviceType"},
+      // ... 更多模块
+  };
+```
+  B. 偏移量计算
+```c
+  // 系统配置区偏移
+  #define SYSTEM_CONFIG_OFFSET sizeof(storage_header_t)
+
+  // 用户配置区偏移
+  #define USER_CONFIG_OFFSET (SYSTEM_CONFIG_OFFSET + SYSTEM_CONFIG_SIZE)
+
+  // 模块数据指针获取
+  #define STORAGE_MODULE_PTR(module_id) \
+      ((uint8_t*)&g_storage_pool + g_modules[module_id].offset)
+```
+  这个设计方案具有以下特点：
+
+  1. 模块化设计: 清晰的系统/用户配置分类
+  2. 数据完整性: CRC16校验确保数据可靠
+  3. 并发安全: 读写锁防止并发写入冲突
+  4. 内存友好: 开机加载，后续直接操作内存
+  5. 易于使用: 简单的API接口
+  6. 可扩展: 易于添加新的配置模块
