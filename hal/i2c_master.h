@@ -20,6 +20,8 @@
 #pragma once
 
 #include <stdint.h>
+#include "pin_defs.h"
+#include "pin_mapper.h"
 
 #define I2C_READ 0x01
 #define I2C_WRITE 0x00
@@ -33,15 +35,82 @@ typedef int16_t i2c_status_t;
 #define I2C_TIMEOUT_IMMEDIATE (0)
 #define I2C_TIMEOUT_INFINITE (0xFFFF)
 
-void         i2c_init(void);
-i2c_status_t i2c_start(uint8_t address, uint16_t timeout);
-i2c_status_t i2c_write(uint8_t data, uint16_t timeout);
-int16_t      i2c_read_ack(uint16_t timeout);
-int16_t      i2c_read_nack(uint16_t timeout);
-i2c_status_t i2c_transmit(uint8_t address, const uint8_t* data, uint16_t length, uint16_t timeout);
-i2c_status_t i2c_receive(uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout);
-i2c_status_t i2c_writeReg(uint8_t devaddr, uint8_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout);
-i2c_status_t i2c_writeReg16(uint8_t devaddr, uint16_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout);
-i2c_status_t i2c_readReg(uint8_t devaddr, uint8_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
-i2c_status_t i2c_readReg16(uint8_t devaddr, uint16_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
-void         i2c_stop(void);
+/* I2C通道数量定义 */
+#define I2C_CHANNEL_0 0
+#define I2C_CHANNEL_1 1
+#define I2C_CHANNEL_2 2
+#define I2C_CHANNEL_3 3
+#define I2C_CHANNEL_MAX 4
+
+/*==========================================
+ * 基于通道号的I2C函数
+ *=========================================*/
+
+void         i2c_init_channel(uint8_t channel);
+i2c_status_t i2c_start_channel(uint8_t channel, uint8_t address, uint16_t timeout);
+i2c_status_t i2c_write_channel(uint8_t channel, uint8_t data, uint16_t timeout);
+int16_t      i2c_read_ack_channel(uint8_t channel, uint16_t timeout);
+int16_t      i2c_read_nack_channel(uint8_t channel, uint16_t timeout);
+i2c_status_t i2c_transmit_channel(uint8_t channel, uint8_t address, const uint8_t* data, uint16_t length, uint16_t timeout);
+i2c_status_t i2c_receive_channel(uint8_t channel, uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout);
+i2c_status_t i2c_writeReg_channel(uint8_t channel, uint8_t devaddr, uint8_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout);
+i2c_status_t i2c_writeReg16_channel(uint8_t channel, uint8_t devaddr, uint16_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout);
+i2c_status_t i2c_readReg_channel(uint8_t channel, uint8_t devaddr, uint8_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
+i2c_status_t i2c_readReg16_channel(uint8_t channel, uint8_t devaddr, uint16_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
+void         i2c_stop_channel(uint8_t channel);
+
+/*==========================================
+ * GPIO引脚绑定到I2C信道
+ *=========================================*/
+
+/**
+ * @brief   绑定GPIO引脚到I2C信道
+ * @param   sda_pin SDA引脚号
+ * @param   scl_pin SCL引脚号
+ * @param   channel I2C通道号
+ * @return  i2c_status_t 状态码
+ * @note    此函数将GPIO引脚绑定到指定I2C信道，后续操作直接使用信道号
+ */
+i2c_status_t i2c_bind_pins(pin_t sda_pin, pin_t scl_pin, uint8_t channel);
+
+/**
+ * @brief   获取I2C信道绑定的SDA引脚
+ * @param   channel I2C通道号
+ * @return  SDA引脚号
+ */
+pin_t i2c_get_sda_pin(uint8_t channel);
+
+/**
+ * @brief   获取I2C信道绑定的SCL引脚
+ * @param   channel I2C通道号
+ * @return  SCL引脚号
+ */
+pin_t i2c_get_scl_pin(uint8_t channel);
+
+/**
+ * @brief   检查I2C信道是否已绑定GPIO引脚
+ * @param   channel I2C通道号
+ * @return  true表示已绑定，false表示未绑定
+ */
+bool i2c_is_bound(uint8_t channel);
+
+/* 便捷宏 - 默认使用通道0 */
+
+#define i2c_init()                  i2c_init_channel(I2C_CHANNEL_0)
+#define i2c_start(address, timeout) i2c_start_channel(I2C_CHANNEL_0, (address), (timeout))
+#define i2c_write(data, timeout)    i2c_write_channel(I2C_CHANNEL_0, (data), (timeout))
+#define i2c_read_ack(timeout)       i2c_read_ack_channel(I2C_CHANNEL_0, (timeout))
+#define i2c_read_nack(timeout)      i2c_read_nack_channel(I2C_CHANNEL_0, (timeout))
+#define i2c_transmit(address, data, length, timeout) \
+    i2c_transmit_channel(I2C_CHANNEL_0, (address), (data), (length), (timeout))
+#define i2c_receive(address, data, length, timeout) \
+    i2c_receive_channel(I2C_CHANNEL_0, (address), (data), (length), (timeout))
+#define i2c_writeReg(devaddr, regaddr, data, length, timeout) \
+    i2c_writeReg_channel(I2C_CHANNEL_0, (devaddr), (regaddr), (data), (length), (timeout))
+#define i2c_writeReg16(devaddr, regaddr, data, length, timeout) \
+    i2c_writeReg16_channel(I2C_CHANNEL_0, (devaddr), (regaddr), (data), (length), (timeout))
+#define i2c_readReg(devaddr, regaddr, data, length, timeout) \
+    i2c_readReg_channel(I2C_CHANNEL_0, (devaddr), (regaddr), (data), (length), (timeout))
+#define i2c_readReg16(devaddr, regaddr, data, length, timeout) \
+    i2c_readReg16_channel(I2C_CHANNEL_0, (devaddr), (regaddr), (data), (length), (timeout))
+#define i2c_stop()                  i2c_stop_channel(I2C_CHANNEL_0)

@@ -1141,3 +1141,21 @@ graph TD
   4. 内存友好: 开机加载，后续直接操作内存
   5. 易于使用: 简单的API接口
   6. 可扩展: 易于添加新的配置模块
+
+### 规范
+
+1. 模块方法
+   ```c
+   /* it runs once at early stage of startup before _init. */
+   _setup(void);
+   /* it runs once after initializing host side protocol, debug and MCU peripherals. */
+   _init(void);
+   /*task 之前执行*/
+   _pre_task();
+   /* it runs repeatedly in main loop */
+   _task(void);
+   /*task 之后执行*/
+   _post_task();
+   ```
+
+   

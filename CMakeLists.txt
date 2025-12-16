@@ -36,6 +36,7 @@ include_directories(
 set(SOURCES
     # 应用程序入口
     main.c
+    application/system/system_init.c
 
     # 驱动层 - 输入设备（核心）
     drivers/input/keyboard/matrix.c
@@ -48,6 +49,7 @@ set(SOURCES
     drivers/system/timer.c
     drivers/system/timer_manager.c
     drivers/system/platforms/test/wait.c
+    drivers/storage/storage.c
 
     # 中间件 - 键盘处理
     middleware/keyboard/action.c
@@ -71,6 +73,10 @@ set(SOURCES
 
     # 硬件抽象层 - 测试平台实现
     hal/platforms/test/_gpio.c
+    hal/platforms/test/pin_mapper.c
+    hal/platforms/test/_i2c_master.c
+    hal/platforms/test/_uart.c
+    hal/platforms/test/_adc.c
 
     utils/logging/debug.c
     utils/logging/print.c

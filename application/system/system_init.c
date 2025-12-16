@@ -1,0 +1,207 @@
+/**
+ * @file system_init.c
+ * @brief 系统初始化协调器实现
+ * @version 1.0.0
+ * @date 2025-12-16
+ *
+ * 设计说明:
+ * - 按HAL → Driver → Middleware → Application的层级顺序初始化
+ * - 每个层级按_setup → _init → _pre_task → _task → _post_task的生命周期
+ * - 使用状态机管理初始化进度
+ */
+
+#include "system_init.h"
+
+#include "sys_config.h"
+#include "timer.h"
+#include "matrix.h"
+#include "storage.h"
+#include "battery.h"
+#include "indicator.h"
+#include "../../drivers/system/event_manager.h"
+
+// 外部模块函数声明 (在各模块中定义)
+extern void matrix_setup(void);
+extern void matrix_init(void);
+
+extern void storage_init(void);
+
+extern void battery_init(void);
+
+extern void indicator_init(void);
+
+extern void keyboard_init(void);
+
+extern void wireless_init(void);
+
+extern void lpm_init(void);
+
+extern void report_buffer_init(void);
+
+// 存根函数 (对于暂未实现的模块)
+static void transport_init_stub(void) {}
+static void host_init_stub(void) {}
+static void host_task_stub(void) {}
+
+// 系统初始化状态
+typedef enum {
+    SYSTEM_INIT_STATUS_NOT_STARTED = 0,    // 未开始
+    SYSTEM_INIT_STATUS_HAL_SETUP,          // HAL setup完成
+    SYSTEM_INIT_STATUS_DRIVER_SETUP,       // Driver setup完成
+    SYSTEM_INIT_STATUS_MIDDLEWARE_SETUP,   // Middleware setup完成
+    SYSTEM_INIT_STATUS_APPLICATION_SETUP,  // Application setup完成
+    SYSTEM_INIT_STATUS_HAL_INIT,           // HAL init完成
+    SYSTEM_INIT_STATUS_DRIVER_INIT,        // Driver init完成
+    SYSTEM_INIT_STATUS_MIDDLEWARE_INIT,    // Middleware init完成
+    SYSTEM_INIT_STATUS_APPLICATION_INIT,   // Application init完成
+    SYSTEM_INIT_STATUS_COMPLETED           // 完全初始化完成
+} system_init_status_t;
+
+static volatile system_init_status_t g_system_init_status = SYSTEM_INIT_STATUS_NOT_STARTED;
+static volatile bool g_system_initialized = false;
+
+/*==========================================
+ * 早期启动阶段 - 在_init之前运行
+ * =========================================*/
+
+void system_setup_hal(void) {
+    // HAL层基础初始化
+    // - Timer系统初始化
+    timer_init();
+
+    // 标记HAL setup完成
+    g_system_init_status = SYSTEM_INIT_STATUS_HAL_SETUP;
+}
+
+void system_setup_drivers(void) {
+    // 驱动层setup阶段
+    // - 矩阵扫描setup
+    matrix_setup();
+
+    // 标记Driver setup完成
+    g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_SETUP;
+}
+
+void system_setup_middleware(void) {
+    // 中间件setup阶段
+    // 目前中间件层在setup阶段无需特殊处理
+
+    // 标记Middleware setup完成
+    g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_SETUP;
+}
+
+void system_setup_application(void) {
+    // 应用层setup阶段
+    // 目前应用层在setup阶段无需特殊处理
+
+    // 标记Application setup完成
+    g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_SETUP;
+}
+
+/*==========================================
+ * 初始化阶段 - 在主机协议、调试和MCU外设初始化后运行
+ * =========================================*/
+
+void system_init_hal(void) {
+    // HAL层初始化阶段
+    // Timer已在setup阶段初始化，此处可进行HAL层其他初始化
+    
+    // 标记HAL init完成
+    g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
+}
+
+void system_init_drivers(void) {
+    // 驱动层初始化阶段
+    // 按依赖关系顺序初始化各驱动
+
+    // 1. 存储系统初始化 (最优先)
+    storage_init();
+
+    // 2. 矩阵扫描初始化
+    matrix_init();
+
+    // 3. 电池管理初始化
+    battery_init();
+
+    // 4. 指示灯初始化
+    indicator_init();
+
+    // 标记Driver init完成
+    g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_INIT;
+}
+
+void system_init_middleware(void) {
+    // 中间件初始化阶段
+    // 按依赖关系顺序初始化各中间件
+
+    // 1. Host层初始化 (最底层)
+    host_init_stub();
+
+    // 2. 传输层初始化
+    transport_init_stub();
+
+    // 3. 报告缓冲区初始化
+    report_buffer_init();
+
+    // 4. 低功耗管理初始化
+    lpm_init();
+
+    // 5. 无线管理层初始化
+    wireless_init();
+
+    // 6. 键盘处理初始化
+    keyboard_init();
+
+    // 标记Middleware init完成
+    g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_INIT;
+}
+
+void system_init_application(void) {
+    // 应用层初始化阶段
+    // 此处可初始化应用服务
+
+    // 标记Application init完成
+    g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;
+
+    // 最后标记完全初始化完成
+    g_system_init_status = SYSTEM_INIT_STATUS_COMPLETED;
+    g_system_initialized = true;
+}
+
+
+/*==========================================
+ * 系统初始化协调器主函数
+ * =========================================*/
+
+uint32_t system_init_coordinator(void) {
+    // 检查TMOS系统是否已初始化
+    if (!TMOS_System_Init()) {
+        return 1;  // TMOS初始化失败
+    }
+
+    // 阶段1: _setup 阶段 (早期启动)
+    system_setup_hal();
+    system_setup_drivers();
+    system_setup_middleware();
+    system_setup_application();
+
+    // 阶段2: _init 阶段 (主机协议初始化后)
+    system_init_hal();
+    system_init_drivers();
+    system_init_middleware();
+    system_init_application();
+
+    return 0;  // 成功
+}
+
+/*==========================================
+ * 状态查询函数
+ * =========================================*/
+
+bool system_is_initialized(void) {
+    return g_system_initialized;
+}
+
+uint8_t system_get_init_status(void) {
+    return (uint8_t)g_system_init_status;
+}

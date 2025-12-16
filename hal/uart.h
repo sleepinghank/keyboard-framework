@@ -5,7 +5,8 @@ extern "C" {
 #endif
 
 #include "sys_config.h"
-
+#include "pin_defs.h"
+#include "pin_mapper.h"
 
 //定义串口号
 typedef enum {
@@ -74,6 +75,59 @@ extern error_code_t platform_uart_write(platform_uart_t uart, u8_t *data, u16_t 
  * @note    回调函数中不能做耗时操作，否则会影响串口接收
  */
 extern error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uart_rx_callback_t callback);
+
+/*==========================================
+ * GPIO引脚绑定到UART信道
+ *=========================================*/
+
+/**
+ * @brief   绑定GPIO引脚到UART信道
+ * @param   rx_pin RX引脚号（如果为NO_PIN则禁用接收）
+ * @param   tx_pin TX引脚号（如果为NO_PIN则禁用发送）
+ * @param   uart UART通道号
+ * @return  error_code_t 错误码
+ * @note    此函数将GPIO引脚绑定到指定UART信道，根据引脚是否有效决定启用RX/TX
+ *          示例：
+ *          platform_uart_bind_pins(PIN_A0, PIN_A1, PLATFORM_UART_0); // 启用RX和TX
+ *          platform_uart_bind_pins(PIN_A0, NO_PIN, PLATFORM_UART_0); // 仅启用RX
+ *          platform_uart_bind_pins(NO_PIN, PIN_A1, PLATFORM_UART_0); // 仅启用TX
+ */
+extern error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t uart);
+
+/**
+ * @brief   获取UART信道绑定的RX引脚
+ * @param   uart UART通道号
+ * @return  RX引脚号（如果未绑定则返回NO_PIN）
+ */
+extern pin_t platform_uart_get_rx_pin(platform_uart_t uart);
+
+/**
+ * @brief   获取UART信道绑定的TX引脚
+ * @param   uart UART通道号
+ * @return  TX引脚号（如果未绑定则返回NO_PIN）
+ */
+extern pin_t platform_uart_get_tx_pin(platform_uart_t uart);
+
+/**
+ * @brief   检查UART信道是否已绑定GPIO引脚
+ * @param   uart UART通道号
+ * @return  true表示已绑定（至少有一个有效引脚），false表示未绑定
+ */
+extern bool platform_uart_is_bound(platform_uart_t uart);
+
+/**
+ * @brief   检查UART信道是否启用了RX功能
+ * @param   uart UART通道号
+ * @return  true表示已启用RX，false表示未启用
+ */
+extern bool platform_uart_is_rx_enabled(platform_uart_t uart);
+
+/**
+ * @brief   检查UART信道是否启用了TX功能
+ * @param   uart UART通道号
+ * @return  true表示已启用TX，false表示未启用
+ */
+extern bool platform_uart_is_tx_enabled(platform_uart_t uart);
 
 #ifdef __cplusplus
 }

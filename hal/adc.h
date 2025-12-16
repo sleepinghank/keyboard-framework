@@ -15,52 +15,153 @@
  */
 #pragma once
 
-#include "gpio.h"
-#include "pin_defs.h"
 #include <stdint.h>
+#include <stdbool.h>
+#include "pin_defs.h"
+#include "pin_mapper.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* ADC通道定义 */
+#define ADC_CHANNEL_0 0
+#define ADC_CHANNEL_1 1
+#define ADC_CHANNEL_2 2
+#define ADC_CHANNEL_3 3
+#define ADC_CHANNEL_4 4
+#define ADC_CHANNEL_5 5
+#define ADC_CHANNEL_6 6
+#define ADC_CHANNEL_7 7
+#define ADC_CHANNEL_8 8
+#define ADC_CHANNEL_9 9
+#define ADC_CHANNEL_10 10
+#define ADC_CHANNEL_11 11
+#define ADC_CHANNEL_12 12
+#define ADC_CHANNEL_13 13
+#define ADC_CHANNEL_14 14
+#define ADC_CHANNEL_15 15
+#define ADC_CHANNEL_MAX 16
+
+/*==========================================
+ * 基于通道号的ADC函数
+ *=========================================*/
+
 /*********************************************************************
- * @fn      adc_set_pin
- * 
- * @brief   设置引脚为ADC输入模式
- * 
- * @param   pin 引脚编号
- * 
+ * @fn      adc_init
+ *
+ * @brief   初始化ADC模块
+ *
+ * @param   channel ADC通道号
+ *
  * @return  none
- * 
- * @note    此函数将引脚配置为模拟输入模式，用于ADC采样
  */
-void adc_set_pin(pin_t pin);
+void adc_init(uint8_t channel);
+
+/*********************************************************************
+ * @fn      adc_init_all
+ *
+ * @brief   初始化所有ADC通道
+ *
+ * @param   none
+ *
+ * @return  none
+ */
+void adc_init_all(void);
 
 /*********************************************************************
  * @fn      adc_read
- * 
+ *
  * @brief   读取ADC值
- * 
- * @param   pin 引脚编号
- * 
+ *
+ * @param   channel ADC通道号
+ *
  * @return  ADC采样值（通常为12位，范围0-4095）
- * 
- * @note    读取指定引脚的ADC值，需要先调用adc_set_pin配置引脚
  */
-uint16_t adc_read(pin_t pin);
+uint16_t adc_read(uint8_t channel);
 
 /*********************************************************************
- * @fn      adc_read_pin
- * 
- * @brief   读取ADC值（别名函数，与adc_read功能相同）
- * 
- * @param   pin 引脚编号
- * 
- * @return  ADC采样值（通常为12位，范围0-4095）
+ * @fn      adc_read_average
+ *
+ * @brief   读取ADC平均值（多次采样取平均）
+ *
+ * @param   channel ADC通道号
+ * @param   samples 采样次数
+ *
+ * @return  ADC采样平均值
  */
-static inline uint16_t adc_read_pin(pin_t pin) {
-    return adc_read(pin);
-}
+uint16_t adc_read_average(uint8_t channel, uint8_t samples);
+
+/*********************************************************************
+ * @fn      adc_read_voltage
+ *
+ * @brief   读取ADC电压值（毫伏）
+ *
+ * @param   channel ADC通道号
+ *
+ * @return  电压值（毫伏）
+ */
+uint32_t adc_read_voltage(uint8_t channel);
+
+/*********************************************************************
+ * @fn      adc_read_advanced
+ *
+ * @brief   读取ADC值（高级模式，支持配置）
+ *
+ * @param   channel ADC通道号
+ * @param   samples 采样次数
+ * @param   reference_mv 参考电压（毫伏）
+ *
+ * @return  ADC采样值
+ */
+uint16_t adc_read_advanced(uint8_t channel, uint8_t samples, uint32_t reference_mv);
+
+/*==========================================
+ * GPIO引脚绑定到ADC信道
+ *=========================================*/
+
+/*********************************************************************
+ * @fn      adc_bind_pin
+ *
+ * @brief   绑定GPIO引脚到ADC信道
+ * @param   pin GPIO引脚号
+ * @param   channel ADC通道号
+ * @return  bool 绑定是否成功
+ * @note    此函数将GPIO引脚绑定到指定ADC信道，后续操作直接使用信道号
+ */
+bool adc_bind_pin(pin_t pin, uint8_t channel);
+
+/*********************************************************************
+ * @fn      adc_get_bound_pin
+ *
+ * @brief   获取ADC信道绑定的GPIO引脚
+ * @param   channel ADC通道号
+ * @return  GPIO引脚号（如果未绑定则返回NO_PIN）
+ */
+pin_t adc_get_bound_pin(uint8_t channel);
+
+/*********************************************************************
+ * @fn      adc_is_bound
+ *
+ * @brief   检查ADC信道是否已绑定GPIO引脚
+ * @param   channel ADC通道号
+ * @return  true表示已绑定，false表示未绑定
+ */
+bool adc_is_bound(uint8_t channel);
+
+/* 便捷宏 - 默认使用通道0 */
+
+#define adc_init_default()              adc_init(ADC_CHANNEL_0)
+#define adc_read_default()              adc_read(ADC_CHANNEL_0)
+#define adc_read_average_default(samples) adc_read_average(ADC_CHANNEL_0, (samples))
+#define adc_read_voltage_default()      adc_read_voltage(ADC_CHANNEL_0)
+#define adc_read_advanced_default(samples, ref_mv) adc_read_advanced(ADC_CHANNEL_0, (samples), (ref_mv))
+
+/* 快速读取宏 */
+
+#define ADC_READ(channel)               adc_read(channel)
+#define ADC_READ_AVG(channel, samples)  adc_read_average(channel, samples)
+#define ADC_READ_VOLT(channel)          adc_read_voltage(channel)
 
 #ifdef __cplusplus
 }

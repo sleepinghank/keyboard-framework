@@ -1,5 +1,8 @@
 #include "port_uart.h"
 #include "CH58x_common.h"
+#include "pin_mapper.h"
+#include <stdbool.h>
+
 #if CHIP_TYPE == CHIP_CH584M
 
 //串口0接收回调
@@ -10,6 +13,18 @@ uart_rx_callback_t uart1_rx_callback = NULL;
 uart_rx_callback_t uart2_rx_callback = NULL;
 //串口3接收回调
 uart_rx_callback_t uart3_rx_callback = NULL;
+
+// UART channel state structure
+typedef struct {
+    pin_t rx_pin;       // RX pin for this channel
+    pin_t tx_pin;       // TX pin for this channel
+    bool rx_enabled;    // RX enable flag
+    bool tx_enabled;    // TX enable flag
+    bool initialized;   // Initialization flag
+} uart_channel_state_t;
+
+// UART channel state array
+static uart_channel_state_t uart_channels[4] = {0};
 
 
 //串口初始化
@@ -515,6 +530,72 @@ void UART3_IRQHandler(void)
         default:
             break;
     }
+}
+
+/*==========================================
+ * GPIO pin binding functions
+ *=========================================*/
+
+error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return ERROR_UART_INVALID_PORT;
+    }
+
+    // Store the pin assignments
+    uart_channels[uart].rx_pin = rx_pin;
+    uart_channels[uart].tx_pin = tx_pin;
+
+    // Enable RX/TX based on whether pins are valid (not NO_PIN)
+    uart_channels[uart].rx_enabled = (rx_pin != NO_PIN);
+    uart_channels[uart].tx_enabled = (tx_pin != NO_PIN);
+    uart_channels[uart].initialized = true;
+
+    // TODO: In a real implementation, you would:
+    // 1. Configure the GPIO pins for UART (RX/TX)
+    // 2. Set appropriate pin modes (push-pull for TX, input with pull-up for RX)
+    // 3. Configure UART alternate functions if needed
+
+    return NO_ERROR;
+}
+
+pin_t platform_uart_get_rx_pin(platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return NO_PIN;
+    }
+
+    return uart_channels[uart].rx_pin;
+}
+
+pin_t platform_uart_get_tx_pin(platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return NO_PIN;
+    }
+
+    return uart_channels[uart].tx_pin;
+}
+
+bool platform_uart_is_bound(platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return false;
+    }
+
+    return uart_channels[uart].initialized;
+}
+
+bool platform_uart_is_rx_enabled(platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return false;
+    }
+
+    return uart_channels[uart].rx_enabled;
+}
+
+bool platform_uart_is_tx_enabled(platform_uart_t uart) {
+    if (uart >= PLATFORM_UART_3 + 1) {
+        return false;
+    }
+
+    return uart_channels[uart].tx_enabled;
 }
 
 #endif // CHIP_CH584M
