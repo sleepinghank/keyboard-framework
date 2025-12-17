@@ -14,7 +14,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "../../pin_mapper.h"
+#include "pin_mapper.h"
 #include "_pin_defs.h"
 
 /* 映射表结构体 */
@@ -79,16 +79,17 @@ static const pin_channel_map_t adc_map[] = {
 };
 
 /* PWM映射表 - 假设PA16-PA19为PWM0-PWM3，PB14-PB17为PWM4-PWM7 */
+/* 注意: PWM通道使用按位编码，支持多通道组合 */
 static const pin_channel_map_t pwm_map[] = {
-    { A16, 0 },   /* PA16 -> PWM_CHANNEL_0 */
-    { A17, 1 },   /* PA17 -> PWM_CHANNEL_1 */
-    { A18, 2 },   /* PA18 -> PWM_CHANNEL_2 */
-    { A19, 3 },   /* PA19 -> PWM_CHANNEL_3 */
-    { B14, 4 },   /* PB14 -> PWM_CHANNEL_4 */
-    { B15, 5 },   /* PB15 -> PWM_CHANNEL_5 */
-    { B16, 6 },   /* PB16 -> PWM_CHANNEL_6 */
-    { B17, 7 },   /* PB17 -> PWM_CHANNEL_7 */
-    { 0xFF, 0xFF }  /* 结束标记 */
+    { A16, (1 << 0) },   /* PA16 -> PWM_CHANNEL_0 (1) */
+    { A17, (1 << 1) },   /* PA17 -> PWM_CHANNEL_1 (2) */
+    { A18, (1 << 2) },   /* PA18 -> PWM_CHANNEL_2 (4) */
+    { A19, (1 << 3) },   /* PA19 -> PWM_CHANNEL_3 (8) */
+    { B14, (1 << 4) },   /* PB14 -> PWM_CHANNEL_4 (16) */
+    { B15, (1 << 5) },   /* PB15 -> PWM_CHANNEL_5 (32) */
+    { B16, (1 << 6) },   /* PB16 -> PWM_CHANNEL_6 (64) */
+    { B17, (1 << 7) },   /* PB17 -> PWM_CHANNEL_7 (128) */
+    { 0xFF, 0xFF }       /* 结束标记 */
 };
 
 /* 查找映射表的辅助函数 */

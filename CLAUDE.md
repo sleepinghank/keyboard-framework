@@ -35,45 +35,38 @@ keyboard-framework/
 
 ## Build System
 
-### Configuration
+### 构建环境要求
 
-- **CMake**: Minimum version 3.29
-- **C Standard**: GNU C11
-- **Build Generators**: Visual Studio 17 2022 or Ninja
-- **Platform**: Windows (cross-platform support planned for HAL layer)
+- **操作系统**: Windows
+- **构建工具**: MSYS2 (MINGW64)
+- **CMake**: 版本 3.29+
+- **编译器**: GCC (MinGW-w64) 15.2.0+
+- **Make**: mingw32-make
 
 ### Build Commands
 
+### 方法一：使用 MSYS2 Bash（推荐）
+
 ```bash
-# Create build directory
-mkdir cmake-build-debug && cd cmake-build-debug
+# 进入项目目录（使用 MSYS2 路径格式）
+cd /d/Code/C_Project/keil_example
 
-# Configure with Visual Studio (recommended on Windows)
-cmake -G "Visual Studio 17 2022" ..
+# 清理之前的构建
+rm -rf build
 
-# Build the project
-cmake --build .
+# 创建构建目录
+mkdir build
+cd build
 
-# Or build with specific configuration
-cmake --build . --config Debug
+# 配置 CMake（生成 MinGW Makefiles）
+cmake .. -G 'MinGW Makefiles'
 
-# Alternative: Use Ninja generator (requires Ninja)
-cmake -G Ninja ..
-ninja
+# 编译项目
+mingw32-make
 
-# Clean rebuild
-rm -rf cmake-build-debug
-mkdir cmake-build-debug && cd cmake-build-debug
-cmake -G "Visual Studio 17 2022" ..
-cmake --build .
+# 运行程序
+./keyboard-framework.exe
 ```
-
-### CMake Configuration Key Points
-
-- Source files are automatically discovered via `file(GLOB_RECURSE)` from drivers/, middleware/, and utils/
-- The main executable is built from `main.c` which contains Unity-based unit tests
-- Include paths configured for all major directories (drivers, hal, middleware, keyboards, utils)
-
 ## Key Components
 
 ### 1. Matrix Scanning (`drivers/input/keyboard/matrix.c`)

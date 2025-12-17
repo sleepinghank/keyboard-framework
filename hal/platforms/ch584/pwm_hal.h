@@ -11,7 +11,7 @@
 #ifndef PWM_HAL_CH584_H
 #define PWM_HAL_CH584_H
 
-#include "../interface/pwm_interface.h"
+#include "pwm_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,87 +1,107 @@
 cmake_minimum_required(VERSION 3.29)
+project(keyboard-framework C)
 
-project(keyboard_framework C)
+# 设置 C 标准
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
-set(CMAKE_C_STANDARD 11)
-
-# 包含目录
-include_directories(
-    application
-    drivers
-    drivers/communication
-    drivers/communication/bluetooth
-    drivers/communication/p2p4g
-    drivers/communication/usb
-    drivers/input
-    drivers/input/keyboard
-    drivers/input/touchpad
-    drivers/output
-    drivers/output/indicators
-    drivers/storage
-    drivers/system
-    drivers/power
-    hal
-    hal/platforms
-    middleware
-    middleware/config
-    middleware/keyboard
-    middleware/keyboard/keymap_extras
-    middleware/communication
-    keyboards
-    utils
-    utils/logging
+# 自动收集源文件（可根据需要手动指定）
+file(GLOB_RECURSE APP_SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/hal/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/*.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/*.c
 )
 
-# 添加源文件 - 仅核心模块
+# === 第二步：创建可执行目标（关键！必须在 target_include_directories 之前）===
+add_executable(keyboard-framework main.c)
+
+# 包含目录（保持与 Keil 项目一致）
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/keyboards
+        ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/keymaps
+        ${CMAKE_CURRENT_SOURCE_DIR}/hal
+        ${CMAKE_CURRENT_SOURCE_DIR}/hal/platforms/test
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/bluetooth
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/p2p4g
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/usb
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/input/keyboard
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/input/touchpad
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/output/backlight
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/output/indicators
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/power
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/storage
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/system/platforms/test
+        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/system
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/communication
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard
+        ${CMAKE_CURRENT_SOURCE_DIR}/application
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/system
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils
+        ${CMAKE_CURRENT_SOURCE_DIR}/utils/logging
+)
+
+# 添加所有源文件
 set(SOURCES
-    # 应用程序入口
-    main.c
-    application/system/system_init.c
+    ./application/system/system_init.c
+    ./drivers/communication/bluetooth/bt_driver.c
+    ./drivers/communication/p2p4g/p24g_driver.c
+    ./drivers/communication/usb/usb.c
+    ./drivers/input/keyboard/debounce.c
+    ./drivers/input/keyboard/matrix.c
+    ./drivers/output/backlight/backlight.c
+    ./drivers/output/backlight/backlight_pwm.c
+    ./drivers/output/indicators/indicator.c
+    ./drivers/power/battery.c
+    ./drivers/storage/storage.c
+    ./drivers/storage/test/eeprom.c
+    ./drivers/system/platforms/test/event_manager.c
+    ./drivers/system/platforms/test/wait.c
+    ./drivers/system/timer.c
+    ./drivers/system/timer_manager.c
+    ./hal/platforms/test/_adc.c
 
-    # 驱动层 - 输入设备（核心）
-    drivers/input/keyboard/matrix.c
-    drivers/input/keyboard/debounce.c
-#    drivers/communication/bluetoothd
-#    drivers/communication/p2p4g
-#    drivers/communication/usb
-    drivers/output/indicators/indicator.c
-    drivers/power/battery.c
-    drivers/system/timer.c
-    drivers/system/timer_manager.c
-    drivers/system/platforms/test/wait.c
-    drivers/storage/storage.c
-
-    # 中间件 - 键盘处理
-    middleware/keyboard/action.c
-#    middleware/keyboard/combo.c
-    middleware/keyboard/custom_function.c
-    middleware/keyboard/keyboard.c
-    middleware/keyboard/action_util.c
-    middleware/keyboard/keymap_common.c
-    middleware/keyboard/action_layer.c
-    middleware/keyboard/keymap_introspection.c
-    middleware/keyboard/report.c
-    middleware/keyboard/keycode_config.c
-
-
-    # 中间件 - 通信处理
-    middleware/communication/host.c
-    middleware/communication/report_buffer.c
-    middleware/communication/transport.c
-    middleware/communication/wireless.c
-    middleware/communication/lpm.c
-
-    # 硬件抽象层 - 测试平台实现
-    hal/platforms/test/_gpio.c
-    hal/platforms/test/pin_mapper.c
-    hal/platforms/test/_i2c_master.c
-    hal/platforms/test/_uart.c
-    hal/platforms/test/_adc.c
-
-    utils/logging/debug.c
-    utils/logging/print.c
-    utils/logging/sendchar.c
-    utils/bitwise.c
+    ./hal/platforms/test/_event_manager.c
+    ./hal/platforms/test/_gpio.c
+    ./hal/platforms/test/_i2c_master.c
+    ./hal/platforms/test/_i2c_slave.c
+    ./hal/platforms/test/_pwm.c
+    ./hal/platforms/test/_spi_master.c
+    ./hal/platforms/test/_uart.c
+    ./hal/platforms/test/pin_mapper.c
+    ./middleware/communication/host.c
+    ./middleware/communication/lpm.c
+    ./middleware/communication/report_buffer.c
+    ./middleware/communication/transport.c
+    ./middleware/communication/wireless.c
+    ./middleware/keyboard/action.c
+    ./middleware/keyboard/action_layer.c
+    ./middleware/keyboard/action_util.c
+    ./middleware/keyboard/combo.c
+    ./middleware/keyboard/custom_function.c
+    ./middleware/keyboard/keyboard.c
+    ./middleware/keyboard/keycode_config.c
+    ./middleware/keyboard/keymap_common.c
+    ./middleware/keyboard/keymap_introspection.c
+    ./middleware/keyboard/report.c
+    ./utils/bitwise.c
+    ./utils/logging/debug.c
+    ./utils/logging/print.c
+    ./utils/logging/sendchar.c
 )
 
-add_executable(keyboard_framework ${SOURCES})
+# 将源文件添加到可执行目标
+target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
+
+
+# 可选：添加编译定义
+target_compile_definitions(${PROJECT_NAME} PRIVATE SIMULATION_MODE=1)
+
+# 可选：设置编译选项
+if(CMAKE_COMPILER_IS_GNUCC)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -g)
+endif()

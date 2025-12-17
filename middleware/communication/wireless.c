@@ -18,11 +18,12 @@
 #include "wireless.h"
 #include "report_buffer.h"
 #include "lpm.h"
-#include "../../drivers/system/wait.h"
-#include "../../drivers/power/battery.h"
-#include "../../drivers/output/indicators/indicator.h"
+#include "wait.h"
+#include "battery.h"
+#include "indicator.h"
 #include "transport.h"
 #include "host_driver.h"
+#include "report.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -138,19 +139,6 @@ void wireless_init(void) {
     wireless_state = WT_INITIALIZED;
 
     wireless_event_queue_init();
-#ifndef DISABLE_REPORT_BUFFER
-    report_buffer_init();
-#endif
-    indicator_init();
-#ifdef BLUETOOTH_INT_INPUT_PIN
-    setPinInputHigh(BLUETOOTH_INT_INPUT_PIN);
-#endif
-
-    battery_init();
-    lpm_init();
-#if HAL_USE_RTC
-    rtc_timer_init();
-#endif
 
 #if defined(EECONFIG_BASE_WIRELESS_CONFIG)
     wireless_config_load();

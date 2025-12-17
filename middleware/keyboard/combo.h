@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../drivers/input/keyboard/matrix.h"
+#include "matrix.h"
 
 
 #ifdef __cplusplus

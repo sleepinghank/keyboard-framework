@@ -16,12 +16,12 @@
 
 #include "indicator.h"
 //#include "transport.h"
-#include "../../power/battery.h"
+#include "battery.h"
 //#include "eeconfig.h"
-#include "../../../keyboards/product_config.h"
+#include "product_config.h"
 #include <string.h>
-#include "../../../hal/gpio.h"
-#include "../../drivers/system/timer.h"
+#include "gpio.h"
+#include "timer.h"
 
 
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)

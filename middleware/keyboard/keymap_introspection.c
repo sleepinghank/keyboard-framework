@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 // Pull the actual keymap code so that we can inspect stuff from it
-#include "../../keyboards/keymaps/default_keymap.h"
+#include "default_keymap.h"
 
 // Allow for keymap or userspace rules.mk to specify an alternate location for the keymap array
 #ifdef INTROSPECTION_KEYMAP_C

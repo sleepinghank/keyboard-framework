@@ -4,8 +4,8 @@
  */
 
 #include "keyboard.h"
-#include "../../drivers/input/keyboard/matrix.h"
-#include "../../drivers/input/keyboard/debounce.h"
+#include "matrix.h"
+#include "debounce.h"
 #include "action_layer.h"
 #include "action.h"
 #include "keymap_common.h"
@@ -26,10 +26,7 @@ static bool matrix_has_changed = false;
  */
 void keyboard_init(void) {
     dprintf("Keyboard: Initializing...\n");
-
-    // Initialize timer
-    timer_init();
-
+    
     // Initialize debounce
     debounce_init(MATRIX_ROWS);
 

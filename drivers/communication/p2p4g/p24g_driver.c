@@ -14,28 +14,10 @@
  */
 
 #include "p24g_driver.h"
-#include "../../../middleware/communication/wireless.h"
-#include "../../../middleware/communication/wireless_event_type.h"
+#include "wireless.h"
+#include "wireless_event_type.h"
 
-// 2.4G驱动实例 - 适配wt_func_t接口
-p24g_driver_t g_p24g_driver = {
-    .init = p24g_driver_init_impl,
-    .task = p24g_driver_task_impl,
-    .connect_ex = p24g_driver_connect_ex_impl,
-    .pairing_ex = p24g_driver_pairing_ex_impl,
-    .disconnect = p24g_driver_disconnect_impl,
-    .send_keyboard = p24g_driver_send_keyboard_impl,
-    .send_nkro = p24g_driver_send_nkro_impl,
-    .send_consumer = p24g_driver_send_consumer_impl,
-    .send_system = p24g_driver_send_system_impl,
-    .send_mouse = p24g_driver_send_mouse_impl,
-    .update_bat_level = p24g_driver_update_bat_level_impl,
-    .update_bat_state = p24g_driver_update_bat_state_impl,
-    .send_protocol_ver = p24g_driver_send_protocol_ver_impl,
-    .send_cmd = p24g_driver_send_cmd_impl,
-    .become_discoverable = p24g_driver_become_discoverable_impl,
-    .read_state_reg = p24g_driver_read_state_reg_impl,
-};
+
 
 // 2.4G驱动实现 - 生命周期管理
 void p24g_driver_init_impl(bool wakeup_from_low_power) {
@@ -181,3 +163,23 @@ uint8_t p24g_driver_get_rssi(void) {
     // TODO: 获取信号强度
     return 0;
 }
+
+// 2.4G驱动实例 - 适配wt_func_t接口
+p24g_driver_t g_p24g_driver = {
+    .init = p24g_driver_init_impl,
+    .task = p24g_driver_task_impl,
+    .connect_ex = p24g_driver_connect_ex_impl,
+    .pairing_ex = p24g_driver_pairing_ex_impl,
+    .disconnect = p24g_driver_disconnect_impl,
+    .send_keyboard = p24g_driver_send_keyboard_impl,
+    .send_nkro = p24g_driver_send_nkro_impl,
+    .send_consumer = p24g_driver_send_consumer_impl,
+    .send_system = p24g_driver_send_system_impl,
+    .send_mouse = p24g_driver_send_mouse_impl,
+    .update_bat_level = p24g_driver_update_bat_level_impl,
+    .update_bat_state = p24g_driver_update_bat_state_impl,
+    .send_protocol_ver = p24g_driver_send_protocol_ver_impl,
+    .send_cmd = p24g_driver_send_cmd_impl,
+    .become_discoverable = p24g_driver_become_discoverable_impl,
+    .read_state_reg = p24g_driver_read_state_reg_impl,
+};

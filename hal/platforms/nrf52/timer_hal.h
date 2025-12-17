@@ -11,7 +11,7 @@
 #ifndef TIMER_HAL_NRF52_H
 #define TIMER_HAL_NRF52_H
 
-#include "../interface/timer_interface.h"
+#include "timer_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

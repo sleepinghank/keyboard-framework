@@ -76,10 +76,7 @@ static const storage_config_t default_config = {
     .gesture_map = {0},
     .macro_data = {0},
     .shortcuts = {0},
-    .user_preferences = {0},
-
-    // 保留空间
-    .reserved = {0}
+    .user_preferences = {0}
 };
 
 /* 存储读写函数 */

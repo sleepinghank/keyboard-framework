@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+#define EECONFIG_BACKLIGHT (uint8_t *)6
+
 #include <stdint.h>
 #include <stdbool.h>
 

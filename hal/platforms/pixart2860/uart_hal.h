@@ -11,7 +11,7 @@
 #ifndef UART_HAL_PIXART2860_H
 #define UART_HAL_PIXART2860_H
 
-#include "../interface/uart_interface.h"
+#include "uart_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

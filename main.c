@@ -11,10 +11,9 @@
  */
 
 #include <stdio.h>
-#include "application/system/system_init.h"
-#include "application/system/tmos_system.h"
+#include "system_init.h"
 #include "sys_config.h"
-
+#include "event_manager.h"
 /**
  * @brief 主函数 - 系统启动入口
  * @return int (通常不会返回)
@@ -41,7 +40,7 @@ int main(void) {
     uint32_t init_result = system_init_coordinator();
     if (init_result != 0) {
 #if (PRINTF_ENABLE == TRUE && PRINTF_LEVEL >= PRINTF_LEVEL_ERROR)
-        printf("ERROR: System initialization failed! Error code: %lu\r\n", init_result);
+        printf("ERROR: System initialization failed! Error code: %d\r\n", init_result);
 #endif
         return init_result;
     }
@@ -53,26 +52,7 @@ int main(void) {
 
     // 主循环 - 持续调用各层级的生命周期函数
     while (1) {
-        // 任务前阶段
-        system_pre_task_hal();
-        system_pre_task_drivers();
-        system_pre_task_middleware();
-        system_pre_task_application();
-
-        // 主任务循环阶段
-        system_task_hal();
-        system_task_drivers();
-        system_task_middleware();
-        system_task_application();
-
-        // 任务后阶段
-        system_post_task_hal();
-        system_post_task_drivers();
-        system_post_task_middleware();
-        system_post_task_application();
-
-        TMOS_System_Process();
-
+        OSAL_SystemProcess();
     }
 
     // 理论上不会执行到这里

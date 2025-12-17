@@ -11,7 +11,7 @@
 #ifndef GPIO_HAL_CH584_H
 #define GPIO_HAL_CH584_H
 
-#include "../interface/gpio_interface.h"
+#include "gpio_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

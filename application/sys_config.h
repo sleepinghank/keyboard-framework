@@ -4,7 +4,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#include "sys_error.h"
 #include <stdint.h>
 
 //定义芯片型号

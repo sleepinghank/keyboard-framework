@@ -30,10 +30,10 @@
 #include "output/indicators/indicator.h"
 #include "lpm.h"
 #include "transport.h"
-#include "../../drivers/power/battery.h"
-#include "../../drivers/system/timer.h"
+#include "battery.h"
+#include "timer.h"
 #include <string.h>
-#include "../drivers/input/keyboard/matrix.h"
+#include "matrix.h"
 #include "wireless.h"
 
 extern matrix_row_t          matrix[MATRIX_ROWS];

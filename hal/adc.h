@@ -17,31 +17,33 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "pin_defs.h"
+#include "gpio.h"
 #include "pin_mapper.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* ADC通道定义 */
-#define ADC_CHANNEL_0 0
-#define ADC_CHANNEL_1 1
-#define ADC_CHANNEL_2 2
-#define ADC_CHANNEL_3 3
-#define ADC_CHANNEL_4 4
-#define ADC_CHANNEL_5 5
-#define ADC_CHANNEL_6 6
-#define ADC_CHANNEL_7 7
-#define ADC_CHANNEL_8 8
-#define ADC_CHANNEL_9 9
-#define ADC_CHANNEL_10 10
-#define ADC_CHANNEL_11 11
-#define ADC_CHANNEL_12 12
-#define ADC_CHANNEL_13 13
-#define ADC_CHANNEL_14 14
-#define ADC_CHANNEL_15 15
-#define ADC_CHANNEL_MAX 16
+/* ADC通道枚举 */
+typedef enum {
+    ADC_CHANNEL_0 = 0,
+    ADC_CHANNEL_1 = 1,
+    ADC_CHANNEL_2 = 2,
+    ADC_CHANNEL_3 = 3,
+    ADC_CHANNEL_4 = 4,
+    ADC_CHANNEL_5 = 5,
+    ADC_CHANNEL_6 = 6,
+    ADC_CHANNEL_7 = 7,
+    ADC_CHANNEL_8 = 8,
+    ADC_CHANNEL_9 = 9,
+    ADC_CHANNEL_10 = 10,
+    ADC_CHANNEL_11 = 11,
+    ADC_CHANNEL_12 = 12,
+    ADC_CHANNEL_13 = 13,
+    ADC_CHANNEL_14 = 14,
+    ADC_CHANNEL_15 = 15,
+    ADC_CHANNEL_MAX = 16
+} adc_channel_t;
 
 /*==========================================
  * 基于通道号的ADC函数
@@ -56,7 +58,7 @@ extern "C" {
  *
  * @return  none
  */
-void adc_init(uint8_t channel);
+void adc_init(adc_channel_t channel);
 
 /*********************************************************************
  * @fn      adc_init_all
@@ -78,7 +80,7 @@ void adc_init_all(void);
  *
  * @return  ADC采样值（通常为12位，范围0-4095）
  */
-uint16_t adc_read(uint8_t channel);
+uint16_t adc_read(adc_channel_t channel);
 
 /*********************************************************************
  * @fn      adc_read_average
@@ -90,7 +92,7 @@ uint16_t adc_read(uint8_t channel);
  *
  * @return  ADC采样平均值
  */
-uint16_t adc_read_average(uint8_t channel, uint8_t samples);
+uint16_t adc_read_average(adc_channel_t channel, uint8_t samples);
 
 /*********************************************************************
  * @fn      adc_read_voltage
@@ -101,7 +103,7 @@ uint16_t adc_read_average(uint8_t channel, uint8_t samples);
  *
  * @return  电压值（毫伏）
  */
-uint32_t adc_read_voltage(uint8_t channel);
+uint32_t adc_read_voltage(adc_channel_t channel);
 
 /*********************************************************************
  * @fn      adc_read_advanced
@@ -114,7 +116,7 @@ uint32_t adc_read_voltage(uint8_t channel);
  *
  * @return  ADC采样值
  */
-uint16_t adc_read_advanced(uint8_t channel, uint8_t samples, uint32_t reference_mv);
+uint16_t adc_read_advanced(adc_channel_t channel, uint8_t samples, uint32_t reference_mv);
 
 /*==========================================
  * GPIO引脚绑定到ADC信道
@@ -129,7 +131,7 @@ uint16_t adc_read_advanced(uint8_t channel, uint8_t samples, uint32_t reference_
  * @return  bool 绑定是否成功
  * @note    此函数将GPIO引脚绑定到指定ADC信道，后续操作直接使用信道号
  */
-bool adc_bind_pin(pin_t pin, uint8_t channel);
+bool adc_bind_pin(pin_t pin, adc_channel_t channel);
 
 /*********************************************************************
  * @fn      adc_get_bound_pin
@@ -138,7 +140,7 @@ bool adc_bind_pin(pin_t pin, uint8_t channel);
  * @param   channel ADC通道号
  * @return  GPIO引脚号（如果未绑定则返回NO_PIN）
  */
-pin_t adc_get_bound_pin(uint8_t channel);
+pin_t adc_get_bound_pin(adc_channel_t channel);
 
 /*********************************************************************
  * @fn      adc_is_bound
@@ -147,7 +149,7 @@ pin_t adc_get_bound_pin(uint8_t channel);
  * @param   channel ADC通道号
  * @return  true表示已绑定，false表示未绑定
  */
-bool adc_is_bound(uint8_t channel);
+bool adc_is_bound(adc_channel_t channel);
 
 /* 便捷宏 - 默认使用通道0 */
 

@@ -16,10 +16,10 @@
 
 #pragma once
 
-#include "../../keyboards/product_config.h"
+#include "product_config.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include "../../communication/bluetooth/bt_driver.h"
+#include "bt_driver.h"
 
 /* Indication of pairing */
 #ifndef INDICATOR_CONFIG_PARING

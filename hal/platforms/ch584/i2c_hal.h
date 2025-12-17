@@ -11,7 +11,7 @@
 #ifndef I2C_HAL_CH584_H
 #define I2C_HAL_CH584_H
 
-#include "../interface/i2c_interface.h"
+#include "i2c_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

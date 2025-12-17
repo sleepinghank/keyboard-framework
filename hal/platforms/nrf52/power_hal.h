@@ -11,7 +11,7 @@
 #ifndef POWER_HAL_NRF52_H
 #define POWER_HAL_NRF52_H
 
-#include "../interface/power_interface.h"
+#include "power_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

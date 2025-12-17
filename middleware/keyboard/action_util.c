@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "report.h"
-#include "../../utils/logging/debug.h"
+#include "debug.h"
 #include "action_util.h"
 #include "action_layer.h"
 #include "timer.h"

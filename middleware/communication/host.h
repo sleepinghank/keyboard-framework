@@ -21,7 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdbool.h>
 #include "report.h"
 #include "host_driver.h"
-#include "../../drivers/output/indicators/indicator.h"
+#include "indicator.h"
 
 #ifdef __cplusplus
 extern "C" {

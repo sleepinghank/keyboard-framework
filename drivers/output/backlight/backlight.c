@@ -16,9 +16,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "backlight.h"
-// #include "eeprom.h"
+#include "eeprom.h"
 // #include "eeconfig.h"
-// #include "debug.h"
+#include "debug.h"
 
 backlight_config_t backlight_config;
 
@@ -48,10 +48,10 @@ static uint8_t breathing_period = BREATHING_PERIOD;
  */
 void backlight_init(void) {
     /* check signature */
-    if (!eeconfig_is_enabled()) {
-        eeconfig_init();
-        eeconfig_update_backlight_default();
-    }
+    // if (!eeconfig_is_enabled()) {
+    //     eeconfig_init();
+    //     eeconfig_update_backlight_default();
+    // }
     backlight_config.raw = eeconfig_read_backlight();
     if (backlight_config.level > BACKLIGHT_LEVELS) {
         backlight_config.level = BACKLIGHT_LEVELS;

@@ -14,29 +14,10 @@
  */
 
 #include "bt_driver.h"
-#include "../../../middleware/communication/wireless.h"
-#include "../../../middleware/communication/wireless_event_type.h"
+#include "wireless.h"
+#include "wireless_event_type.h"
 
-// 蓝牙驱动实例 - 适配wt_func_t接口
-bt_driver_t g_bt_driver = {
-    .init = bt_driver_init_impl,
-    .task = bt_driver_task_impl,
-    .connect_ex = bt_driver_connect_ex_impl,
-    .pairing_ex = bt_driver_pairing_ex_impl,
-    .disconnect = bt_driver_disconnect_impl,
-    .switch_host = bt_driver_switch_host_impl,
-    .send_keyboard = bt_driver_send_keyboard_impl,
-    .send_nkro = bt_driver_send_nkro_impl,
-    .send_consumer = bt_driver_send_consumer_impl,
-    .send_system = bt_driver_send_system_impl,
-    .send_mouse = bt_driver_send_mouse_impl,
-    .update_bat_level = bt_driver_update_bat_level_impl,
-    .update_bat_state = bt_driver_update_bat_state_impl,
-    .send_protocol_ver = bt_driver_send_protocol_ver_impl,
-    .send_cmd = bt_driver_send_cmd_impl,
-    .become_discoverable = bt_driver_become_discoverable_impl,
-    .read_state_reg = bt_driver_read_state_reg_impl,
-};
+
 
 // 蓝牙驱动实现 - 生命周期管理
 void bt_driver_init_impl(bool wakeup_from_low_power) {
@@ -171,3 +152,24 @@ bool bt_driver_read_customize_data(uint8_t* data, uint8_t len) {
     // TODO: 读取自定义数据
     return false;
 }
+
+// 蓝牙驱动实例 - 适配wt_func_t接口
+bt_driver_t g_bt_driver = {
+    .init = bt_driver_init_impl,
+    .task = bt_driver_task_impl,
+    .connect_ex = bt_driver_connect_ex_impl,
+    .pairing_ex = bt_driver_pairing_ex_impl,
+    .disconnect = bt_driver_disconnect_impl,
+    .switch_host = bt_driver_switch_host_impl,
+    .send_keyboard = bt_driver_send_keyboard_impl,
+    .send_nkro = bt_driver_send_nkro_impl,
+    .send_consumer = bt_driver_send_consumer_impl,
+    .send_system = bt_driver_send_system_impl,
+    .send_mouse = bt_driver_send_mouse_impl,
+    .update_bat_level = bt_driver_update_bat_level_impl,
+    .update_bat_state = bt_driver_update_bat_state_impl,
+    .send_protocol_ver = bt_driver_send_protocol_ver_impl,
+    .send_cmd = bt_driver_send_cmd_impl,
+    .become_discoverable = bt_driver_become_discoverable_impl,
+    .read_state_reg = bt_driver_read_state_reg_impl,
+};

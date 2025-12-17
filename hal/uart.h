@@ -1,13 +1,13 @@
 #pragma once
 
 #ifdef __cplusplus
-extern "C" {
+"C" {
 #endif
 
 #include "sys_config.h"
 #include "pin_defs.h"
 #include "pin_mapper.h"
-
+#include "gpio.h"
 //定义串口号
 typedef enum {
     PLATFORM_UART_0 = 0,
@@ -16,21 +16,9 @@ typedef enum {
     PLATFORM_UART_3
 } platform_uart_t;
 
-//定义串口模式
-typedef enum {
-    PLATFORM_UART_MODE_TX = 0,//只发送
-    PLATFORM_UART_MODE_RX,//只接收
-    PLATFORM_UART_MODE_TX_RX//发送和接收
-} platform_uart_mode_t;
-
-//定义是否启用映射IO
-typedef enum {
-    PLATFORM_UART_IO_MAP_ENABLE = 0,//启用映射IO
-    PLATFORM_UART_IO_MAP_DISABLE//不启用映射IO
-} platform_uart_io_map_t;
 
 //定义回调函数类型
-typedef void (*uart_rx_callback_t)(u8_t *data, u16_t len);
+typedef void (*uart_rx_callback_t)(uint8_t *data, uint16_t len);
 
 /**
  * @brief   平台串口初始化
@@ -41,14 +29,14 @@ typedef void (*uart_rx_callback_t)(u8_t *data, u16_t len);
  * @param   enable_interrupt - 是否启用中断
  * @return  error_code_t 错误码
  */
-extern error_code_t platform_uart_init(platform_uart_t uart, u32_t baudrate, platform_uart_mode_t mode, platform_uart_io_map_t io_map, u8_t enable_interrupt);
+error_code_t platform_uart_init(platform_uart_t uart, uint32_t baudrate,  uint8_t enable_interrupt);
 
 /**
  * @brief   平台串口关闭
  * @param   uart - 串口号
  * @return  error_code_t 错误码
  */
-extern error_code_t platform_uart_close(platform_uart_t uart);
+error_code_t platform_uart_close(platform_uart_t uart);
 
 /**
  * @brief   平台串口发送一个字节
@@ -56,7 +44,7 @@ extern error_code_t platform_uart_close(platform_uart_t uart);
  * @param   data - 要发送的数据
  * @return  error_code_t 错误码
  */
-extern error_code_t platform_uart_write_byte(platform_uart_t uart, u8_t data);
+error_code_t platform_uart_write_byte(platform_uart_t uart, uint8_t data);
 
 /**
  * @brief   平台串口发送数据
@@ -65,7 +53,7 @@ extern error_code_t platform_uart_write_byte(platform_uart_t uart, u8_t data);
  * @param   len - 要发送的数据长度
  * @return  error_code_t 错误码
  */
-extern error_code_t platform_uart_write(platform_uart_t uart, u8_t *data, u16_t len);
+error_code_t platform_uart_write(platform_uart_t uart, uint8_t *data, uint16_t len);
 
 /**
  * @brief   平台串口注册接收回调函数
@@ -74,7 +62,7 @@ extern error_code_t platform_uart_write(platform_uart_t uart, u8_t *data, u16_t 
  * @return  error_code_t 错误码
  * @note    回调函数中不能做耗时操作，否则会影响串口接收
  */
-extern error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uart_rx_callback_t callback);
+error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uart_rx_callback_t callback);
 
 /*==========================================
  * GPIO引脚绑定到UART信道
@@ -92,42 +80,42 @@ extern error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uar
  *          platform_uart_bind_pins(PIN_A0, NO_PIN, PLATFORM_UART_0); // 仅启用RX
  *          platform_uart_bind_pins(NO_PIN, PIN_A1, PLATFORM_UART_0); // 仅启用TX
  */
-extern error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t uart);
+error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t uart);
 
 /**
  * @brief   获取UART信道绑定的RX引脚
  * @param   uart UART通道号
  * @return  RX引脚号（如果未绑定则返回NO_PIN）
  */
-extern pin_t platform_uart_get_rx_pin(platform_uart_t uart);
+pin_t platform_uart_get_rx_pin(platform_uart_t uart);
 
 /**
  * @brief   获取UART信道绑定的TX引脚
  * @param   uart UART通道号
  * @return  TX引脚号（如果未绑定则返回NO_PIN）
  */
-extern pin_t platform_uart_get_tx_pin(platform_uart_t uart);
+pin_t platform_uart_get_tx_pin(platform_uart_t uart);
 
 /**
  * @brief   检查UART信道是否已绑定GPIO引脚
  * @param   uart UART通道号
  * @return  true表示已绑定（至少有一个有效引脚），false表示未绑定
  */
-extern bool platform_uart_is_bound(platform_uart_t uart);
+bool platform_uart_is_bound(platform_uart_t uart);
 
 /**
  * @brief   检查UART信道是否启用了RX功能
  * @param   uart UART通道号
  * @return  true表示已启用RX，false表示未启用
  */
-extern bool platform_uart_is_rx_enabled(platform_uart_t uart);
+bool platform_uart_is_rx_enabled(platform_uart_t uart);
 
 /**
  * @brief   检查UART信道是否启用了TX功能
  * @param   uart UART通道号
  * @return  true表示已启用TX，false表示未启用
  */
-extern bool platform_uart_is_tx_enabled(platform_uart_t uart);
+bool platform_uart_is_tx_enabled(platform_uart_t uart);
 
 #ifdef __cplusplus
 }

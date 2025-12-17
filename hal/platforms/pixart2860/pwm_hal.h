@@ -11,7 +11,7 @@
 #ifndef PWM_HAL_PIXART2860_H
 #define PWM_HAL_PIXART2860_H
 
-#include "../interface/pwm_interface.h"
+#include "pwm_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

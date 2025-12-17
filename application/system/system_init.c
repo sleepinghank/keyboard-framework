@@ -10,15 +10,29 @@
  * - 使用状态机管理初始化进度
  */
 
+#include "product_config.h"
+//  application
 #include "system_init.h"
-
 #include "sys_config.h"
+
+// drivers
 #include "timer.h"
 #include "matrix.h"
 #include "storage.h"
 #include "battery.h"
 #include "indicator.h"
-#include "../../drivers/system/event_manager.h"
+#include "event_manager.h"
+
+// middleware
+
+
+// hal
+#include "i2c_master.h"
+#include "gpio.h"
+#include "uart.h"
+#include "pin_defs.h"
+#include "pwm.h"
+#include "adc.h"
 
 // 外部模块函数声明 (在各模块中定义)
 extern void matrix_setup(void);
@@ -37,11 +51,6 @@ extern void wireless_init(void);
 extern void lpm_init(void);
 
 extern void report_buffer_init(void);
-
-// 存根函数 (对于暂未实现的模块)
-static void transport_init_stub(void) {}
-static void host_init_stub(void) {}
-static void host_task_stub(void) {}
 
 // 系统初始化状态
 typedef enum {
@@ -66,8 +75,13 @@ static volatile bool g_system_initialized = false;
 
 void system_setup_hal(void) {
     // HAL层基础初始化
-    // - Timer系统初始化
-    timer_init();
+    i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
+
+    platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_0);
+
+    adc_bind_pin(ADC_PIN,ADC_CHANNEL);
+
+    pwm_init();
 
     // 标记HAL setup完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_SETUP;
@@ -105,7 +119,9 @@ void system_setup_application(void) {
 void system_init_hal(void) {
     // HAL层初始化阶段
     // Timer已在setup阶段初始化，此处可进行HAL层其他初始化
-    
+    i2c_init();
+    platform_uart_init(PLATFORM_UART_0, 115200, 0);
+    pwm_init();
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
@@ -114,16 +130,16 @@ void system_init_drivers(void) {
     // 驱动层初始化阶段
     // 按依赖关系顺序初始化各驱动
 
+    // 时钟初始化
+    timer_init();
+
     // 1. 存储系统初始化 (最优先)
     storage_init();
 
-    // 2. 矩阵扫描初始化
-    matrix_init();
-
-    // 3. 电池管理初始化
+    // 2. 电池管理初始化
     battery_init();
 
-    // 4. 指示灯初始化
+    // 3. 指示灯初始化
     indicator_init();
 
     // 标记Driver init完成
@@ -133,12 +149,6 @@ void system_init_drivers(void) {
 void system_init_middleware(void) {
     // 中间件初始化阶段
     // 按依赖关系顺序初始化各中间件
-
-    // 1. Host层初始化 (最底层)
-    host_init_stub();
-
-    // 2. 传输层初始化
-    transport_init_stub();
 
     // 3. 报告缓冲区初始化
     report_buffer_init();
@@ -174,11 +184,6 @@ void system_init_application(void) {
  * =========================================*/
 
 uint32_t system_init_coordinator(void) {
-    // 检查TMOS系统是否已初始化
-    if (!TMOS_System_Init()) {
-        return 1;  // TMOS初始化失败
-    }
-
     // 阶段1: _setup 阶段 (早期启动)
     system_setup_hal();
     system_setup_drivers();

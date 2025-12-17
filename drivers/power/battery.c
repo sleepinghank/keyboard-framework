@@ -16,8 +16,8 @@
 #include "battery.h"
 //#include "transport.h"
 //#include "lpm.h"
-#include "../output/indicators/indicator.h"
-#include "../system/timer.h"
+#include "indicator.h"
+#include "timer.h"
 
 #define BATTERY_EMPTY_COUNT 10
 #define CRITICAL_LOW_COUNT 20

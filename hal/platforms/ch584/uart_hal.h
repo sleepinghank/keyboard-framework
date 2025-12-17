@@ -11,7 +11,7 @@
 #ifndef UART_HAL_CH584_H
 #define UART_HAL_CH584_H
 
-#include "../interface/uart_interface.h"
+#include "uart_interface.h"
 
 #ifdef __cplusplus
 extern "C" {

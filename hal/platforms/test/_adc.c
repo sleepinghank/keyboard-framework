@@ -34,13 +34,13 @@ typedef struct {
 static adc_channel_state_t adc_channels[ADC_CHANNEL_MAX] = {0};
 
 // Current active ADC channel
-static uint8_t adc_current_channel = ADC_CHANNEL_0;
+static adc_channel_t adc_current_channel = ADC_CHANNEL_0;
 
 /*==========================================
  * Channel-based ADC functions
  *=========================================*/
 
-void adc_init(uint8_t channel) {
+void adc_init(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX) {
         ADC_DEBUG_PRINT("adc_init: Invalid channel %d", channel);
         return;
@@ -52,14 +52,14 @@ void adc_init(uint8_t channel) {
 }
 
 void adc_init_all(void) {
-    uint8_t i;
+    adc_channel_t i;
     for (i = 0; i < ADC_CHANNEL_MAX; i++) {
         adc_init(i);
     }
     ADC_DEBUG_PRINT("adc_init_all: Initialized all %d channels", ADC_CHANNEL_MAX);
 }
 
-uint16_t adc_read(uint8_t channel) {
+uint16_t adc_read(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
         ADC_DEBUG_PRINT("adc_read: Invalid channel %d", channel);
         return 0;
@@ -79,7 +79,7 @@ uint16_t adc_read(uint8_t channel) {
     return test_value;
 }
 
-uint16_t adc_read_average(uint8_t channel, uint8_t samples) {
+uint16_t adc_read_average(adc_channel_t channel, uint8_t samples) {
     if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
         ADC_DEBUG_PRINT("adc_read_average: Invalid channel %d", channel);
         return 0;
@@ -99,7 +99,7 @@ uint16_t adc_read_average(uint8_t channel, uint8_t samples) {
     return average;
 }
 
-uint32_t adc_read_voltage(uint8_t channel) {
+uint32_t adc_read_voltage(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
         ADC_DEBUG_PRINT("adc_read_voltage: Invalid channel %d", channel);
         return 0;
@@ -115,7 +115,7 @@ uint32_t adc_read_voltage(uint8_t channel) {
     return voltage_mv;
 }
 
-uint16_t adc_read_advanced(uint8_t channel, uint8_t samples, uint32_t reference_mv) {
+uint16_t adc_read_advanced(adc_channel_t channel, uint8_t samples, uint32_t reference_mv) {
     if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
         ADC_DEBUG_PRINT("adc_read_advanced: Invalid channel %d", channel);
         return 0;
@@ -132,7 +132,7 @@ uint16_t adc_read_advanced(uint8_t channel, uint8_t samples, uint32_t reference_
  * GPIO pin binding functions
  *=========================================*/
 
-bool adc_bind_pin(pin_t pin, uint8_t channel) {
+bool adc_bind_pin(pin_t pin, adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX) {
         ADC_DEBUG_PRINT("adc_bind_pin: Invalid channel %d", channel);
         return false;
@@ -152,7 +152,7 @@ bool adc_bind_pin(pin_t pin, uint8_t channel) {
     return true;
 }
 
-pin_t adc_get_bound_pin(uint8_t channel) {
+pin_t adc_get_bound_pin(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX) {
         return NO_PIN;
     }
@@ -160,7 +160,7 @@ pin_t adc_get_bound_pin(uint8_t channel) {
     return adc_channels[channel].pin;
 }
 
-bool adc_is_bound(uint8_t channel) {
+bool adc_is_bound(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX) {
         return false;
     }
@@ -196,34 +196,4 @@ void adc_set_pin(pin_t pin) {
     // gpio_set_pin_input(pin);
 }
 
-/*********************************************************************
- * @fn      adc_read
- * 
- * @brief   读取ADC值
- * 
- * @param   pin 引脚编号
- * 
- * @return  ADC采样值（通常为12位，范围0-4095）
- * 
- * @note    读取指定引脚的ADC值，需要先调用adc_set_pin配置引脚
- */
-uint16_t adc_read(pin_t pin) {
-    // 测试返回值（模拟ADC采样值）
-    static uint16_t test_value = 2048; // 模拟中间值
-    
-    ADC_DEBUG_PRINT("adc_read(pin: 0x%02X) - 读取ADC值: %d", 
-                    pin, test_value);
-    
-    // TODO: 实际实现时，需要：
-    // 1. 选择ADC通道
-    // 2. 启动ADC转换
-    // 3. 等待转换完成
-    // 4. 读取ADC数据寄存器
-    // 5. 返回采样值
-    
-    // 测试代码：返回模拟值（每次递增，模拟变化）
-    test_value = (test_value + 1) % 4096;
-    
-    return test_value;
-}
 

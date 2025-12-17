@@ -15,13 +15,13 @@
  */
 
 #include "wireless.h"
-#include "../../drivers/output/indicators/indicator.h"
+#include "indicator.h"
 #include "lpm.h"
 #include "transport.h"
 #include "host_driver.h"
 #include "keycode_config.h"
 #include "host.h"
-#include "../../drivers/system/wait.h"
+#include "wait.h"
 
 #ifndef REINIT_LED_DRIVER
 #    define REINIT_LED_DRIVER 0

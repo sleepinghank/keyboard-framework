@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include "report.h"
 #include "modifiers.h"
-#include "../../keyboards/product_config.h"
+#include "product_config.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,8 +1,9 @@
 #pragma once
+#include "gpio.h"
 
 // Test product configuration - simplified version
 #define PRODUCT_ID 0x0001
-#define VENDOR_ID 0x0001
+#define VENDOR_ID 0x0002
 #define MANUFACTURER "Test Manufacturer"
 #define PRODUCT "Test Keyboard"
 #define DEVICE_VER 0x0100
@@ -92,6 +93,24 @@
 #    define CONNECTED_IDLE_TIME 7200
 #endif
 
+
+//****touch *****/
+#define SDA_PIN A3
+#define SCL_PIN A2
+#define I2C_CHANNEL 0
+
+/* URAT */
+#define UART_TX_PIN A1
+#define UART_RX_PIN NO_PIN
+#define UART_CHANNEL 0
+
+/**ADC */
+#define ADC_PIN B1
+#define ADC_CHANNEL 1
+
+
+#define EEPROM_CUSTOM
+#define EEPROM_SIZE 32
 //#define RGB_MATRIX_ENABLE
 
 

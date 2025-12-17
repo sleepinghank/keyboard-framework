@@ -17,9 +17,9 @@
 #pragma once
 
 #include "wireless_event_type.h"
-#include "../keyboard/action.h"
-#include "../../drivers/communication/bluetooth/bt_driver.h"
-#include "../../drivers/communication/p2p4g/p24g_driver.h"
+#include "action.h"
+#include "bt_driver.h"
+#include "p24g_driver.h"
 
 #ifdef KC_DEBUG
 #    define kc_printf dprintf

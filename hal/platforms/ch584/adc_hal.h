@@ -11,7 +11,7 @@
 #ifndef ADC_HAL_CH584_H
 #define ADC_HAL_CH584_H
 
-#include "../interface/adc_interface.h"
+#include "adc_interface.h"
 
 #ifdef __cplusplus
 extern "C" {
