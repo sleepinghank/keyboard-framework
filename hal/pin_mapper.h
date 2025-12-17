@@ -17,7 +17,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "pin_defs.h"
+#include "gpio.h"
 
 #ifdef __cplusplus
 extern "C" {

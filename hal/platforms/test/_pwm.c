@@ -14,7 +14,6 @@
  */
 
 #include "pwm.h"
-#include "pin_defs.h"
 #include "pin_mapper.h"
 #include <stdint.h>
 #include <stdio.h>

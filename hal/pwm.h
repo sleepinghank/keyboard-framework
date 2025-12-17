@@ -17,6 +17,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "gpio.h"
 
 /* PWM通道枚举 - 使用按位递增的值，支持多通道组合 */
 typedef enum {

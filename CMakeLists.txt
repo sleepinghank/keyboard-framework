@@ -64,8 +64,6 @@ set(SOURCES
     ./drivers/system/timer.c
     ./drivers/system/timer_manager.c
     ./hal/platforms/test/_adc.c
-
-    ./hal/platforms/test/_event_manager.c
     ./hal/platforms/test/_gpio.c
     ./hal/platforms/test/_i2c_master.c
     ./hal/platforms/test/_i2c_slave.c
