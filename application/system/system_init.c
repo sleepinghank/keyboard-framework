@@ -24,7 +24,10 @@
 #include "event_manager.h"
 
 // middleware
-
+#include "report_buffer.h"
+#include "lpm.h"
+#include "wireless.h"
+#include "keyboard.h"
 
 // hal
 #include "i2c_master.h"
@@ -33,24 +36,6 @@
 #include "pin_defs.h"
 #include "pwm.h"
 #include "adc.h"
-
-// 外部模块函数声明 (在各模块中定义)
-extern void matrix_setup(void);
-extern void matrix_init(void);
-
-extern void storage_init(void);
-
-extern void battery_init(void);
-
-extern void indicator_init(void);
-
-extern void keyboard_init(void);
-
-extern void wireless_init(void);
-
-extern void lpm_init(void);
-
-extern void report_buffer_init(void);
 
 // 系统初始化状态
 typedef enum {

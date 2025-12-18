@@ -1,15 +1,44 @@
+/* Copyright 2016 Jack Humbert
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "matrix.h"
+#include "action.h"
+#include "keycodes.h"
+#include "quantum_keycodes.h"
 
-
-#ifdef __cplusplus
-extern "C" {
+#ifdef EXTRA_SHORT_COMBOS
+#    define MAX_COMBO_LENGTH 6
+#elif defined(EXTRA_EXTRA_LONG_COMBOS)
+#    define MAX_COMBO_LENGTH 32
+#elif defined(EXTRA_LONG_COMBOS)
+#    define MAX_COMBO_LENGTH 16
+#else
+#    define MAX_COMBO_LENGTH 8
 #endif
 
-// Combo key structure
+#ifndef COMBO_KEY_BUFFER_LENGTH
+#    define COMBO_KEY_BUFFER_LENGTH MAX_COMBO_LENGTH
+#endif
+#ifndef COMBO_BUFFER_LENGTH
+#    define COMBO_BUFFER_LENGTH 4
+#endif
+
 typedef struct combo_t {
     const uint16_t *keys;
     uint16_t        keycode;
@@ -33,98 +62,24 @@ typedef struct combo_t {
 #define COMBO_ACTION(ck) \
     { .keys = &(ck)[0] }
 
-// Combo state
-typedef struct {
-    uint8_t index;         /**< Index of this combo definition */
-    uint16_t start_time;   /**< When combo detection started */
-    bool active;           /**< Whether combo is being tracked */
-    bool triggered;        /**< Whether combo has been triggered */
-} combo_state_t;
-
-// Maximum number of combo keys
-#ifndef MAX_COMBO_KEYS
-#define MAX_COMBO_KEYS 4
-#endif
-
-// Maximum number of combos
-#ifndef MAX_COMBOS
-#define MAX_COMBOS 32
-#endif
-
-// Combo term timeout (default from product_config.h)
+#define COMBO_END 0
 #ifndef COMBO_TERM
-#define COMBO_TERM 200
+#    define COMBO_TERM 50
+#endif
+#ifndef COMBO_HOLD_TERM
+#    define COMBO_HOLD_TERM TAPPING_TERM
 #endif
 
-// Extended combo term for modifier combos
-#ifndef COMBO_MOD_TERM
-#define COMBO_MOD_TERM 200
-#endif
+/* check if keycode is only modifiers */
+#define KEYCODE_IS_MOD(code) (IS_MODIFIER_KEYCODE(code) || (IS_QK_MODS(code) && !QK_MODS_GET_BASIC_KEYCODE(code)))
 
-/**
- * @brief Initialize combo module
- */
 void combo_init(void);
 
-/**
- * @brief Process combo key event
- *
- * @param event Key event to process
- * @return true if combo was triggered
- */
-bool combo_event(keyevent_t event);
-
-/**
- * @brief Process combo state on each cycle
- *
- * Checks for combo timeout and triggers combos when appropriate
- */
+bool process_combo(uint16_t keycode, keyrecord_t *record);
 void combo_task(void);
+void process_combo_event(uint16_t combo_index, bool pressed);
 
-/**
- * @brief Add a combo key to the tracking state
- *
- * @param index Combo index
- * @param key Key position to add
- */
-void combo_add_key(uint8_t index, keypos_t key);
-
-/**
- * @brief Remove a combo key from tracking state
- *
- * @param index Combo index
- * @param key Key position to remove
- */
-void combo_remove_key(uint8_t index, keypos_t key);
-
-/**
- * @brief Clear all combo tracking state
- */
-void combo_clear(void);
-
-/**
- * @brief Check if a combo is currently active
- *
- * @param index Combo index
- * @return true if combo is active
- */
-bool combo_is_active(uint8_t index);
-
-/**
- * @brief Get combo state
- *
- * @param index Combo index
- * @return Pointer to combo state
- */
-combo_state_t* combo_get_state(uint8_t index);
-
-/**
- * @brief Get the current modifier state during combo processing
- *
- * @return Modifier state
- */
-uint8_t get_combo_modifiers(void);
-
-#ifdef __cplusplus
-}
-#endif
+void combo_enable(void);
+void combo_disable(void);
+void combo_toggle(void);
+bool is_combo_enabled(void);

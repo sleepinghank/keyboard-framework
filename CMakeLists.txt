@@ -27,7 +27,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/bluetooth
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/p2p4g
-        ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/usb
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/input/keyboard
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/input/touchpad
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/output/backlight
@@ -39,6 +38,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/keymap_extras
         ${CMAKE_CURRENT_SOURCE_DIR}/application
         ${CMAKE_CURRENT_SOURCE_DIR}/application/system
         ${CMAKE_CURRENT_SOURCE_DIR}/utils
@@ -50,7 +50,6 @@ set(SOURCES
     ./application/system/system_init.c
     ./drivers/communication/bluetooth/bt_driver.c
     ./drivers/communication/p2p4g/p24g_driver.c
-    ./drivers/communication/usb/usb.c
     ./drivers/input/keyboard/debounce.c
     ./drivers/input/keyboard/matrix.c
     ./drivers/output/backlight/backlight.c

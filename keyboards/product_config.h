@@ -9,14 +9,15 @@
 #define DEVICE_VER 0x0100
 
 // Matrix configuration
-#define MATRIX_ROWS 6
-#define MATRIX_COLS 13
+#define MATRIX_ROWS 8
+#define MATRIX_COLS 16
 #define MATRIX_IO_DELAY 30
 #define DIODE_DIRECTION ROW2COL
+#define MATRIX_SCAN_TIMER 5 
 
 // Matrix pins
-#define MATRIX_ROW_PINS { 0, 1, 2, 3, 4, 5 }
-#define MATRIX_COL_PINS { 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }
+#define MATRIX_ROW_PINS { A4,A5,A6,A0,A1,A8,A9,B9 }
+#define MATRIX_COL_PINS { B5,B8,B17,B16,B15,B14,B13,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
 
 // No direct pins for this test
 // #define DIRECT_PINS {}
@@ -92,7 +93,10 @@
 #ifndef CONNECTED_IDLE_TIME
 #    define CONNECTED_IDLE_TIME 7200
 #endif
+/* key code*/
 
+
+#define COMBO_ENABLE
 
 //****touch *****/
 #define SDA_PIN A3
@@ -111,6 +115,12 @@
 
 #define EEPROM_CUSTOM
 #define EEPROM_SIZE 32
+
+/*touch */
+
+#define TOUCH_EN
+
+#define LK_WIRELESS_ENABLE
 //#define RGB_MATRIX_ENABLE
 
 

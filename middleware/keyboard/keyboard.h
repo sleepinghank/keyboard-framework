@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "timer.h"
-
+#include "product_config.h"
 
 #define ACTION_DEBUG
 //#define COMBO_ENABLE

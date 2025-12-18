@@ -14,6 +14,7 @@
 #include "wait.h"
 #include "action_layer.h"
 #include "keymap_common.h"
+#include "combo.h"
 
 // Modifier state
 uint8_t current_mods = 0;
@@ -64,7 +65,8 @@ void action_exec(keyevent_t event) {
 
 #ifdef COMBO_ENABLE
     /* Process combo handling first */
-    if (!combo_event(event)) {
+    // TODO:
+    if (!process_combo(record.keycode, &record)) {
         /* Combo not triggered, continue with tapping */
         process_action_tapping(&record, action);
     }

@@ -16,7 +16,7 @@
 #include "debug.h"
 #include <string.h>
 #include "keymap_introspection.h"
-
+#include "event_manager.h"
 // Matrix state tracking
 static matrix_row_t matrix_previous[MATRIX_ROWS] = {0};
 static bool matrix_has_changed = false;
@@ -26,7 +26,7 @@ static bool matrix_has_changed = false;
  */
 void keyboard_init(void) {
     dprintf("Keyboard: Initializing...\n");
-    
+
     // Initialize debounce
     debounce_init(MATRIX_ROWS);
 
@@ -208,7 +208,7 @@ void keyboard_process_key(uint8_t row, uint8_t col, bool pressed) {
 
     #ifdef COMBO_ENABLE
     // Process combo events
-    combo_event(event);
+    // process_combo(event);
 
     #endif
     // Process action
@@ -224,3 +224,6 @@ void housekeeping_task(void) {
     // This can be extended with additional background tasks
     // such as LED updates, display updates, etc.
 }
+
+
+
