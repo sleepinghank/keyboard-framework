@@ -1,6 +1,7 @@
 #include "input_service.h"
 #include "keyboard.h"
 #include <stdint.h>
+#include "event_manager.h"
 
 #ifdef __cplusplus
 extern "C" {
