@@ -1,8 +1,6 @@
 #ifndef SYS_ERROR_H
 #define SYS_ERROR_H
 
-
-
 /**
  * 错误码定义规则:
  * 1. 所有错误码格式为0xCxxx

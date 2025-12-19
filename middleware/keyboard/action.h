@@ -80,8 +80,8 @@ void layer_switch(uint8_t new_layer);
 bool is_tap_action(action_t action);
 
 #ifdef ACTION_DEBUG
-#    include "..\..\utils\logging\debug.h"
-#    include "..\..\utils\logging\print.h"
+#    include "debug.h"
+#    include "print.h"
 #    define ac_dprintf(...) dprintf(__VA_ARGS__)
 #else
 #    define ac_dprintf(...) \

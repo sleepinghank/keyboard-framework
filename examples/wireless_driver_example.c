@@ -21,12 +21,12 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-#include "../../drivers/communication/bluetooth/bt_driver.h"
-#include "../../drivers/communication/p2p4g/p24g_driver.h"
-#include "../../middleware/communication/wireless.h"
-#include "../../middleware/communication/transport.h"
-#include "../../drivers/output/indicators/indicator.h"
-#include "../../drivers/power/battery.h"
+#include "bt_driver.h"
+#include "p24g_driver.h"
+#include "wireless.h"
+#include "transport.h"
+#include "indicator.h"
+#include "battery.h"
 #include "communication/lpm.h"
 
 /**

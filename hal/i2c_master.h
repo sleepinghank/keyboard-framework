@@ -20,7 +20,6 @@
 #pragma once
 
 #include <stdint.h>
-#include "pin_defs.h"
 #include "pin_mapper.h"
 #include "gpio.h"
 

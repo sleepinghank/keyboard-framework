@@ -1,471 +1,830 @@
-/*  Copyright (C) 2019 Elia Ritterbusch
- +
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-/* Library made by: g4lvanix
- * GitHub repository: https://github.com/g4lvanix/I2C-master-lib
- */
+/********************************** (C) COPYRIGHT *******************************
+ * File Name          : _i2c_master.c
+ * Author             : WCH
+ * Version            : V1.0
+ * Date               : 2022/11/04
+ * Description        : CH584 I2C Master HAL Implementation
+ *                    : 完全参照官方例程app_i2c.c实现
+ *********************************************************************************
+ * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
+ * Attention: This software (modified or not) and binary are used for
+ * microcontroller manufactured by Nanjing Qinheng Microelectronics.
+ *******************************************************************************/
 
 #include "i2c_master.h"
+#include "CH58x_common.h"
 #include <stdint.h>
-#include <stdio.h>
 #include <stdbool.h>
+#include <string.h>
 
-// 调试输出宏
-#define I2C_DEBUG_PRINT(fmt, ...) printf("[I2C] " fmt "\n", ##__VA_ARGS__)
+/* CH584 I2C标准外设库头文件 */
+#include "CH58x_i2c.h"
+#include "CH58x_gpio.h"
 
-/* I2C channel state structure */
+/**
+ * Note: 主机与从机的DEBUG接口需要同时打开或关闭，
+ * 否则会产生时序问题。
+ */
+// #define CONFIG_I2C_DEBUG
+
+#ifdef CONFIG_I2C_DEBUG
+#define I2C_DBG(...)    PRINT(__VA_ARGS__)
+#else
+#define I2C_DBG(...)
+#endif
+
+/* I2C缓冲区长度（完全参照官方例程app_i2c.c） */
+#define I2C_BUFFER_LENGTH   32
+#define I2C_READ      1
+#define I2C_WRITE     0
+
+/* I2C状态定义（完全参照官方例程app_i2c.h） */
+typedef enum {
+    I2C_READY = 0,
+    I2C_MRX,     /* Master Receive */
+    I2C_MTX,     /* Master Transmit */
+    I2C_SRX,     /* Slave Receive */
+    I2C_STX      /* Slave Transmit */
+} i2c_state_t;
+
+/* I2C错误码定义（完全参照官方例程app_i2c.h） */
+typedef enum {
+    I2C_NO_MEM = 1,
+    I2C_STATE,
+    I2C_MT_NACK,
+    I2C_ARB_LOST,
+    I2C_BUS_ERROR,
+    I2C_OVR,
+    I2C_PECERR,
+    I2C_TIMEOUT,
+    I2C_SMBALERT,
+} i2c_error_t;
+
+/* I2C通道状态结构体（完全参照官方例程） */
 typedef struct {
-    pin_t sda_pin;        // SDA pin bound to this channel
-    pin_t scl_pin;        // SCL pin bound to this channel
-    bool initialized;     // Channel initialization flag
-    bool bound;           // Pin binding flag
+    pin_t sda_pin;           /* SDA引脚 */
+    pin_t scl_pin;           /* SCL引脚 */
+    bool initialized;        /* 初始化标志 */
+    bool bound;              /* 引脚绑定标志 */
+    uint8_t own_address;     /* 自身地址 */
+    uint32_t clock_speed;    /* 时钟速度 */
+
+    /* 官方例程中的变量（完全一致） */
+    volatile uint8_t state;          /* I2C状态 */
+    volatile uint8_t slave_addr_rw;  /* 从机地址+读写位 */
+    volatile uint8_t send_stop;      /* 是否发送STOP */
+    volatile uint8_t in_repstart;    /* 重复START标志 */
+    volatile uint8_t error;          /* 错误码 */
+    uint8_t master_buffer[I2C_BUFFER_LENGTH];  /* 主设备缓冲区 */
+    volatile uint8_t master_buffer_index;      /* 缓冲区索引 */
+    uint8_t master_buffer_length;    /* 缓冲区长度 */
+
+    /* 接收模式专用变量（参照官方例程） */
+    uint8_t is_nack_sent;     /* NACK发送标志 */
 } i2c_channel_state_t;
 
-/* I2C channel state array */
+/* I2C通道状态数组 - CH584有1个I2C控制器 */
 static i2c_channel_state_t i2c_channels[I2C_CHANNEL_MAX] = {0};
 
 /*==========================================
- * 基于通道号的I2C函数
+ * 内部辅助函数（完全参照官方例程）
  *=========================================*/
 
 /**
- * @brief   初始化I2C通道
- * @param   channel I2C通道号
- * @return  none
+ * @brief 配置I2C引脚（完全参照app_i2c.c）
+ * @param channel I2C通道号
  */
-void i2c_init_channel(i2c_channel_t channel) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_init_channel: Invalid channel %d", channel);
-        return;
+static void i2c_configure_pins(i2c_channel_t channel) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (ch->sda_pin != NO_PIN && ch->scl_pin != NO_PIN) {
+        uint8_t sda_port = GET_GPIO_PORT(ch->sda_pin);
+        uint8_t sda_pin_num = GET_GPIO_PIN(ch->sda_pin);
+        uint8_t scl_port = GET_GPIO_PORT(ch->scl_pin);
+        uint8_t scl_pin_num = GET_GPIO_PIN(ch->scl_pin);
+
+        uint32_t sda_mask = (sda_pin_num < 32) ? (1 << sda_pin_num) : 0;
+        uint32_t scl_mask = (scl_pin_num < 32) ? (1 << scl_pin_num) : 0;
+
+        if (sda_mask != 0 && scl_mask != 0) {
+            uint32_t combined_mask = sda_mask | scl_mask;
+
+            if (sda_port == 0 && scl_port == 0) {
+                /* 都在PORTA */
+                GPIOA_ModeCfg(combined_mask, GPIO_ModeIN_PU);
+            } else if (sda_port == 1 && scl_port == 1) {
+                /* 都在PORTB */
+                GPIOB_ModeCfg(combined_mask, GPIO_ModeIN_PU);
+            } else {
+                /* 分别配置 */
+                if (sda_port == 0) GPIOA_ModeCfg(sda_mask, GPIO_ModeIN_PU);
+                if (sda_port == 1) GPIOB_ModeCfg(sda_mask, GPIO_ModeIN_PU);
+                if (scl_port == 0) GPIOA_ModeCfg(scl_mask, GPIO_ModeIN_PU);
+                if (scl_port == 1) GPIOB_ModeCfg(scl_mask, GPIO_ModeIN_PU);
+            }
+        }
     }
-
-    i2c_channels[channel].initialized = true;
-    I2C_DEBUG_PRINT("i2c_init_channel: Initialized channel %d", channel);
-
-    // TODO: In a real implementation, you would:
-    // 1. Configure the GPIO pins as open-drain outputs
-    // 2. Initialize the I2C peripheral
-    // 3. Set appropriate pull-up resistors
 }
 
-/**
- * @brief   启动I2C传输
- * @param   channel I2C通道号
- * @param   address 从设备地址
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_start_channel(i2c_channel_t channel, uint8_t address, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_start_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
-    }
+#ifdef CONFIG_I2C_DEBUG
+static void print_i2c_irq_sta(uint32_t state)
+{
+    I2C_DBG("i2c irq: ( ");
 
-    I2C_DEBUG_PRINT("i2c_start_channel: Channel %d, address 0x%02X, timeout %d",
-                    channel, address, timeout);
+    if(state & RB_I2C_SB)
+        I2C_DBG("SB ");
+    if(state & RB_I2C_ADDR)
+        I2C_DBG("ADDR ");
+    if(state & RB_I2C_BTF)
+        I2C_DBG("BTF ");
+    if(state & RB_I2C_ADD10)
+        I2C_DBG("ADD10 ");
+    if(state & RB_I2C_STOPF)
+        I2C_DBG("STOP ");
+    if(state & RB_I2C_RxNE)
+        I2C_DBG("RxNE ");
+    if(state & RB_I2C_TxE)
+        I2C_DBG("TxE ");
+    if(state & RB_I2C_BERR)
+        I2C_DBG("BERR ");
+    if(state & RB_I2C_ARLO)
+        I2C_DBG("ARLO ");
+    if(state & RB_I2C_AF)
+        I2C_DBG("AF ");
+    if(state & RB_I2C_OVR)
+        I2C_DBG("OVR ");
+    if(state & RB_I2C_PECERR)
+        I2C_DBG("PECERR ");
+    if(state & RB_I2C_TIMEOUT)
+        I2C_DBG("TIMEOUT ");
+    if(state & RB_I2C_SMBALERT)
+        I2C_DBG("SMBALERT ");
+    if(state & (RB_I2C_MSL << 16))
+        I2C_DBG("MSL ");
+    if(state & (RB_I2C_BUSY << 16))
+        I2C_DBG("BUSY ");
+    if(state & (RB_I2C_TRA << 16))
+        I2C_DBG("TRA ");
+    if(state & (RB_I2C_GENCALL << 16))
+        I2C_DBG("GENCALL ");
+    if(state & (RB_I2C_SMBDEFAULT << 16))
+        I2C_DBG("SMBDEFAULT ");
+    if(state & (RB_I2C_SMBHOST << 16))
+        I2C_DBG("SMBHOST ");
+    if(state & (RB_I2C_DUALF << 16))
+        I2C_DBG("DUALF ");
 
-    // TODO: In a real implementation, you would:
-    // 1. Generate START condition
-    // 2. Send device address with read/write bit
-    // 3. Wait for ACK
-    // 4. Return appropriate status
-
-    return I2C_STATUS_SUCCESS;
+    I2C_DBG(")\n");
 }
-
-/**
- * @brief   向I2C总线写入一个字节
- * @param   channel I2C通道号
- * @param   data 要写入的数据
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_write_channel(i2c_channel_t channel, uint8_t data, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_write_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
-    }
-
-    I2C_DEBUG_PRINT("i2c_write_channel: Channel %d, data 0x%02X, timeout %d",
-                    channel, data, timeout);
-
-    // TODO: In a real implementation, you would:
-    // 1. Put data on I2C data line
-    // 2. Generate clock pulse
-    // 3. Wait for ACK
-    // 4. Return appropriate status
-
-    return I2C_STATUS_SUCCESS;
+#else
+static inline void print_i2c_irq_sta(uint32_t state)
+{
+    (void)state;
 }
+#endif
 
 /**
- * @brief   从I2C总线读取一个字节并发送ACK
- * @param   channel I2C通道号
- * @param   timeout 超时时间（毫秒）
- * @return  读取的数据（0-255），负值表示错误
+ * @brief I2C中断处理函数（完全参照官方app_i2c.c I2C_IRQHandler）
+ * @note 这是官方例程中的标准中断处理函数
  */
-int16_t i2c_read_ack_channel(i2c_channel_t channel, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_read_ack_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+__INTERRUPT
+__HIGH_CODE
+void I2C_IRQHandler(void) {
+    uint32_t event = I2C_GetLastEvent();
+    print_i2c_irq_sta(event);
+
+    /* I2C Master */
+    if (event & (RB_I2C_MSL << 16)) {
+        if (event & RB_I2C_SB) {
+            /* Start condition sent, send address */
+            /* 注意：在中断模式下，我们需要从通道0获取状态 */
+            i2c_channel_state_t *ch = &i2c_channels[0];
+            I2C_SendData(ch->slave_addr_rw);
+            I2C_DBG("Master selected, send address\n");
+        }
+
+        /* I2C Master transmitter */
+        if (event & (RB_I2C_TRA << 16)) {
+            i2c_channel_state_t *ch = &i2c_channels[0];
+            I2C_DBG("Master transmitter:\n");
+            /* Slave receiver acked address or sent bit */
+            if (event & (RB_I2C_ADDR | RB_I2C_BTF | RB_I2C_TxE | (RB_I2C_TRA << 16))) {
+                /* if there is data to send, send it, otherwise stop */
+                if (ch->master_buffer_index < ch->master_buffer_length) {
+                    I2C_SendData(ch->master_buffer[ch->master_buffer_index++]);
+                    I2C_DBG("  send (%#x)\n",
+                            ch->master_buffer[ch->master_buffer_index - 1]);
+                } else {
+                    if (ch->send_stop) {
+                        ch->state = I2C_READY;
+                        I2C_GenerateSTOP(ENABLE);
+                        I2C_DBG("  send STOP\n");
+                    } else {
+                        ch->in_repstart = 1;
+                        /* we're gonna send the START, don't enable the interrupt. */
+                        I2C_ITConfig(I2C_IT_BUF, DISABLE);
+                        I2C_ITConfig(I2C_IT_EVT, DISABLE);
+                        I2C_ITConfig(I2C_IT_ERR, DISABLE);
+                        I2C_GenerateSTART(ENABLE);
+                        ch->state = I2C_READY;
+                        I2C_DBG("  restart\n");
+                    }
+                }
+            }
+
+            /* Address or data sent, nack received */
+            if (event & RB_I2C_AF) {
+                i2c_channel_state_t *ch = &i2c_channels[0];
+                I2C_ClearFlag(I2C_FLAG_AF);
+
+                ch->error = I2C_MT_NACK;
+                ch->state = I2C_READY;
+                I2C_GenerateSTOP(ENABLE);
+                I2C_DBG("  NACK received, sent stop\n");
+            }
+        } else {
+        /* I2C Master reveiver */
+            i2c_channel_state_t *ch = &i2c_channels[0];
+            I2C_DBG("Master receiver:\n");
+
+            /* address sent, ack received */
+            if(event & RB_I2C_ADDR) {
+                /* ack if more bytes are expected, otherwise nack */
+                if (ch->master_buffer_length) {
+                    I2C_AcknowledgeConfig(ENABLE);
+                    I2C_DBG("  address sent\n");
+                    I2C_DBG("  ACK next\n");
+                } else {
+                    //XXX: Should not delay too match before NACK
+                    I2C_AcknowledgeConfig(DISABLE);
+                    ch->is_nack_sent = true;
+                    I2C_DBG("  address sent\n");
+                    I2C_DBG("  NACK next\n");
+                }
+            }
+
+            /* data reveived */
+            if (event & (RB_I2C_RxNE)) {
+                /* put byte into buffer */
+                ch->master_buffer[ch->master_buffer_index++] = I2C_ReceiveData();
+
+                if (ch->master_buffer_index < ch->master_buffer_length) {
+                    I2C_AcknowledgeConfig(ENABLE);
+                    I2C_DBG("  ACK next\n");
+                } else {
+                    //XXX: Should not delay too match before NACK
+                    I2C_AcknowledgeConfig(DISABLE);
+                    I2C_DBG("  NACK next\n");
+
+                    if (ch->is_nack_sent) {
+                        ch->is_nack_sent = false;
+                        if (ch->send_stop) {
+                            I2C_GenerateSTOP(ENABLE);
+                            ch->state = I2C_READY;
+                            I2C_DBG("  send STOP\n");
+                        } else {
+                            ch->in_repstart = 1;
+                            /* we're gonna send the START, don't enable the interrupt. */
+                            I2C_ITConfig(I2C_IT_BUF, DISABLE);
+                            I2C_ITConfig(I2C_IT_EVT, DISABLE);
+                            I2C_ITConfig(I2C_IT_ERR, DISABLE);
+                            I2C_GenerateSTART(ENABLE);
+                            ch->state = I2C_READY;
+                            I2C_DBG("  restart\n");
+
+                        }
+                    } else {
+                        ch->is_nack_sent = true;
+                    }
+                }
+
+                I2C_DBG("  received data (%#x)\n",
+                        ch->master_buffer[ch->master_buffer_index - 1]);
+
+            }
+
+            /* nack received */
+            if (event & RB_I2C_AF) {
+                i2c_channel_state_t *ch = &i2c_channels[0];
+                I2C_ClearFlag(I2C_FLAG_AF);
+                /* put final byte into buffer */
+                ch->master_buffer[ch->master_buffer_index++] = I2C_ReceiveData();
+
+                if (ch->send_stop) {
+                    ch->state = I2C_READY;
+                    I2C_GenerateSTOP(ENABLE);
+                    I2C_DBG("  NACK received, send STOP\n");
+                } else {
+                    ch->in_repstart = 1;
+                    /* we're gonna send the START, don't enable the interrupt. */
+                    I2C_ITConfig(I2C_IT_BUF, DISABLE);
+                    I2C_ITConfig(I2C_IT_EVT, DISABLE);
+                    I2C_ITConfig(I2C_IT_ERR, DISABLE);
+                    I2C_GenerateSTART(ENABLE);
+                    ch->state = I2C_READY;
+                    I2C_DBG("  restart\n");
+                }
+            }
+        }
+
+    } else {
+    /* I2C slave - 在此HAL实现中不处理从机模式 */
+        /* addressed, returned ack */
+        if (event & RB_I2C_ADDR) {
+            I2C_DBG("Slave address matched (not used in this HAL)\n");
+        }
     }
 
-    I2C_DEBUG_PRINT("i2c_read_ack_channel: Channel %d, timeout %d", channel, timeout);
+    if (event & RB_I2C_BERR) {
+        I2C_ClearFlag(RB_I2C_BERR);
+        I2C_GenerateSTOP(ENABLE);
 
-    // TODO: In a real implementation, you would:
-    // 1. Generate clock pulse
-    // 2. Read data from I2C data line
-    // 3. Send ACK to slave
-    // 4. Return the read data
-
-    // Test implementation: return 0
-    return 0;
-}
-
-/**
- * @brief   从I2C总线读取一个字节并发送NACK
- * @param   channel I2C通道号
- * @param   timeout 超时时间（毫秒）
- * @return  读取的数据（0-255），负值表示错误
- */
-int16_t i2c_read_nack_channel(i2c_channel_t channel, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_read_nack_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+        i2c_channels[0].error = I2C_BUS_ERROR;
+        I2C_DBG("RB_I2C_BERR\n");
     }
 
-    I2C_DEBUG_PRINT("i2c_read_nack_channel: Channel %d, timeout %d", channel, timeout);
+    if (event & RB_I2C_ARLO) {
+        I2C_ClearFlag(RB_I2C_ARLO);
 
-    // TODO: In a real implementation, you would:
-    // 1. Generate clock pulse
-    // 2. Read data from I2C data line
-    // 3. Send NACK to slave (indicating last byte)
-    // 4. Return the read data
-
-    // Test implementation: return 0
-    return 0;
-}
-
-/**
- * @brief   通过I2C传输多个字节
- * @param   channel I2C通道号
- * @param   address 从设备地址
- * @param   data 要发送的数据缓冲区
- * @param   length 数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_transmit_channel(i2c_channel_t channel, uint8_t address, const uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_transmit_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+        i2c_channels[0].error = I2C_ARB_LOST;
+        I2C_DBG("RB_I2C_ARLO\n");
     }
 
-    I2C_DEBUG_PRINT("i2c_transmit_channel: Channel %d, address 0x%02X, length %d, timeout %d",
-                    channel, address, length, timeout);
+    if (event & RB_I2C_OVR) {
+        I2C_ClearFlag(RB_I2C_OVR);
 
-    // TODO: In a real implementation, you would:
-    // 1. Call i2c_start_channel
-    // 2. Send each byte using i2c_write_channel
-    // 3. Call i2c_stop_channel
-    // 4. Return appropriate status
-
-    return I2C_STATUS_SUCCESS;
-}
-
-/**
- * @brief   通过I2C接收多个字节
- * @param   channel I2C通道号
- * @param   address 从设备地址
- * @param   data 接收数据缓冲区
- * @param   length 要接收的数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_receive_channel(i2c_channel_t channel, uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_receive_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+        i2c_channels[0].error = I2C_OVR;
+        I2C_DBG("RB_I2C_OVR\n");
     }
 
-    I2C_DEBUG_PRINT("i2c_receive_channel: Channel %d, address 0x%02X, length %d, timeout %d",
-                    channel, address, length, timeout);
+    if (event & RB_I2C_PECERR) {
+        I2C_ClearFlag(RB_I2C_PECERR);
 
-    // TODO: In a real implementation, you would:
-    // 1. Call i2c_start_channel with write bit
-    // 2. Send register address to read from
-    // 3. Call i2c_start_channel with read bit
-    // 4. Read bytes using i2c_read_ack_channel and i2c_read_nack_channel
-    // 5. Call i2c_stop_channel
-    // 6. Return appropriate status
-
-    // Test implementation: fill buffer with zeros
-    uint16_t i;
-    for (i = 0; i < length; i++) {
-        data[i] = 0;
+        i2c_channels[0].error = I2C_PECERR;
+        I2C_DBG("RB_I2C_PECERR\n");
     }
 
-    return I2C_STATUS_SUCCESS;
-}
+    if (event & RB_I2C_TIMEOUT) {
+        I2C_ClearFlag(RB_I2C_TIMEOUT);
 
-/**
- * @brief   向I2C设备的寄存器写入数据（8位寄存器地址）
- * @param   channel I2C通道号
- * @param   devaddr 从设备地址
- * @param   regaddr 寄存器地址
- * @param   data 要写入的数据
- * @param   length 数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_writeReg_channel(i2c_channel_t channel, uint8_t devaddr, uint8_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_writeReg_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+        i2c_channels[0].error = I2C_TIMEOUT;
+        I2C_DBG("RB_I2C_TIMEOUT\n");
     }
 
-    I2C_DEBUG_PRINT("i2c_writeReg_channel: Channel %d, devaddr 0x%02X, regaddr 0x%02X, length %d, timeout %d",
-                    channel, devaddr, regaddr, length, timeout);
+    if (event & RB_I2C_SMBALERT) {
+        I2C_ClearFlag(RB_I2C_SMBALERT);
 
-    // TODO: In a real implementation, you would:
-    // 1. Start I2C transmission
-    // 2. Send device address (write)
-    // 3. Send register address
-    // 4. Send data bytes
-    // 5. Stop I2C transmission
-    // 6. Return appropriate status
-
-    return I2C_STATUS_SUCCESS;
-}
-
-/**
- * @brief   向I2C设备的寄存器写入数据（16位寄存器地址）
- * @param   channel I2C通道号
- * @param   devaddr 从设备地址
- * @param   regaddr 寄存器地址（16位）
- * @param   data 要写入的数据
- * @param   length 数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_writeReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint16_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_writeReg16_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
+        i2c_channels[0].error = I2C_SMBALERT;
+        I2C_DBG("RB_I2C_SMBALERT\n");
     }
 
-    I2C_DEBUG_PRINT("i2c_writeReg16_channel: Channel %d, devaddr 0x%02X, regaddr 0x%04X, length %d, timeout %d",
-                    channel, devaddr, regaddr, length, timeout);
-
-    // TODO: In a real implementation, you would:
-    // 1. Start I2C transmission
-    // 2. Send device address (write)
-    // 3. Send high byte of register address
-    // 4. Send low byte of register address
-    // 5. Send data bytes
-    // 6. Stop I2C transmission
-    // 7. Return appropriate status
-
-    return I2C_STATUS_SUCCESS;
-}
-
-/**
- * @brief   从I2C设备的寄存器读取数据（8位寄存器地址）
- * @param   channel I2C通道号
- * @param   devaddr 从设备地址
- * @param   regaddr 寄存器地址
- * @param   data 接收数据缓冲区
- * @param   length 要读取的数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_readReg_channel(i2c_channel_t channel, uint8_t devaddr, uint8_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_readReg_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
-    }
-
-    I2C_DEBUG_PRINT("i2c_readReg_channel: Channel %d, devaddr 0x%02X, regaddr 0x%02X, length %d, timeout %d",
-                    channel, devaddr, regaddr, length, timeout);
-
-    // TODO: In a real implementation, you would:
-    // 1. Start I2C transmission
-    // 2. Send device address (write)
-    // 3. Send register address
-    // 4. Start I2C transmission again
-    // 5. Send device address (read)
-    // 6. Read data bytes
-    // 7. Stop I2C transmission
-    // 8. Return appropriate status
-
-    // Test implementation: fill buffer with zeros
-    uint16_t i;
-    for (i = 0; i < length; i++) {
-        data[i] = 0;
-    }
-
-    return I2C_STATUS_SUCCESS;
-}
-
-/**
- * @brief   从I2C设备的寄存器读取数据（16位寄存器地址）
- * @param   channel I2C通道号
- * @param   devaddr 从设备地址
- * @param   regaddr 寄存器地址（16位）
- * @param   data 接收数据缓冲区
- * @param   length 要读取的数据长度
- * @param   timeout 超时时间（毫秒）
- * @return  I2C_STATUS_SUCCESS 成功, I2C_STATUS_ERROR 失败, I2C_STATUS_TIMEOUT 超时
- */
-i2c_status_t i2c_readReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint16_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_readReg16_channel: Invalid channel %d", channel);
-        return I2C_STATUS_ERROR;
-    }
-
-    I2C_DEBUG_PRINT("i2c_readReg16_channel: Channel %d, devaddr 0x%02X, regaddr 0x%04X, length %d, timeout %d",
-                    channel, devaddr, regaddr, length, timeout);
-
-    // TODO: In a real implementation, you would:
-    // 1. Start I2C transmission
-    // 2. Send device address (write)
-    // 3. Send high byte of register address
-    // 4. Send low byte of register address
-    // 5. Start I2C transmission again
-    // 6. Send device address (read)
-    // 7. Read data bytes
-    // 8. Stop I2C transmission
-    // 9. Return appropriate status
-
-    // Test implementation: fill buffer with zeros
-    uint16_t i;
-    for (i = 0; i < length; i++) {
-        data[i] = 0;
-    }
-
-    return I2C_STATUS_SUCCESS;
-}
-
-/**
- * @brief   停止I2C传输
- * @param   channel I2C通道号
- * @return  none
- */
-void i2c_stop_channel(i2c_channel_t channel) {
-    if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_stop_channel: Invalid channel %d", channel);
-        return;
-    }
-
-    I2C_DEBUG_PRINT("i2c_stop_channel: Channel %d", channel);
-
-    // TODO: In a real implementation, you would:
-    // 1. Generate STOP condition on I2C bus
-    // 2. Release the bus
+    I2C_DBG("\n");
 }
 
 /*==========================================
- * GPIO引脚绑定到I2C信道
+ * I2C通道基础函数（完全参照官方例程）
  *=========================================*/
 
-/**
- * @brief   绑定GPIO引脚到I2C信道
- * @param   sda_pin SDA引脚号
- * @param   scl_pin SCL引脚号
- * @param   channel I2C通道号
- * @return  i2c_status_t 状态码
- */
-i2c_status_t i2c_bind_pins(pin_t sda_pin, pin_t scl_pin, i2c_channel_t channel) {
+void i2c_init_channel(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_bind_pins: Invalid channel %d", channel);
+        return;
+    }
+
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    /* 初始化通道状态（完全参照app_i2c.c i2c_app_init） */
+    ch->state = I2C_READY;
+    ch->send_stop = true;
+    ch->in_repstart = false;
+    ch->error = 0;
+    ch->initialized = false;
+    ch->bound = false;
+    ch->sda_pin = NO_PIN;
+    ch->scl_pin = NO_PIN;
+    ch->own_address = 0x00;
+    ch->clock_speed = 400000;
+    ch->master_buffer_index = 0;
+    ch->master_buffer_length = 0;
+    ch->slave_addr_rw = 0;
+    ch->is_nack_sent = false;
+}
+
+/**
+ * @brief I2C写入操作（完全参照app_i2c.c i2c_write_to）
+ * @param channel I2C通道号
+ * @param addr_7bit 从设备7位地址
+ * @param data 写入数据
+ * @param length 数据长度
+ * @param wait 是否等待完成
+ * @param send_stop 是否发送STOP
+ * @return 0=成功, 负值=错误码
+ */
+static int i2c_write_to_channel(i2c_channel_t channel, uint8_t addr_7bit, const uint8_t *data, uint8_t length,
+        uint8_t wait, uint8_t send_stop) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (length > I2C_BUFFER_LENGTH) {
+        return -I2C_NO_MEM;
+    }
+
+    if (ch->state != I2C_READY) {
+        return -I2C_STATE;
+    }
+
+    if (!length) {
+        return 0;
+    }
+
+    ch->state = I2C_MTX;
+    ch->send_stop = send_stop;
+
+    ch->error = 0;
+
+    // initialize buffer iteration vars
+    ch->master_buffer_index = 0;
+    ch->master_buffer_length = length;
+
+    memcpy(ch->master_buffer, data, length);
+
+    ch->slave_addr_rw = I2C_WRITE;
+    ch->slave_addr_rw |= addr_7bit << 1;
+
+    I2C_GenerateSTOP(DISABLE);
+
+    if (ch->in_repstart == true) {
+        ch->in_repstart = false;
+
+        do {
+            I2C_SendData(ch->slave_addr_rw);
+        } while(R16_I2C_STAR1 & RB_I2C_BTF);
+
+        /* Disabled in IRS */
+    } else {
+        I2C_GenerateSTART(ENABLE);
+    }
+
+    while(wait && (ch->state == I2C_MTX)) {
+        /* 在中断模式下，这里会等待中断处理完成 */
+        /* 可以添加延时或者让出CPU时间片 */
+        for(volatile int i = 0; i < 100; i++);  /* 简单延时 */
+    }
+
+    if (ch->error) {
+        return -ch->error;
+    }
+
+    return 0;
+}
+
+/**
+ * @brief I2C读取操作（完全参照app_i2c.c i2c_read_from）
+ * @param channel I2C通道号
+ * @param addr_7bit 从设备7位地址
+ * @param data 读取数据缓冲区
+ * @param length 数据长度
+ * @param send_stop 是否发送STOP
+ * @param timeout 超时时间
+ * @return 读取的字节数，负值=错误码
+ */
+static int i2c_read_from_channel(i2c_channel_t channel, uint8_t addr_7bit, uint8_t *data, uint8_t length,
+        uint8_t send_stop, int timeout) {
+    int to = 0;
+    uint8_t forever = (timeout == -1);
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (length > I2C_BUFFER_LENGTH) {
+        return -I2C_NO_MEM;
+    }
+
+    if (ch->state != I2C_READY) {
+        return -I2C_STATE;
+    }
+
+    if (!length) {
+        return 0;
+    }
+
+    ch->state = I2C_MRX;
+    ch->send_stop = send_stop;
+
+    ch->error = 0;
+
+    // initialize buffer iteration vars
+    ch->master_buffer_index = 0;
+    ch->master_buffer_length = length - 1;
+
+    ch->slave_addr_rw = I2C_READ;
+    ch->slave_addr_rw |= addr_7bit << 1;
+
+    I2C_GenerateSTOP(DISABLE);
+
+    if (ch->in_repstart == true) {
+        ch->in_repstart = false;
+
+        do {
+            I2C_SendData(ch->slave_addr_rw);
+        } while(R16_I2C_STAR1 & RB_I2C_BTF);
+
+        /* Disabled in IRS */
+    } else {
+        I2C_GenerateSTART(ENABLE);
+    }
+
+    // wait for read operation to complete
+    while (ch->state == I2C_MRX) {
+        mDelaymS(1);
+        to++;
+        if (!forever && (to >= timeout)) {
+            break;
+        }
+    }
+
+    if (ch->master_buffer_index < length)
+        length = ch->master_buffer_index;
+
+    // copy i2c buffer to data
+    memcpy(data, ch->master_buffer, length);
+
+    return length;
+}
+
+/*==========================================
+ * I2C通道基础函数（适配HAL接口）
+ *=========================================*/
+
+i2c_status_t i2c_start_channel(i2c_channel_t channel, uint8_t address, uint16_t timeout) {
+    /* 使用官方例程的方式启动I2C传输 */
+    int result = i2c_write_to_channel(channel, address >> 1, NULL, 0, 1, 0);
+
+    if (result == 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_write_channel(i2c_channel_t channel, uint8_t data, uint16_t timeout) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (ch->state != I2C_MTX) {
         return I2C_STATUS_ERROR;
     }
 
-    // Check if pins are already bound to another channel
-    uint8_t i;
-    for (i = 0; i < I2C_CHANNEL_MAX; i++) {
+    if (ch->master_buffer_index < ch->master_buffer_length) {
+        ch->master_buffer[ch->master_buffer_index++] = data;
+        I2C_SendData(data);
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+int16_t i2c_read_ack_channel(i2c_channel_t channel, uint16_t timeout) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (ch->state != I2C_MRX) {
+        return -1;
+    }
+
+    I2C_AcknowledgeConfig(ENABLE);
+
+    if (ch->master_buffer_index < ch->master_buffer_length) {
+        return I2C_ReceiveData();
+    }
+
+    return -1;
+}
+
+int16_t i2c_read_nack_channel(i2c_channel_t channel, uint16_t timeout) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    if (ch->state != I2C_MRX) {
+        return -1;
+    }
+
+    I2C_AcknowledgeConfig(DISABLE);
+
+    if (ch->master_buffer_index < ch->master_buffer_length + 1) {
+        return I2C_ReceiveData();
+    }
+
+    return -1;
+}
+
+void i2c_stop_channel(i2c_channel_t channel) {
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+
+    ch->send_stop = true;
+
+    if (ch->state == I2C_MTX || ch->state == I2C_MRX) {
+        I2C_GenerateSTOP(ENABLE);
+        ch->state = I2C_READY;
+    }
+}
+
+/*==========================================
+ * I2C复合操作函数
+ *=========================================*/
+
+i2c_status_t i2c_transmit_channel(i2c_channel_t channel, uint8_t address, const uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result = i2c_write_to_channel(channel, address, data, (uint8_t)length, 1, 1);
+
+    if (result == 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_receive_channel(i2c_channel_t channel, uint8_t address, uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result = i2c_read_from_channel(channel, address, data, (uint8_t)length, 1, (int)timeout);
+
+    if (result >= 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_writeReg_channel(i2c_channel_t channel, uint8_t devaddr, uint8_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result;
+    uint8_t buffer[I2C_BUFFER_LENGTH];
+
+    if (length + 1 > I2C_BUFFER_LENGTH) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 先发送寄存器地址 */
+    buffer[0] = regaddr;
+    memcpy(&buffer[1], data, length);
+
+    /* 使用官方例程的i2c_write_to实现 */
+    result = i2c_write_to_channel(channel, devaddr, buffer, length + 1, 1, 1);
+
+    if (result == 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_writeReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint16_t regaddr, const uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result;
+    uint8_t buffer[I2C_BUFFER_LENGTH];
+
+    if (length + 2 > I2C_BUFFER_LENGTH) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 先发送16位寄存器地址（高字节在前） */
+    buffer[0] = (regaddr >> 8) & 0xFF;
+    buffer[1] = regaddr & 0xFF;
+    memcpy(&buffer[2], data, length);
+
+    /* 使用官方例程的i2c_write_to实现 */
+    result = i2c_write_to_channel(channel, devaddr, buffer, length + 2, 1, 1);
+
+    if (result == 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_readReg_channel(i2c_channel_t channel, uint8_t devaddr, uint8_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result;
+    uint8_t reg = regaddr;
+
+    /* 首先发送寄存器地址（写操作，不发送STOP） */
+    result = i2c_write_to_channel(channel, devaddr, &reg, 1, 1, 0);
+    if (result != 0) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 然后读取数据（重复START） */
+    result = i2c_read_from_channel(channel, devaddr, data, (uint8_t)length, 1, (int)timeout);
+
+    if (result >= 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+i2c_status_t i2c_readReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint16_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout) {
+    int result;
+    uint8_t reg[2];
+
+    /* 首先发送16位寄存器地址（写操作，不发送STOP） */
+    reg[0] = (regaddr >> 8) & 0xFF;
+    reg[1] = regaddr & 0xFF;
+
+    result = i2c_write_to_channel(channel, devaddr, reg, 2, 1, 0);
+    if (result != 0) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 然后读取数据（重复START） */
+    result = i2c_read_from_channel(channel, devaddr, data, (uint8_t)length, 1, (int)timeout);
+
+    if (result >= 0) {
+        return I2C_STATUS_SUCCESS;
+    }
+
+    return I2C_STATUS_ERROR;
+}
+
+/*==========================================
+ * GPIO引脚绑定函数
+ *=========================================*/
+
+i2c_status_t i2c_bind_pins(pin_t sda_pin, pin_t scl_pin, i2c_channel_t channel) {
+    if (channel >= I2C_CHANNEL_MAX) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 检查引脚是否已绑定到其他通道 */
+    for (int i = 0; i < I2C_CHANNEL_MAX; i++) {
         if (i != channel) {
-            if (i2c_channels[i].sda_pin == sda_pin || i2c_channels[i].scl_pin == scl_pin) {
-                I2C_DEBUG_PRINT("i2c_bind_pins: Pin already bound to channel %d", i);
-                return I2C_STATUS_ERROR;
+            if (i2c_channels[i].bound) {
+                if ((i2c_channels[i].sda_pin == sda_pin) || (i2c_channels[i].scl_pin == scl_pin) ||
+                    (i2c_channels[i].sda_pin == scl_pin) || (i2c_channels[i].scl_pin == sda_pin)) {
+                    return I2C_STATUS_ERROR;  /* 引脚冲突 */
+                }
             }
         }
     }
 
-    // Bind the pins to this channel
-    i2c_channels[channel].sda_pin = sda_pin;
-    i2c_channels[channel].scl_pin = scl_pin;
-    i2c_channels[channel].bound = true;
-    i2c_channels[channel].initialized = true;
+    /* 绑定引脚到通道 */
+    i2c_channel_state_t *ch = &i2c_channels[channel];
+    ch->sda_pin = sda_pin;
+    ch->scl_pin = scl_pin;
+    ch->bound = true;
 
-    I2C_DEBUG_PRINT("i2c_bind_pins: Bound SDA pin 0x%02X, SCL pin 0x%02X to channel %d",
-                    sda_pin, scl_pin, channel);
-
-    // TODO: In a real implementation, you would:
-    // 1. Configure the GPIO pins as open-drain outputs
-    // 2. Enable pull-up resistors
-    // 3. Initialize the I2C peripheral
+    /* 配置GPIO引脚（完全参照app_i2c.c） */
+    i2c_configure_pins(channel);
 
     return I2C_STATUS_SUCCESS;
 }
 
-/**
- * @brief   获取I2C信道绑定的SDA引脚
- * @param   channel I2C通道号
- * @return  SDA引脚号
- */
 pin_t i2c_get_sda_pin(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_get_sda_pin: Invalid channel %d", channel);
-        return 0xFF;  // Return invalid pin
+        return NO_PIN;
     }
-
-    I2C_DEBUG_PRINT("i2c_get_sda_pin: Channel %d, pin 0x%02X", channel, i2c_channels[channel].sda_pin);
 
     return i2c_channels[channel].sda_pin;
 }
 
-/**
- * @brief   获取I2C信道绑定的SCL引脚
- * @param   channel I2C通道号
- * @return  SCL引脚号
- */
 pin_t i2c_get_scl_pin(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_get_scl_pin: Invalid channel %d", channel);
-        return 0xFF;  // Return invalid pin
+        return NO_PIN;
     }
-
-    I2C_DEBUG_PRINT("i2c_get_scl_pin: Channel %d, pin 0x%02X", channel, i2c_channels[channel].scl_pin);
 
     return i2c_channels[channel].scl_pin;
 }
 
-/**
- * @brief   检查I2C信道是否已绑定GPIO引脚
- * @param   channel I2C通道号
- * @return  true表示已绑定，false表示未绑定
- */
 bool i2c_is_bound(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_is_bound: Invalid channel %d", channel);
         return false;
     }
 
-    bool bound = i2c_channels[channel].bound;
-    I2C_DEBUG_PRINT("i2c_is_bound: Channel %d, bound = %s", channel, bound ? "true" : "false");
+    return i2c_channels[channel].bound;
+}
 
-    return bound;
+/*==========================================
+ * I2C初始化（调用绑定引脚后使用）
+ *=========================================*/
+
+i2c_status_t i2c_init_channel_with_pins(i2c_channel_t channel, pin_t sda_pin, pin_t scl_pin, uint32_t clock_speed) {
+    if (channel >= I2C_CHANNEL_MAX) {
+        return I2C_STATUS_ERROR;
+    }
+
+    /* 绑定引脚 */
+    i2c_status_t status = i2c_bind_pins(sda_pin, scl_pin, channel);
+    if (status != I2C_STATUS_SUCCESS) {
+        return status;
+    }
+
+    /* 保存时钟速度 */
+    i2c_channels[channel].clock_speed = clock_speed;
+    i2c_channels[channel].own_address = 0x00;  /* 不使用双地址模式 */
+
+    /* 初始化I2C控制器（完全参照app_i2c.c i2c_app_init） */
+    I2C_Init(I2C_Mode_I2C, clock_speed, I2C_DutyCycle_16_9, I2C_Ack_Enable,
+             I2C_AckAddr_7bit, i2c_channels[channel].own_address);
+
+    /* 使能I2C（完全参照官方例程） */
+    I2C_Cmd(ENABLE);
+
+    /* 使能I2C中断（完全参照官方例程） */
+    I2C_ITConfig(I2C_IT_BUF, ENABLE);
+    I2C_ITConfig(I2C_IT_EVT, ENABLE);
+    I2C_ITConfig(I2C_IT_ERR, ENABLE);
+    PFIC_EnableIRQ(I2C_IRQn);
+
+    /* 标记为已初始化 */
+    i2c_channels[channel].initialized = true;
+
+    return I2C_STATUS_SUCCESS;
 }

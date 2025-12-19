@@ -15,7 +15,7 @@ file(GLOB_RECURSE APP_SOURCES
 )
 
 # === 第二步：创建可执行目标（关键！必须在 target_include_directories 之前）===
-add_executable(keyboard-framework main.c)
+add_executable(keyboard-framework test_main.c)
 
 # 包含目录（保持与 Keil 项目一致）
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -23,6 +23,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/keymaps
         ${CMAKE_CURRENT_SOURCE_DIR}/hal
         ${CMAKE_CURRENT_SOURCE_DIR}/hal/platforms/test
+        ${CMAKE_CURRENT_SOURCE_DIR}/hal/platforms/ch584
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/drivers/communication/bluetooth
@@ -43,6 +44,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/application/system
         ${CMAKE_CURRENT_SOURCE_DIR}/utils
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/logging
+        # CH584 标准外设库头文件路径
+        ${CMAKE_CURRENT_SOURCE_DIR}/project/ch584m/StdPeriphDriver/inc
 )
 
 # 添加所有源文件
@@ -63,13 +66,21 @@ set(SOURCES
     ./drivers/system/timer.c
     ./drivers/system/timer_manager.c
     ./hal/platforms/test/_adc.c
-    ./hal/platforms/test/_gpio.c
     ./hal/platforms/test/_i2c_master.c
     ./hal/platforms/test/_i2c_slave.c
     ./hal/platforms/test/_pwm.c
     ./hal/platforms/test/_spi_master.c
     ./hal/platforms/test/_uart.c
     ./hal/platforms/test/pin_mapper.c
+    # CH584平台HAL实现
+    ./hal/platforms/ch584/_gpio.c
+    ./hal/platforms/ch584/_adc.c
+    ./hal/platforms/ch584/_i2c_master.c
+    ./hal/platforms/ch584/_i2c_slave.c
+    ./hal/platforms/ch584/_pwm.c
+    ./hal/platforms/ch584/_spi_master.c
+    ./hal/platforms/ch584/_uart.c
+    ./hal/platforms/ch584/pin_mapper.c
     ./middleware/communication/host.c
     ./middleware/communication/lpm.c
     ./middleware/communication/report_buffer.c

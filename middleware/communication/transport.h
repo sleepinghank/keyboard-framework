@@ -18,9 +18,15 @@
 
 typedef enum {
     TRANSPORT_NONE,
+#if (USB_ENABLE_FLAG == TRUE)
     TRANSPORT_USB       = 0x01 << 0,
+#endif
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
     TRANSPORT_BLUETOOTH = 0x01 << 1,
+#endif
+#if (P2P4G_ENABLE_FLAG == TRUE)
     TRANSPORT_P2P4      = 0x01 << 2,
+#endif
     TRANSPORT_MAX,
 } transport_t;
 #define P24G_INDEX 24
@@ -29,17 +35,35 @@ void transport_notify_driver_switch(transport_t new_transport);
 
 #ifdef NKRO_ENABLE
 typedef struct {
+#if (USB_ENABLE_FLAG == TRUE)
     bool usb : 1;
+#endif
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
     bool bluetooth : 1;
+#endif
 } nkro_t;
 #endif
 
-#define TRANSPORT_WIRELESS (TRANSPORT_BLUETOOTH | TRANSPORT_P2P4)
+#if (BLUETOOTH_ENABLE_FLAG == TRUE) || (P2P4G_ENABLE_FLAG == TRUE)
+#    define TRANSPORT_WIRELESS (TRANSPORT_BLUETOOTH | TRANSPORT_P2P4)
+#else
+#    define TRANSPORT_WIRELESS 0
+#endif
 
 void        set_transport(transport_t new_transport);
 transport_t get_transport(void);
 
+#if (USB_ENABLE_FLAG == TRUE)
 void usb_power_connect(void);
 void usb_power_disconnect(void);
 void usb_transport_enable(bool enable);
 void usb_remote_wakeup(void);
+#endif
+
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+void bt_transport_enable(bool enable);
+#endif
+
+#if (P2P4G_ENABLE_FLAG == TRUE)
+void p24g_transport_enable(bool enable);
+#endif

@@ -16,10 +16,13 @@
 
 #pragma once
 
+#include "product_config.h"
 #include "wireless_event_type.h"
 #include "action.h"
 #include "bt_driver.h"
+#if (P2P4G_ENABLE_FLAG == TRUE)
 #include "p24g_driver.h"
+#endif
 
 #ifdef KC_DEBUG
 #    define kc_printf dprintf
@@ -72,11 +75,21 @@ void wireless_init(void);
 void wireless_config_reset(void);
 
 void wireless_set_transport(wt_func_t *transport);
+
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
 void wireless_register_bt_driver(bt_driver_t *driver);
-void wireless_register_p24g_driver(p24g_driver_t *driver);
 void wireless_switch_to_bt_driver(void);
+#endif
+
+#if (P2P4G_ENABLE_FLAG == TRUE)
+void wireless_register_p24g_driver(p24g_driver_t *driver);
 void wireless_switch_to_p24g_driver(void);
+#endif
+
+#if (USB_ENABLE_FLAG == TRUE)
 void wireless_switch_to_usb_mode(void);
+#endif
+
 void wireless(void);
 
 bool wireless_event_enqueue(wireless_event_t event);

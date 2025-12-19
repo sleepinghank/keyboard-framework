@@ -21,6 +21,34 @@
 #define PORTA 0
 #define PORTB 1
 
+/* GPIO端口类型判断宏 */
+#define GPIO_PORT_MASK 0xFC0  /* 端口号掩码: 高6位 (0xFC0 = 111111000000b) */
+#define GPIO_PIN_MASK  0x3F   /* 引脚号掩码: 低6位 (0x3F = 000000111111b) */
+
+/* 判断GPIO引脚属于哪个端口 */
+#define IS_PORTA(gpio) (((gpio) & GPIO_PORT_MASK) == (PORTA << 6))
+#define IS_PORTB(gpio) (((gpio) & GPIO_PORT_MASK) == (PORTB << 6))
+
+/* 获取GPIO的端口号 */
+#define GET_GPIO_PORT(gpio) (((gpio) & GPIO_PORT_MASK) >> 6)
+
+/* 获取GPIO的引脚号 */
+#define GET_GPIO_PIN(gpio) ((gpio) & GPIO_PIN_MASK)
+
+/* 测试宏示例 */
+/*
+ * 示例用法:
+ * if (IS_PORTA(A5)) { // 判断A5是否属于PORTA
+ *     // PORTA端口的处理逻辑
+ * }
+ * if (IS_PORTB(B3)) { // 判断B3是否属于PORTB  
+ *     // PORTB端口的处理逻辑
+ * }
+ * 
+ * uint8_t port = GET_GPIO_PORT(gpio_pin); // 获取端口号
+ * uint8_t pin = GET_GPIO_PIN(gpio_pin);   // 获取引脚号
+ */
+
 #ifdef PORTA
 #    define A0 PAL_LINE(PORTA, 0)
 #    define A1 PAL_LINE(PORTA, 1)

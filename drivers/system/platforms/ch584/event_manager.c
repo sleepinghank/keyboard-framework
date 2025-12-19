@@ -1,6 +1,6 @@
 #include "event_manager.h"
 #include "sys_error.h"
-
+#include "CH58xBLE_LIB.h"
 /**
  * @brief   注册事件处理回调函数
  * @param   eventCb - 事件回调函数
@@ -45,7 +45,7 @@ error_code_t OSAL_ClearEvent(uint8_t taskID, uint8_t event)
  * @param   time - 超时时间
  * @return  NO_ERROR - 成功，其他值 - 错误
  */
-error_code_t OSAL_SetDelayedEvent(uint8_t taskID, uint16_t event, u32_t time)
+error_code_t OSAL_SetDelayedEvent(uint8_t taskID, uint16_t event, uint32_t time)
 {
     BOOL err = tmos_start_task(taskID, event, time);
     if(err == TRUE) return NO_ERROR;
@@ -60,7 +60,7 @@ error_code_t OSAL_SetDelayedEvent(uint8_t taskID, uint16_t event, u32_t time)
  * @param   time - 超时时间
  * @return  NO_ERROR - 成功，其他值 - 错误
  */
-error_code_t OSAL_StartReloadTask(uint8_t taskID, uint16_t event, u32_t time)
+error_code_t OSAL_StartReloadTask(uint8_t taskID, uint16_t event, uint32_t time)
 {
     uint8_t err = tmos_start_task(taskID, event, time);
     if(err == 0) return NO_ERROR;
@@ -87,7 +87,7 @@ error_code_t OSAL_StopTask(uint8_t taskID, uint16_t event)
  * @param   event - 事件值
  * @return  定时器的剩余时间,如果未找到返回0
  */
-u32_t OSAL_GetRemainingTime(uint8_t taskID, uint16_t event)
+uint32_t OSAL_GetRemainingTime(uint8_t taskID, uint16_t event)
 {
     return tmos_get_task_timer(taskID, event);
 }

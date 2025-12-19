@@ -40,6 +40,7 @@ nkro_t nkro = {false, false};
 
 static void transport_changed(transport_t new_transport);
 
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
 __attribute__((weak)) void bt_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
@@ -67,7 +68,9 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
         }
     }
 }
+#endif
 
+#if (P2P4G_ENABLE_FLAG == TRUE)
 __attribute__((weak)) void p24g_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
@@ -95,10 +98,14 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
         }
     }
 }
+#endif
 
+#if (USB_ENABLE_FLAG == TRUE)
 __attribute__((weak)) void usb_power_connect(void) {}
 __attribute__((weak)) void usb_power_disconnect(void) {}
+#endif
 
+#if (USB_ENABLE_FLAG == TRUE)
 __attribute__((weak)) void usb_transport_enable(bool enable) {
     if (enable) {
         if (host_get_driver() != &usb_driver) {
@@ -121,44 +128,65 @@ __attribute__((weak)) void usb_transport_enable(bool enable) {
 #endif
     }
 }
+#endif
 
 void set_transport(transport_t new_transport) {
     if (transport != new_transport) {
+#if (USB_ENABLE_FLAG == TRUE)
         if (transport == TRANSPORT_USB || ((transport != TRANSPORT_USB) && wireless_get_state() == WT_CONNECTED)) clear_keyboard();
+#endif
 
         transport = new_transport;
 
         switch (transport) {
+#if (USB_ENABLE_FLAG == TRUE)
             case TRANSPORT_USB:
                 usb_transport_enable(true);
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
                 bt_transport_enable(false);
+#endif
                 wait_ms(5);
+#if (P2P4G_ENABLE_FLAG == TRUE)
                 p24g_transport_enable(false);
+#endif
                 wireless_disconnect();
                 lpm_timer_stop();
                 // 通知无线层切换到USB模式
                 wireless_switch_to_usb_mode();
                 break;
+#endif
 
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
             case TRANSPORT_BLUETOOTH:
+#if (P2P4G_ENABLE_FLAG == TRUE)
                 p24g_transport_enable(false);
                 wait_ms(1);
+#endif
                 bt_transport_enable(true);
+#if (USB_ENABLE_FLAG == TRUE)
                 usb_transport_enable(false);
+#endif
                 lpm_timer_reset();
                 // 通知无线层切换到蓝牙驱动
                 wireless_switch_to_bt_driver();
                 break;
+#endif
 
+#if (P2P4G_ENABLE_FLAG == TRUE)
             case TRANSPORT_P2P4:
+#if (BLUETOOTH_ENABLE_FLAG == TRUE)
                 bt_transport_enable(false);
                 wait_ms(1);
+#endif
                 p24g_transport_enable(true);
+#if (USB_ENABLE_FLAG == TRUE)
                 usb_transport_enable(false);
+#endif
                 lpm_timer_reset();
                 // 通知无线层切换到2.4G驱动
                 wireless_switch_to_p24g_driver();
                 break;
+#endif
 
             default:
                 break;

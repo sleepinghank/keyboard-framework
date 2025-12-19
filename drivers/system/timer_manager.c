@@ -1,5 +1,6 @@
 #include "timer_manager.h"
 #include "timer.h"
+#include "stddef.h"
 
 #define TAG "platform_tim"
 
