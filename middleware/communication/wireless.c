@@ -63,39 +63,7 @@ bool    process_record_wireless(uint16_t keycode, keyrecord_t *record);
 /* host struct */
 host_driver_t wireless_driver = {wreless_keyboard_leds, wireless_send_keyboard, wireless_send_nkro, wireless_send_mouse, wireless_send_extra};
 
-#define WT_EVENT_QUEUE_SIZE 16
-wireless_event_t wireless_event_queue[WT_EVENT_QUEUE_SIZE];
-uint8_t          wireless_event_queue_head;
-uint8_t          wireless_event_queue_tail;
-
 bool wireless_lpm_set(uint8_t *data);
-
-void wireless_event_queue_init(void) {
-    // Initialise the event queue
-    memset(&wireless_event_queue, 0, sizeof(wireless_event_queue));
-    wireless_event_queue_head = 0;
-    wireless_event_queue_tail = 0;
-}
-
-bool wireless_event_enqueue(wireless_event_t event) {
-    uint8_t next = (wireless_event_queue_head + 1) % WT_EVENT_QUEUE_SIZE;
-    if (next == wireless_event_queue_tail) {
-        /* Override the first report */
-        wireless_event_queue_tail = (wireless_event_queue_tail + 1) % WT_EVENT_QUEUE_SIZE;
-    }
-    wireless_event_queue[wireless_event_queue_head] = event;
-    wireless_event_queue_head                       = next;
-    return true;
-}
-
-static inline bool wireless_event_dequeue(wireless_event_t *event) {
-    if (wireless_event_queue_head == wireless_event_queue_tail) {
-        return false;
-    }
-    *event                    = wireless_event_queue[wireless_event_queue_tail];
-    wireless_event_queue_tail = (wireless_event_queue_tail + 1) % WT_EVENT_QUEUE_SIZE;
-    return true;
-}
 
 #if defined(EECONFIG_BASE_WIRELESS_CONFIG)
 void wireless_config_reset(void) {
@@ -137,8 +105,6 @@ void wireless_config_save(void) {
  */
 void wireless_init(void) {
     wireless_state = WT_INITIALIZED;
-
-    wireless_event_queue_init();
 
 #if defined(EECONFIG_BASE_WIRELESS_CONFIG)
     wireless_config_load();
@@ -556,48 +522,6 @@ void wireless_low_battery_shutdown(void) {
     wireless_disconnect();
 }
 
-void wireless_event_task(void) {
-    wireless_event_t event;
-    while (wireless_event_dequeue(&event)) {
-        switch (event.evt_type) {
-            case EVT_RESET:
-                wireless_enter_reset(event.params.reason);
-                break;
-            case EVT_CONNECTED:
-                wireless_enter_connected(event.params.hostIndex);
-                break;
-            case EVT_DISCOVERABLE:
-                wireless_enter_discoverable(event.params.hostIndex);
-                break;
-            case EVT_RECONNECTING:
-                wireless_enter_reconnecting(event.params.hostIndex);
-                break;
-            case EVT_DISCONNECTED:
-                wireless_enter_disconnected(event.params.hostIndex, event.data);
-                break;
-            case EVT_BT_PINCODE_ENTRY:
-                wireless_enter_bluetooth_pin_code_entry();
-                break;
-            case EVT_EXIT_BT_PINCODE_ENTRY:
-                wireless_exit_bluetooth_pin_code_entry();
-                break;
-            case EVT_SLEEP:
-                wireless_enter_sleep();
-                break;
-            case EVT_HID_INDICATOR:
-                led_state = event.params.led;
-                break;
-            case EVT_HID_SET_PROTOCOL:
-                wireless_hid_set_protocol(event.params.protocol);
-                break;
-            case EVT_CONECTION_INTERVAL:
-                report_buffer_set_inverval(event.params.interval);
-                break;
-            default:
-                break;
-        }
-    }
-}
 
 void wireless_task(void) {
     // 调用当前驱动的任务函数
@@ -605,7 +529,6 @@ void wireless_task(void) {
         current_driver->task();
     }
 
-    wireless_event_task();
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_task();
 #endif

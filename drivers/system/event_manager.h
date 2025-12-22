@@ -101,7 +101,7 @@ void OSAL_SystemProcess(void);
 
 
 
-// TMOS 使用案例
+// OSAL 使用案例
 // ### 2. 任务注册流程
 
 // ```c
@@ -120,9 +120,9 @@ void OSAL_SystemProcess(void);
 
 // // 2. 在模块初始化时注册任务
 // void keyboard_init() {
-//     keyboard_taskID = TMOS_ProcessEventRegister(keyboard_process_event);
+//     keyboard_taskID = OSAL_ProcessEventRegister(keyboard_process_event);
 //     // 启动定时任务
-//     tmos_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT, GET_VBAT_INFO_INTERVAL);
+//     OSAL_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT, GET_VBAT_INFO_INTERVAL);
 // }
 // ```
 
@@ -137,14 +137,14 @@ void OSAL_SystemProcess(void);
 // // 事件触发的三种方式
 
 // // 方式1：立即事件
-// tmos_set_event(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT);
+// OSAL_set_event(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT);
 
 // // 方式2：单次延时事件
-// tmos_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
+// OSAL_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
 //                 MS1_TO_SYSTEM_TIME(2000));
 
 // // 方式3：循环定时事件
-// tmos_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT,
+// OSAL_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT,
 //                        GET_VBAT_INFO_INTERVAL);
 // ```
 
@@ -185,7 +185,7 @@ void OSAL_SystemProcess(void);
 
 //         // 低电压告警
 //         if(vbat_led_num == 6) {
-//             tmos_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
+//             OSAL_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
 //                           MS1_TO_SYSTEM_TIME(2000));
 //         }
 
@@ -202,14 +202,14 @@ void OSAL_SystemProcess(void);
 // ```c
 // void keyboard_init() {
 //     // 1. 注册任务，获取taskID
-//     keyboard_taskID = TMOS_ProcessEventRegister(keyboard_process_event);
+//     keyboard_taskID = OSAL_ProcessEventRegister(keyboard_process_event);
 
 //     // 2. 启动循环定时事件（周期性执行）
-//     tmos_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT,
+//     OSAL_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_INFO_EVENT,
 //                           GET_VBAT_INFO_INTERVAL);
 
 //     // 3. 可以随时触发立即事件
-//     tmos_set_event(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT);
+//     OSAL_set_event(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT);
 // }
 // ```
 
@@ -233,7 +233,7 @@ void OSAL_SystemProcess(void);
 // ```c
 // // 将事件转发给其他任务
 // if(events & FORWARD_TO_OTHER_TASK_EVENT) {
-//     tmos_set_event(other_taskID, OTHER_TASK_EVENT);
+//     OSAL_set_event(other_taskID, OTHER_TASK_EVENT);
 //     return events ^ FORWARD_TO_OTHER_TASK_EVENT;
 // }
 // ```
@@ -243,9 +243,9 @@ void OSAL_SystemProcess(void);
 // ```c
 // // 根据条件启动事件
 // if(condition) {
-//     tmos_start_reload_task(keyboard_taskID, PERIODIC_EVENT, INTERVAL);
+//     OSAL_start_reload_task(keyboard_taskID, PERIODIC_EVENT, INTERVAL);
 // } else {
-//     tmos_stop_task(keyboard_taskID, PERIODIC_EVENT);
+//     OSAL_stop_task(keyboard_taskID, PERIODIC_EVENT);
 // }
 // ```
 
@@ -284,8 +284,8 @@ void OSAL_SystemProcess(void);
 
 //         if(vbat_led_blink_count >= 10) {  // 闪烁10次后停止
 //             vbat_led_blink_count = 0;
-//             tmos_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT);
-//             tmos_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT);
+//             OSAL_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT);
+//             OSAL_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT);
 //             GPIOB_ModeCfg(GPIO_Pin_23, GPIO_ModeIN_PD);  // 关闭LED
 //         } else {
 //             // 翻转LED状态
@@ -301,7 +301,7 @@ void OSAL_SystemProcess(void);
 
 //     // 超时停止事件
 //     if(events & KEYBOARD_VBAT_LED_TIMEOUT_EVENT) {
-//         tmos_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT);
+//         OSAL_stop_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT);
 //         GPIOB_ModeCfg(GPIO_Pin_23, GPIO_ModeIN_PD);
 //         return events ^ KEYBOARD_VBAT_LED_TIMEOUT_EVENT;
 //     }
@@ -312,16 +312,16 @@ void OSAL_SystemProcess(void);
 // // 3. 启动闪烁的公共接口
 // void keyboard_start_pairing_indicator() {
 //     // 启动快闪
-//     tmos_start_reload_task(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT,
+//     OSAL_start_reload_task(keyboard_taskID, KEYBOARD_LED_BLINK_EVENT,
 //                           PAIRING_LED_BLINK_INTERVAL);
 // }
 
 // void keyboard_start_low_voltage_indicator() {
 //     // 启动慢闪10次，然后超时停止
 //     vbat_led_blink_count = 0;
-//     tmos_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT,
+//     OSAL_start_reload_task(keyboard_taskID, KEYBOARD_VBAT_LED_BLINK_EVENT,
 //                           VBAT_LED_BLINK_INTERVAL);
-//     tmos_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
+//     OSAL_start_task(keyboard_taskID, KEYBOARD_VBAT_LED_TIMEOUT_EVENT,
 //                    VBAT_LED_BLINK_TIMEOUT);
 // }
 // ```
@@ -357,7 +357,7 @@ void OSAL_SystemProcess(void);
 //         if(ble_state == GAPROLE_CONNECTED) {
 //             hidEmu_disconnect();  // 断开蓝牙连接
 //             // 延迟等待断开完成
-//             tmos_start_task(access_taskId, ACCESS_SLEEP_EVT,
+//             OSAL_start_task(access_taskId, ACCESS_SLEEP_EVT,
 //                            DISCONNECT_WAIT_REPORT_END_TIMEOUT);
 //             return (events ^ ACCESS_SLEEP_EVT);
 //         }
@@ -417,15 +417,15 @@ void OSAL_SystemProcess(void);
 
 // // 3. 公共接口
 // void access_enter_sleep() {
-//     tmos_set_event(access_taskId, ACCESS_SLEEP_EVT);
+//     OSAL_set_event(access_taskId, ACCESS_SLEEP_EVT);
 // }
 
 // void access_enter_idel_sleep() {
-//     tmos_set_event(access_taskId, ACCESS_IDEL_SLEEP_EVT);
+//     OSAL_set_event(access_taskId, ACCESS_IDEL_SLEEP_EVT);
 // }
 
 // void access_wakeup() {
-//     tmos_set_event(access_taskId, ACCESS_WAKE_UP_EVT);
+//     OSAL_set_event(access_taskId, ACCESS_WAKE_UP_EVT);
 // }
 // ```
 
@@ -456,7 +456,7 @@ void OSAL_SystemProcess(void);
 //         // 处理触摸数据
 //         if(touch_data_changed(touch_data)) {
 //             // 通知键盘处理触摸事件
-//             tmos_set_event(keyboard_taskID, KEYBOARD_TOUCH_EVENT);
+//             OSAL_set_event(keyboard_taskID, KEYBOARD_TOUCH_EVENT);
 
 //             // 唤醒系统（如果正在睡眠）
 //             if(access_state.sleep_en) {
@@ -465,7 +465,7 @@ void OSAL_SystemProcess(void);
 //         }
 
 //         // 继续下一次扫描
-//         tmos_start_reload_task(touch_taskID, TOUCH_SCAN_EVENT, TOUCH_SCAN_INTERVAL);
+//         OSAL_start_reload_task(touch_taskID, TOUCH_SCAN_EVENT, TOUCH_SCAN_INTERVAL);
 //         return events ^ TOUCH_SCAN_EVENT;
 //     }
 
@@ -488,15 +488,15 @@ void OSAL_SystemProcess(void);
 // // 3. 触摸中断处理函数
 // void touch_interrupt_handler() {
 //     // 在GPIO中断中调用
-//     tmos_set_event(touch_taskID, TOUCH_INTERRUPT_EVENT);
+//     OSAL_set_event(touch_taskID, TOUCH_INTERRUPT_EVENT);
 // }
 
 // // 4. 初始化
 // void touch_manager_init() {
-//     touch_taskID = TMOS_ProcessEventRegister(touch_process_event);
+//     touch_taskID = OSAL_ProcessEventRegister(touch_process_event);
 
 //     // 启动周期性扫描
-//     tmos_start_reload_task(touch_taskID, TOUCH_SCAN_EVENT, TOUCH_SCAN_INTERVAL);
+//     OSAL_start_reload_task(touch_taskID, TOUCH_SCAN_EVENT, TOUCH_SCAN_INTERVAL);
 // }
 // ```
 
