@@ -39,11 +39,10 @@ extern uint8_t         retry;
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 
-// 双驱动管理
-wt_func_t  wireless_transport;  // 保持向后兼容
-static wt_func_t  *current_driver = NULL;  // 当前使用的驱动
-static bt_driver_t *bt_driver = NULL;      // 蓝牙驱动实例
-static p24g_driver_t *p24g_driver = NULL;  // 2.4G驱动实例
+static wt_func_t  wireless_transport;  
+#if (P2P4G_ENABLE_FLAG == TRUE)
+extern wt_func_t p24g_driver;  // 2.4G驱动实例
+#endif
 
 static wt_state_t wireless_state           = WT_RESET;
 static bool       pincodeEntry             = false;
@@ -119,32 +118,20 @@ void wireless_set_transport(wt_func_t *transport) {
     if (transport) memcpy(&wireless_transport, transport, sizeof(wt_func_t));
 }
 
-// 注册蓝牙驱动
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
-void wireless_register_bt_driver(bt_driver_t *driver) {
-    bt_driver = driver;
-    kc_printf("Wireless: BT driver registered\n");
-}
-#endif
-
-// 注册2.4G驱动
-#if (P2P4G_ENABLE_FLAG == TRUE)
-void wireless_register_p24g_driver(p24g_driver_t *driver) {
-    p24g_driver = driver;
-    kc_printf("Wireless: P24G driver registered\n");
-}
-#endif
-
 // 切换到蓝牙驱动
 #if (BLUETOOTH_ENABLE_FLAG == TRUE)
 void wireless_switch_to_bt_driver(void) {
-    if (bt_driver) {
-        current_driver = (wt_func_t*)bt_driver;
-        wireless_transport = *current_driver;
-        kc_printf("Wireless: Switched to BT driver\n");
-    } else {
-        kc_printf("Wireless: BT driver not registered\n");
-    }
+    wireless_transport.init = bt_driver_init;
+    wireless_transport.connect_ex = bt_driver_connect_ex;
+    wireless_transport.pairing_ex = bt_driver_pairing_ex;
+    wireless_transport.disconnect = bt_driver_disconnect;
+    wireless_transport.send_keyboard = bt_driver_send_keyboard;
+    wireless_transport.send_nkro = bt_driver_send_nkro;
+    wireless_transport.send_consumer = bt_driver_send_consumer;
+    wireless_transport.send_system = bt_driver_send_system;
+    wireless_transport.send_mouse = bt_driver_send_mouse;
+    wireless_transport.update_bat_level = bt_driver_update_bat_level;
+    kc_printf("Wireless: Switched to BT driver\n");
 }
 #endif
 
@@ -152,7 +139,7 @@ void wireless_switch_to_bt_driver(void) {
 #if (P2P4G_ENABLE_FLAG == TRUE)
 void wireless_switch_to_p24g_driver(void) {
     if (p24g_driver) {
-        current_driver = (wt_func_t*)p24g_driver;
+        // current_driver = (wt_func_t*)p24g_driver;
         wireless_transport = *current_driver;
         kc_printf("Wireless: Switched to P24G driver\n");
     } else {
@@ -168,11 +155,6 @@ void wireless_switch_to_usb_mode(void) {
     kc_printf("Wireless: Switched to USB mode\n");
 }
 #endif
-
-// 获取当前驱动
-wt_func_t* wireless_get_current_driver(void) {
-    return current_driver;
-}
 
 /*
  * Enter pairing with current host index
@@ -525,10 +507,6 @@ void wireless_low_battery_shutdown(void) {
 
 void wireless_task(void) {
     // 调用当前驱动的任务函数
-    if (current_driver && current_driver->task) {
-        current_driver->task();
-    }
-
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_task();
 #endif

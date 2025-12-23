@@ -1,122 +1,121 @@
-/********************************** (C) COPYRIGHT *******************************
- * 文件名称          : scanparamservice.c
- * 作者             : WCH
- * 版本             : V1.0
- * 日期             : 2018/12/10
- * 描述             : 扫描参数服务,用于主机向从机通知扫描参数变化
+﻿/********************************** (C) COPYRIGHT *******************************
+ * File Name          : scanparamservice.c
+ * Author             : WCH
+ * Version            : V1.0
+ * Date               : 2018/12/10
+ * Description        : 扫描参数服务
  *********************************************************************************
- * 版权所有 (c) 2021 南京沁恒微电子股份有限公司
- * 注意: 本软件(修改或未修改)及其二进制文件仅用于
- * 南京沁恒微电子制造的微控制器。
+ * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
+ * Attention: This software (modified or not) and binary are used for 
+ * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 
 /*********************************************************************
- * 包含头文件
+ * INCLUDES
  */
 #include "CONFIG.h"
 #include "scanparamservice.h"
 
 /*********************************************************************
- * 宏定义
+ * MACROS
  */
 
 /*********************************************************************
- * 常量定义
+ * CONSTANTS
  */
 
 /*********************************************************************
- * 类型定义
+ * TYPEDEFS
  */
 
 /*********************************************************************
- * 全局变量
+ * GLOBAL VARIABLES
  */
-// 扫描参数服务UUID
+// Scan parameters service
 const uint8_t scanParamServUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SCAN_PARAM_SERV_UUID), HI_UINT16(SCAN_PARAM_SERV_UUID)};
 
-// 扫描间隔窗口特征UUID
+// Scan interval window characteristic
 const uint8_t scanIntervalWindowUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SCAN_INTERVAL_WINDOW_UUID), HI_UINT16(SCAN_INTERVAL_WINDOW_UUID)};
 
-// 扫描参数刷新特征UUID
+// Scan parameter refresh characteristic
 const uint8_t scanParamRefreshUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SCAN_REFRESH_UUID), HI_UINT16(SCAN_REFRESH_UUID)};
 
 /*********************************************************************
- * 外部变量
+ * EXTERNAL VARIABLES
  */
 
 /*********************************************************************
- * 外部函数
+ * EXTERNAL FUNCTIONS
  */
 
 /*********************************************************************
- * 本地变量
+ * LOCAL VARIABLES
  */
 
-// 应用回调函数
+// Application callback
 static scanParamServiceCB_t scanParamServiceCB;
 
 /*********************************************************************
- * Profile属性 - 变量
+ * Profile Attributes - variables
  */
 
-// 扫描参数服务属性
+// Scan Parameters Service attribute
 static const gattAttrType_t scanParamService = {ATT_BT_UUID_SIZE, scanParamServUUID};
 
-// 扫描间隔窗口特征属性
-static uint8_t scanIntervalWindowProps = GATT_PROP_WRITE_NO_RSP;  // 无响应写属性
+// Scan Interval Window characteristic
+static uint8_t scanIntervalWindowProps = GATT_PROP_WRITE_NO_RSP;
 static uint8_t scanIntervalWindow[SCAN_INTERVAL_WINDOW_CHAR_LEN];
 
-// 扫描参数刷新特征属性
-static uint8_t       scanParamRefreshProps = GATT_PROP_NOTIFY;    // 通知属性
+// Scan Parameter Refresh characteristic
+static uint8_t       scanParamRefreshProps = GATT_PROP_NOTIFY;
 static uint8_t       scanParamRefresh[SCAN_PARAM_REFRESH_LEN];
-static gattCharCfg_t scanParamRefreshClientCharCfg[GATT_MAX_NUM_CONN];  // 客户端特征配置
+static gattCharCfg_t scanParamRefreshClientCharCfg[GATT_MAX_NUM_CONN];
 
 /*********************************************************************
- * Profile属性 - 表
+ * Profile Attributes - Table
  */
 
-// 扫描参数服务属性表
 static gattAttribute_t scanParamAttrTbl[] = {
-    // 扫描参数服务声明
+    // Scan Parameters Service attribute
     {
-        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* 类型 */
-        GATT_PERMIT_READ,                       /* 权限 */
-        0,                                      /* 句柄 */
-        (uint8_t *)&scanParamService            /* 值指针 */
+        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* type */
+        GATT_PERMIT_READ,                       /* permissions */
+        0,                                      /* handle */
+        (uint8_t *)&scanParamService            /* pValue */
     },
 
-    // 扫描间隔窗口特征声明
+    // Scan Interval Window declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &scanIntervalWindowProps},
 
-    // 扫描间隔窗口特征值
+    // Scan Interval Window characteristic
     {
         {ATT_BT_UUID_SIZE, scanIntervalWindowUUID},
         GATT_PERMIT_ENCRYPT_WRITE,
         0,
         scanIntervalWindow},
 
-    // 扫描参数刷新特征声明
+    // Scan Parameter Refresh declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &scanParamRefreshProps},
 
-    // 扫描参数刷新特征值
+    // Scan Parameter Refresh characteristic
     {
         {ATT_BT_UUID_SIZE, scanParamRefreshUUID},
         0,
         0,
         scanParamRefresh},
 
-    // 扫描参数刷新特征客户端特征配置
+    // Scan Parameter Refresh characteristic client characteristic configuration
     {
         {ATT_BT_UUID_SIZE, clientCharCfgUUID},
         GATT_PERMIT_READ | GATT_PERMIT_ENCRYPT_WRITE,
@@ -124,57 +123,56 @@ static gattAttribute_t scanParamAttrTbl[] = {
         (uint8_t *)&scanParamRefreshClientCharCfg}
 };
 
-// 属性表索引枚举 - 这些索引与上面数组元素对应
+// Attribute index enumeration-- these indexes match array elements above
 enum
 {
-    SCAN_PARAM_SERVICE_IDX,       // 扫描参数服务
-    SCAN_PARAM_INTERVAL_DECL_IDX, // 扫描间隔窗口声明
-    SCAN_PARAM_INTERVAL_IDX,      // 扫描间隔窗口特征
-    SCAN_PARAM_REFRESH_DECL_IDX,  // 扫描参数刷新声明
-    SCAN_PARAM_REFRESH_IDX,       // 扫描参数刷新特征
-    SCAN_PARAM_REFRESH_CCCD_IDX   // 扫描参数刷新特征客户端特征配置
+    SCAN_PARAM_SERVICE_IDX,       // Scan Parameters Service
+    SCAN_PARAM_INTERVAL_DECL_IDX, // Scan Interval Window declaration
+    SCAN_PARAM_INTERVAL_IDX,      // Scan Interval Window characteristic
+    SCAN_PARAM_REFRESH_DECL_IDX,  // Scan Parameter Refresh declaration
+    SCAN_PARAM_REFRESH_IDX,       // Scan Parameter Refresh characteristic
+    SCAN_PARAM_REFRESH_CCCD_IDX   // Scan Parameter Refresh characteristic client characteristic configuration
 };
 
 /*********************************************************************
- * 本地函数
+ * LOCAL FUNCTIONS
  */
-// 写属性回调函数
 static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                       uint8_t *pValue, uint16_t len, uint16_t offset, uint8_t method);
-// 读属性回调函数                                      
 static bStatus_t scanParamReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                      uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method);
 
 /*********************************************************************
- * PROFILE回调
+ * PROFILE CALLBACKS
  */
 
-// 服务回调函数
+// Service Callbacks
 gattServiceCBs_t scanParamCBs = {
-    scanParamReadAttrCB,  // 读回调函数指针
-    scanParamWriteAttrCB, // 写回调函数指针
-    NULL                  // 授权回调函数指针
+    scanParamReadAttrCB,  // Read callback function pointer
+    scanParamWriteAttrCB, // Write callback function pointer
+    NULL                  // Authorization callback function pointer
 };
 
 /*********************************************************************
- * 公共函数
+ * PUBLIC FUNCTIONS
  */
 
 /*********************************************************************
  * @fn      ScanParam_AddService
  *
- * @brief   初始化扫描参数服务,通过向GATT服务器注册GATT属性
+ * @brief   Initializes the Battery Service by registering
+ *          GATT attributes with the GATT server.
  *
- * @return  成功或失败
+ * @return  Success or Failure
  */
 bStatus_t ScanParam_AddService(void)
 {
     uint8_t status = SUCCESS;
 
-    // 初始化客户端特征配置属性
+    // Initialize Client Characteristic Configuration attributes
     GATTServApp_InitCharCfg(INVALID_CONNHANDLE, scanParamRefreshClientCharCfg);
 
-    // 向GATT服务器注册GATT属性列表和回调函数
+    // Register GATT attribute list and CBs with GATT Server App
     status = GATTServApp_RegisterService(scanParamAttrTbl, GATT_NUM_ATTRS(scanParamAttrTbl), GATT_MAX_ENCRYPT_KEY_SIZE,
                                          &scanParamCBs);
 
@@ -184,11 +182,11 @@ bStatus_t ScanParam_AddService(void)
 /*********************************************************************
  * @fn      ScanParam_Register
  *
- * @brief   注册扫描参数服务的回调函数
+ * @brief   Register a callback function with the Battery Service.
  *
- * @param   pfnServiceCB - 回调函数
+ * @param   pfnServiceCB - Callback function.
  *
- * @return  无
+ * @return  None.
  */
 extern void ScanParam_Register(scanParamServiceCB_t pfnServiceCB)
 {
@@ -198,11 +196,14 @@ extern void ScanParam_Register(scanParamServiceCB_t pfnServiceCB)
 /*********************************************************************
  * @fn      ScanParam_SetParameter
  *
- * @brief   设置扫描参数服务的参数
+ * @brief   Set a Battery Service parameter.
  *
- * @param   param - 参数ID
- * @param   len - 数据长度
- * @param   value - 数据指针,根据参数ID会被转换为相应的数据类型
+ * @param   param - Profile parameter ID
+ * @param   len - length of data to right
+ * @param   value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -223,10 +224,13 @@ bStatus_t ScanParam_SetParameter(uint8_t param, uint8_t len, void *value)
 /*********************************************************************
  * @fn      ScanParam_GetParameter
  *
- * @brief   获取扫描参数服务的参数
+ * @brief   Get a Battery Service parameter.
  *
- * @param   param - 参数ID
- * @param   value - 数据指针,根据参数ID会被转换为相应的数据类型
+ * @param   param - Profile parameter ID
+ * @param   value - pointer to data to get.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -235,12 +239,12 @@ bStatus_t ScanParam_GetParameter(uint8_t param, void *value)
     bStatus_t ret = SUCCESS;
     switch(param)
     {
-        case SCAN_PARAM_PARAM_INTERVAL:  // 获取扫描间隔
+        case SCAN_PARAM_PARAM_INTERVAL:
             *((uint16_t *)value) = BUILD_UINT16(scanIntervalWindow[0],
                                                 scanIntervalWindow[1]);
             break;
 
-        case SCAN_PARAM_PARAM_WINDOW:    // 获取扫描窗口
+        case SCAN_PARAM_PARAM_WINDOW:
             *((uint16_t *)value) = BUILD_UINT16(scanIntervalWindow[2],
                                                 scanIntervalWindow[3]);
             break;
@@ -256,28 +260,26 @@ bStatus_t ScanParam_GetParameter(uint8_t param, void *value)
 /*********************************************************************
  * @fn      ScanParam_RefreshNotify
  *
- * @brief   通知对端刷新扫描参数
+ * @brief   Notify the peer to refresh the scan parameters.
  *
- * @param   connHandle - 连接句柄
+ * @param   connHandle - connection handle
  *
- * @return  无
+ * @return  None
  */
 void ScanParam_RefreshNotify(uint16_t connHandle)
 {
     uint16_t value;
 
-    // 读取客户端特征配置
     value = GATTServApp_ReadCharCfg(connHandle, scanParamRefreshClientCharCfg);
     if(value & GATT_CLIENT_CFG_NOTIFY)
     {
         attHandleValueNoti_t noti;
 
-        // 分配通知内存
         noti.pValue = GATT_bm_alloc(connHandle, ATT_HANDLE_VALUE_NOTI,
                                     SCAN_PARAM_REFRESH_LEN, NULL, 0);
         if(noti.pValue != NULL)
         {
-            // 发送通知
+            // send notification
             noti.handle = scanParamAttrTbl[SCAN_PARAM_REFRESH_CCCD_IDX].handle;
             noti.len = SCAN_PARAM_REFRESH_LEN;
             noti.pValue[0] = SCAN_PARAM_REFRESH_REQ;
@@ -293,16 +295,16 @@ void ScanParam_RefreshNotify(uint16_t connHandle)
 /*********************************************************************
  * @fn          scanParamReadAttrCB
  *
- * @brief       GATT读回调函数
+ * @brief       GATT read callback.
  *
- * @param       connHandle - 连接句柄
- * @param       pAttr - 属性指针
- * @param       pValue - 数据指针
- * @param       pLen - 数据长度指针
- * @param       offset - 第一个字节的偏移
- * @param       maxLen - 最大数据长度
+ * @param       connHandle - connection message was received on
+ * @param       pAttr - pointer to attribute
+ * @param       pValue - pointer to data to be read
+ * @param       pLen - length of data to be read
+ * @param       offset - offset of the first octet to be read
+ * @param       maxLen - maximum length of data to be read
  *
- * @return      成功或失败
+ * @return      Success or Failure
  */
 static bStatus_t scanParamReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                      uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method)
@@ -315,15 +317,15 @@ static bStatus_t scanParamReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr
 /*********************************************************************
  * @fn      scanParamWriteAttrCB
  *
- * @brief   在写操作前验证属性数据
+ * @brief   Validate attribute data prior to a write operation
  *
- * @param   connHandle - 连接句柄
- * @param   pAttr - 属性指针
- * @param   pValue - 数据指针
- * @param   len - 数据长度
- * @param   offset - 第一个字节的偏移
+ * @param   connHandle - connection message was received on
+ * @param   pAttr - pointer to attribute
+ * @param   pValue - pointer to data to be written
+ * @param   len - length of data
+ * @param   offset - offset of the first octet to be written
  *
- * @return  成功或失败
+ * @return  Success or Failure
  */
 static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                       uint8_t *pValue, uint16_t len, uint16_t offset, uint8_t method)
@@ -331,7 +333,7 @@ static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAtt
     uint16_t  uuid;
     bStatus_t status = SUCCESS;
 
-    // 确保不是块操作(Profile中没有长属性)
+    // Make sure it's not a blob operation (no attributes in the profile are long)
     if(offset > 0)
     {
         return (ATT_ERR_ATTR_NOT_LONG);
@@ -339,7 +341,7 @@ static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAtt
 
     uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);
 
-    // 只有一个可写属性
+    // Only one writeable attribute
     if(uuid == SCAN_INTERVAL_WINDOW_UUID)
     {
         if(len == SCAN_INTERVAL_WINDOW_CHAR_LEN)
@@ -347,7 +349,7 @@ static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAtt
             uint16_t interval = BUILD_UINT16(pValue[0], pValue[1]);
             uint16_t window = BUILD_UINT16(pValue[0], pValue[1]);
 
-            // 验证值
+            // Validate values
             if(window <= interval)
             {
                 tmos_memcpy(pAttr->pValue, pValue, len);
@@ -380,19 +382,19 @@ static bStatus_t scanParamWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAtt
 /*********************************************************************
  * @fn          ScanParam_HandleConnStatusCB
  *
- * @brief       服务链路状态变化处理函数
+ * @brief       Service link status change handler function.
  *
- * @param       connHandle - 连接句柄
- * @param       changeType - 变化类型
+ * @param       connHandle - connection handle
+ * @param       changeType - type of change
  *
- * @return      无
+ * @return      none
  */
 void ScanParam_HandleConnStatusCB(uint16_t connHandle, uint8_t changeType)
 {
-    // 确保不是回环连接
+    // Make sure this is not loopback connection
     if(connHandle != LOOPBACK_CONNHANDLE)
     {
-        // 如果连接断开则重置客户端特征配置
+        // Reset Client Char Config if connection has dropped
         if((changeType == LINKDB_STATUS_UPDATE_REMOVED) ||
            ((changeType == LINKDB_STATUS_UPDATE_STATEFLAGS) &&
             (!linkDB_Up(connHandle))))

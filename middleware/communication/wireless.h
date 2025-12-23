@@ -65,7 +65,6 @@ typedef struct {
     void (*send_system)(uint16_t);
     void (*send_mouse)(uint8_t *);
     void (*update_bat_level)(uint8_t);
-    void (*task)(void);
 } wt_func_t;
 // clang-format on
 
@@ -77,7 +76,6 @@ void wireless_config_reset(void);
 void wireless_set_transport(wt_func_t *transport);
 
 #if (BLUETOOTH_ENABLE_FLAG == TRUE)
-void wireless_register_bt_driver(bt_driver_t *driver);
 void wireless_switch_to_bt_driver(void);
 #endif
 

@@ -1,13 +1,13 @@
 /********************************** (C) COPYRIGHT *******************************
- * 文件名称          : hidkbdservice.h
- * 作者             : WCH
- * 版本             : V1.0
- * 日期             : 2018/12/10
- * 描述             : HID键盘服务头文件
+ * File Name          : hidkbdservice.h
+ * Author             : WCH
+ * Version            : V1.0
+ * Date               : 2018/12/10
+ * Description        :
  *********************************************************************************
- * 版权所有 (c) 2021 南京沁恒微电子有限公司
- * 注意: 本软件(修改或未修改)及二进制文件仅用于
- * 南京沁恒微电子制造的微控制器。
+ * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
+ * Attention: This software (modified or not) and binary are used for 
+ * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 
 #ifndef HIDKBDSERVICE_H
@@ -18,66 +18,76 @@ extern "C" {
 #endif
 
 /*********************************************************************
- * 包含头文件
+ * INCLUDES
  */
 
 /*********************************************************************
- * 常量定义
+ * CONSTANTS
  */
 
-// 服务中定义的HID报告数量
-#define HID_NUM_REPORTS        7
+// Number of HID reports defined in the service
+#define HID_NUM_REPORTS        12
 
-// 服务的HID报告ID
-#define HID_RPT_ID_KEY_IN      0                      // 键盘输入报告ID
-#define HID_RPT_ID_MOUSE_IN    1                      // 鼠标输入报告ID
-#define HID_RPT_ID_LED_OUT     0                      // LED输出报告ID
-#define HID_RPT_ID_FEATURE     0                      // 特性报告ID
+// HID Report IDs for the service
+#define HID_RPT_ID_SYS_CTL_IN           1                      // Mouse input report ID
+#define HID_RPT_ID_CLASS_KEY_IN         2                      // Keyboard input report ID
+#define HID_RPT_ID_LED_OUT              2                      // LED output report ID
+#define HID_RPT_ID_MOUSE_IN             3                      // Mouse input report ID
 
-// HID特性标志
-#define HID_FEATURE_FLAGS      HID_FLAGS_REMOTE_WAKE  // 远程唤醒功能标志
+#define HID_RPT_ID_TOUCHPAD_IN          3                      // Touchpad input report ID
+#define HID_RPT_ID_TOUCHPAD_FEATURE     7
+#define HID_RPT_ID_CONSUMER_IN          8                      // Mouse input report ID
+#define HID_RPT_ID_SMART_WHEEL_IN       9                      // Mouse input report ID
+#define HID_RPT_ID_ALL_KEY_IN           5                       // Mouse input report ID
+#define HID_RPT_ID_FEATURE              6                      // Feature report ID
+#define HID_RPT_ID_FN_IN                0x11                       // FN input report ID
+
+// HID feature flags
+#define HID_FEATURE_FLAGS      HID_FLAGS_REMOTE_WAKE
 
 /*********************************************************************
- * 类型定义
+ * TYPEDEFS
  */
 
 /*********************************************************************
- * 宏定义
+ * MACROS
  */
 
 /*********************************************************************
- * 配置文件回调函数
+ * Profile Callbacks
  */
 
 /*********************************************************************
- * API函数声明
+ * API FUNCTIONS
  */
 
 /*********************************************************************
  * @fn      Hid_AddService
  *
- * @brief   通过向GATT服务器注册GATT属性来初始化键盘的HID服务
+ * @brief   Initializes the HID service for keyboard by registering
+ *          GATT attributes with the GATT server.
  *
- * @param   none - 无参数
+ * @param   none
  *
- * @return  成功返回SUCCESS，失败返回FAILURE
+ * @return  Success or Failure
  */
 extern bStatus_t Hid_AddService(void);
 
 /*********************************************************************
  * @fn      Hid_SetParameter
  *
- * @brief   设置HID键盘参数
+ * @brief   Set a HID Kbd parameter.
  *
- * @param   id     - HID报告ID
- * @param   type   - HID报告类型
- * @param   uuid   - 属性UUID
- * @param   len    - 要写入的数据长度
- * @param   pValue - 指向要写入数据的指针。这取决于输入参数，
- *                   并将被转换为适当的数据类型
- *                   (例如：uint16_t类型的数据将被转换为uint16_t指针)
+ * @param   id     - HID report ID.
+ * @param   type   - HID report type.
+ * @param   uuid   - attribute uuid.
+ * @param   len    - length of data to right.
+ * @param   pValue - pointer to data to write.  This is dependent on
+ *          the input parameters and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
- * @return  GATT状态码
+ * @return  GATT status code.
  */
 extern uint8_t Hid_SetParameter(uint8_t id, uint8_t type, uint16_t uuid, uint8_t len,
                                 void *pValue);
@@ -85,17 +95,18 @@ extern uint8_t Hid_SetParameter(uint8_t id, uint8_t type, uint16_t uuid, uint8_t
 /*********************************************************************
  * @fn      Hid_GetParameter
  *
- * @brief   获取HID键盘参数
+ * @brief   Get a HID Kbd parameter.
  *
- * @param   id     - HID报告ID
- * @param   type   - HID报告类型
- * @param   uuid   - 属性UUID
- * @param   pLen   - 要读取的数据长度指针
- * @param   pValue - 指向获取数据的指针。这取决于输入参数，
- *                   并将被转换为适当的数据类型
- *                   (例如：uint16_t类型的数据将被转换为uint16_t指针)
+ * @param   id     - HID report ID.
+ * @param   type   - HID report type.
+ * @param   uuid   - attribute uuid.
+ * @param   pLen   - length of data to be read.
+ * @param   pValue - pointer to data to get.  This is dependent on
+ *          the input parameters and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
- * @return  GATT状态码
+ * @return  GATT status code.
  */
 extern uint8_t Hid_GetParameter(uint8_t id, uint8_t type, uint16_t uuid, uint16_t *pLen, void *pValue);
 

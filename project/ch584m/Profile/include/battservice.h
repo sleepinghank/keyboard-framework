@@ -1,13 +1,13 @@
 /********************************** (C) COPYRIGHT *******************************
- * 文件名称          : battservice.h
- * 作者             : WCH
- * 版本             : V1.0
- * 日期             : 2018/12/11
- * 描述             : 电池服务头文件,包含电池服务相关的常量、类型定义和API函数声明
+ * File Name          : battservice.h
+ * Author             : WCH
+ * Version            : V1.0
+ * Date               : 2018/12/11
+ * Description        :
  *********************************************************************************
- * 版权所有 (c) 2021 南京沁恒微电子股份有限公司
- * 注意: 本软件(修改或未修改)及其二进制文件仅用于
- * 南京沁恒微电子制造的微控制器。
+ * Copyright (c) 2021 Nanjing Qinheng Microelectronics Co., Ltd.
+ * Attention: This software (modified or not) and binary are used for 
+ * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 
 #ifndef BATTSERVICE_H
@@ -18,84 +18,86 @@ extern "C" {
 #endif
 
 /*********************************************************************
- * 包含头文件
+ * INCLUDES
  */
 
 /*********************************************************************
- * 常量定义
+ * CONSTANTS
  */
 
-// 电池服务参数获取/设置标识
-#define BATT_PARAM_LEVEL                   0  // 电池电量值
-#define BATT_PARAM_CRITICAL_LEVEL          1  // 电池临界电量值
-#define BATT_PARAM_SERVICE_HANDLE          2  // 电池服务句柄
-#define BATT_PARAM_BATT_LEVEL_IN_REPORT    3  // 电池电量输入报告
+// Battery Service Get/Set Parameters
+#define BATT_PARAM_LEVEL                   0
+#define BATT_PARAM_CRITICAL_LEVEL          1
+#define BATT_PARAM_SERVICE_HANDLE          2
+#define BATT_PARAM_BATT_LEVEL_IN_REPORT    3
 
-// 回调事件定义
-#define BATT_LEVEL_NOTI_ENABLED            1  // 电池电量通知使能
-#define BATT_LEVEL_NOTI_DISABLED           2  // 电池电量通知禁用
+// Callback events
+#define BATT_LEVEL_NOTI_ENABLED            1
+#define BATT_LEVEL_NOTI_DISABLED           2
 
-// 服务的HID报告ID
-#define HID_RPT_ID_BATT_LEVEL_IN           4  // 电池电量输入报告ID
+// HID Report IDs for the service
+#define HID_RPT_ID_BATT_LEVEL_IN           4  // Battery Level input report ID
 
 /*********************************************************************
- * 类型定义
+ * TYPEDEFS
  */
 
-// 电池服务回调函数类型
+// Battery Service callback function
 typedef void (*battServiceCB_t)(uint8_t event);
 
-// 电池测量硬件设置回调函数类型
+// Battery measure HW setup function
 typedef void (*battServiceSetupCB_t)(void);
 
-// 电池电量百分比计算回调函数类型
+// Battery measure percentage calculation function
 typedef uint8_t (*battServiceCalcCB_t)(uint16_t adcVal);
 
-// 电池测量硬件拆卸回调函数类型
+// Battery measure HW teardown function
 typedef void (*battServiceTeardownCB_t)(void);
 
 /*********************************************************************
- * 宏定义
+ * MACROS
  */
 
 /*********************************************************************
- * 配置文件回调
+ * Profile Callbacks
  */
 
 /*********************************************************************
- * API函数
+ * API FUNCTIONS
  */
 
 /*********************************************************************
  * @fn      Batt_AddService
  *
- * @brief   初始化电池服务,通过向GATT服务器注册GATT属性来实现
+ * @brief   Initializes the Battery service by registering
+ *          GATT attributes with the GATT server.
  *
- * @return  成功或失败
+ * @return  Success or Failure
  */
 extern bStatus_t Batt_AddService(void);
 
 /*********************************************************************
  * @fn      Batt_Register
  *
- * @brief   注册电池服务的回调函数
+ * @brief   Register a callback function with the Battery Service.
  *
- * @param   pfnServiceCB - 回调函数指针
+ * @param   pfnServiceCB - Callback function.
  *
- * @return  无
+ * @return  None.
  */
 extern void Batt_Register(battServiceCB_t pfnServiceCB);
 
 /*********************************************************************
  * @fn      Batt_SetParameter
  *
- * @brief   设置电池服务参数
+ * @brief   Set a Battery Service parameter.
  *
- * @param   param - 配置文件参数ID
- * @param   len - 要写入数据的长度
- * @param   value - 指向要写入数据的指针。这取决于参数ID,
- *          并将被转换为适当的数据类型(例如:uint16_t类型的数据
- *          将被转换为uint16_t指针)。
+ * @param   param - Profile parameter ID
+ * @param   len - length of data to right
+ * @param   value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -104,55 +106,59 @@ extern bStatus_t Batt_SetParameter(uint8_t param, uint8_t len, void *value);
 /*********************************************************************
  * @fn      Batt_GetParameter
  *
- * @brief   获取电池参数
+ * @brief   Get a Battery parameter.
  *
- * @param   param - 配置文件参数ID
- * @param   value - 指向获取数据的指针。这取决于参数ID,
- *          并将被转换为适当的数据类型(例如:uint16_t类型的数据
- *          将被转换为uint16_t指针)。
+ * @param   param - Profile parameter ID
+ * @param   value - pointer to data to get.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
 extern bStatus_t Batt_GetParameter(uint8_t param, void *value);
 
 /*********************************************************************
- * @fn      Batt_MeasLevel
+ * @fn          Batt_MeasLevel
  *
- * @brief   测量电池电量并更新服务特征中的电池电量值。
- *          如果电池电量状态特征配置为通知,且电池电量自上次
- *          测量以来发生变化,则会发送通知。
+ * @brief       Measure the battery level and update the battery
+ *              level value in the service characteristics.  If
+ *              the battery level-state characteristic is configured
+ *              for notification and the battery level has changed
+ *              since the last measurement, then a notification
+ *              will be sent.
  *
- * @return  成功或失败
+ * @return      Success or Failure
  */
 extern bStatus_t Batt_MeasLevel(void);
 
 /*********************************************************************
  * @fn      Batt_Setup
  *
- * @brief   设置要使用的ADC源。默认为VDD/3。
+ * @brief   Set up which ADC source is to be used. Defaults to VDD/3.
  *
- * @param   adc_ch - ADC通道,例如HAL_ADC_CHN_AIN6
- * @param   minVal - 最小电池电量
- * @param   maxVal - 最大电池电量
- * @param   sCB - 硬件设置回调
- * @param   tCB - 硬件拆卸回调
- * @param   cCB - 百分比计算回调
+ * @param   adc_ch - ADC Channel, e.g. HAL_ADC_CHN_AIN6
+ * @param   minVal - max battery level
+ * @param   maxVal - min battery level
+ * @param   sCB - HW setup callback
+ * @param   tCB - HW tear down callback
+ * @param   cCB - percentage calculation callback
  *
- * @return  无
+ * @return  none.
  */
 extern void Batt_Setup(uint8_t adc_ch, uint16_t minVal, uint16_t maxVal,
                        battServiceSetupCB_t sCB, battServiceTeardownCB_t tCB,
                        battServiceCalcCB_t cCB);
 
 /*********************************************************************
- * @fn      Batt_HandleConnStatusCB
+ * @fn          Batt_HandleConnStatusCB
  *
- * @brief   电池服务连接状态变化处理函数
+ * @brief       Battery Service link status change handler function.
  *
- * @param   connHandle - 连接句柄
- * @param   changeType - 变化类型
+ * @param       connHandle - connection handle
+ * @param       changeType - type of change
  *
- * @return  无
+ * @return      none
  */
 void Batt_HandleConnStatusCB(uint16_t connHandle, uint8_t changeType);
 

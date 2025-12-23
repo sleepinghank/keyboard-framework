@@ -11,264 +11,273 @@
  *******************************************************************************/
 
 /*********************************************************************
- * 包含头文件
+ * INCLUDES
  */
 #include "CONFIG.h"
 #include "devinfoservice.h"
 
 /*********************************************************************
- * 宏定义
+ * MACROS
  */
 
 /*********************************************************************
- * 常量定义
+ * CONSTANTS
  */
 
 /*********************************************************************
- * 类型定义
+ * TYPEDEFS
  */
 
 /*********************************************************************
- * 全局变量
+ * GLOBAL VARIABLES
  */
-// 设备信息服务UUID
+// Device information service
 const uint8_t devInfoServUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(DEVINFO_SERV_UUID), HI_UINT16(DEVINFO_SERV_UUID)};
 
-// 系统ID UUID
+// System ID
 const uint8_t devInfoSystemIdUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SYSTEM_ID_UUID), HI_UINT16(SYSTEM_ID_UUID)};
 
-// 型号字符串UUID
+// Model Number String
 const uint8_t devInfoModelNumberUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(MODEL_NUMBER_UUID), HI_UINT16(MODEL_NUMBER_UUID)};
 
-// 序列号字符串UUID
+// Serial Number String
 const uint8_t devInfoSerialNumberUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SERIAL_NUMBER_UUID), HI_UINT16(SERIAL_NUMBER_UUID)};
 
-// 固件版本字符串UUID
+// Firmware Revision String
 const uint8_t devInfoFirmwareRevUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(FIRMWARE_REV_UUID), HI_UINT16(FIRMWARE_REV_UUID)};
 
-// 硬件版本字符串UUID
+// Hardware Revision String
 const uint8_t devInfoHardwareRevUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(HARDWARE_REV_UUID), HI_UINT16(HARDWARE_REV_UUID)};
 
-// 软件版本字符串UUID
+// Software Revision String
 const uint8_t devInfoSoftwareRevUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(SOFTWARE_REV_UUID), HI_UINT16(SOFTWARE_REV_UUID)};
 
-// 制造商名称字符串UUID
+// Manufacturer Name String
 const uint8_t devInfoMfrNameUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(MANUFACTURER_NAME_UUID), HI_UINT16(MANUFACTURER_NAME_UUID)};
 
-// IEEE 11073-20601认证数据列表UUID
+// IEEE 11073-20601 Regulatory Certification Data List
 const uint8_t devInfo11073CertUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(IEEE_11073_CERT_DATA_UUID), HI_UINT16(IEEE_11073_CERT_DATA_UUID)};
 
-// PnP ID UUID
+// PnP ID
 const uint8_t devInfoPnpIdUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(PNP_ID_UUID), HI_UINT16(PNP_ID_UUID)};
 
 /*********************************************************************
- * 外部变量
+ * EXTERNAL VARIABLES
  */
 
 /*********************************************************************
- * 外部函数
+ * EXTERNAL FUNCTIONS
  */
 
 /*********************************************************************
- * 本地变量
+ * LOCAL VARIABLES
  */
 
 /*********************************************************************
- * Profile属性 - 变量
+ * Profile Attributes - variables
  */
 
-// 设备信息服务属性
+// Device Information Service attribute
 static const gattAttrType_t devInfoService = {ATT_BT_UUID_SIZE, devInfoServUUID};
 
-// 系统ID特征
-static uint8_t devInfoSystemIdProps = GATT_PROP_READ;  // 只读属性
+// System ID characteristic
+static uint8_t devInfoSystemIdProps = GATT_PROP_READ;
 static uint8_t devInfoSystemId[DEVINFO_SYSTEM_ID_LEN] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-// 型号字符串特征
-static uint8_t       devInfoModelNumberProps = GATT_PROP_READ;  // 只读属性
+// Model Number String characteristic
+static uint8_t       devInfoModelNumberProps = GATT_PROP_READ;
 static const uint8_t devInfoModelNumber[] = "Model Number";
 
-// 序列号字符串特征
-static uint8_t       devInfoSerialNumberProps = GATT_PROP_READ;  // 只读属性
+// Serial Number String characteristic
+static uint8_t       devInfoSerialNumberProps = GATT_PROP_READ;
 static const uint8_t devInfoSerialNumber[] = "Serial Number";
 
-// 固件版本字符串特征
-static uint8_t       devInfoFirmwareRevProps = GATT_PROP_READ;  // 只读属性
+// Firmware Revision String characteristic
+static uint8_t       devInfoFirmwareRevProps = GATT_PROP_READ;
 static const uint8_t devInfoFirmwareRev[] = "Firmware Revision";
 
-// 硬件版本字符串特征
-static uint8_t       devInfoHardwareRevProps = GATT_PROP_READ;  // 只读属性
+// Hardware Revision String characteristic
+static uint8_t       devInfoHardwareRevProps = GATT_PROP_READ;
 static const uint8_t devInfoHardwareRev[] = "Hardware Revision";
 
-// 软件版本字符串特征
-static uint8_t       devInfoSoftwareRevProps = GATT_PROP_READ;  // 只读属性
-static const uint8_t devInfoSoftwareRev[] = "Software Revision";
+// Software Revision String characteristic
+static uint8_t       devInfoSoftwareRevProps = GATT_PROP_READ;
+static const uint8_t devInfoSoftwareRev[] = "2024.01.03 SVN0127";
 
-// 制造商名称字符串特征
-static uint8_t       devInfoMfrNameProps = GATT_PROP_READ;  // 只读属性
+// Manufacturer Name String characteristic
+static uint8_t       devInfoMfrNameProps = GATT_PROP_READ;
 static const uint8_t devInfoMfrName[] = "Manufacturer Name";
 
-// IEEE 11073-20601认证数据列表特征
-static uint8_t       devInfo11073CertProps = GATT_PROP_READ;  // 只读属性
+// IEEE 11073-20601 Regulatory Certification Data List characteristic
+static uint8_t       devInfo11073CertProps = GATT_PROP_READ;
 static const uint8_t devInfo11073Cert[] = {
-    DEVINFO_11073_BODY_EXP,  // 认证机构类型
-    0x00,                    // 认证机构结构类型
-                            // 认证机构数据:
+    DEVINFO_11073_BODY_EXP, // authoritative body type
+    0x00,                   // authoritative body structure type
+                            // authoritative body data follows below:
     'e', 'x', 'p', 'e', 'r', 'i', 'm', 'e', 'n', 't', 'a', 'l'};
 
-// PnP ID特征
-static uint8_t devInfoPnpIdProps = GATT_PROP_READ;  // 只读属性
+// System ID characteristic
+static uint8_t devInfoPnpIdProps = GATT_PROP_READ;
 static uint8_t devInfoPnpId[DEVINFO_PNP_ID_LEN] = {
-    1,                                    // 厂商ID来源(1=蓝牙SIG)
-    LO_UINT16(0x07D7), HI_UINT16(0x07D7), // 厂商ID (WCH)
-    LO_UINT16(0x0000), HI_UINT16(0x0000), // 产品ID (厂商定义)
-    LO_UINT16(0x0110), HI_UINT16(0x0110)  // 产品版本 (JJ.M.N)
+    1,                                    // Vendor ID source (1=Bluetooth SIG)
+//    LO_UINT16(0x0C45), HI_UINT16(0x0C45), // Vendor ID (0x05AC)
+//    LO_UINT16(0xFEFE), HI_UINT16(0xFEFE), // Product ID (0x024F)
+
+//    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+//    LO_UINT16(0x0251), HI_UINT16(0x0251), // Product ID (0x024F)
+
+//    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+//    LO_UINT16(0x0250), HI_UINT16(0x0250), // Product ID (0x024F)
+
+    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+    LO_UINT16(0x024F), HI_UINT16(0x024F), // Product ID (0x024F)
+
+    LO_UINT16(0x0127), HI_UINT16(0x0127)  // Product version (JJ.M.N)
 };
 
 /*********************************************************************
- * Profile属性 - 表
+ * Profile Attributes - Table
  */
 
-// 设备信息服务属性表
 static gattAttribute_t devInfoAttrTbl[] = {
-    // 设备信息服务声明
+    // Device Information Service
     {
-        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* 类型 */
-        GATT_PERMIT_READ,                       /* 权限 */
-        0,                                      /* 句柄 */
-        (uint8_t *)&devInfoService              /* 值指针 */
+        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* type */
+        GATT_PERMIT_READ,                       /* permissions */
+        0,                                      /* handle */
+        (uint8_t *)&devInfoService              /* pValue */
     },
 
-    // 系统ID声明
+    // System ID Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoSystemIdProps},
 
-    // 系统ID值
+    // System ID Value
     {
         {ATT_BT_UUID_SIZE, devInfoSystemIdUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoSystemId},
 
-    // 型号字符串声明
+    // Model Number String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoModelNumberProps},
 
-    // 型号字符串值
+    // Model Number Value
     {
         {ATT_BT_UUID_SIZE, devInfoModelNumberUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoModelNumber},
 
-    // 序列号字符串声明
+    // Serial Number String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoSerialNumberProps},
 
-    // 序列号字符串值
+    // Serial Number Value
     {
         {ATT_BT_UUID_SIZE, devInfoSerialNumberUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoSerialNumber},
 
-    // 固件版本字符串声明
+    // Firmware Revision String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoFirmwareRevProps},
 
-    // 固件版本字符串值
+    // Firmware Revision Value
     {
         {ATT_BT_UUID_SIZE, devInfoFirmwareRevUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoFirmwareRev},
 
-    // 硬件版本字符串声明
+    // Hardware Revision String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoHardwareRevProps},
 
-    // 硬件版本字符串值
+    // Hardware Revision Value
     {
         {ATT_BT_UUID_SIZE, devInfoHardwareRevUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoHardwareRev},
 
-    // 软件版本字符串声明
+    // Software Revision String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoSoftwareRevProps},
 
-    // 软件版本字符串值
+    // Software Revision Value
     {
         {ATT_BT_UUID_SIZE, devInfoSoftwareRevUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoSoftwareRev},
 
-    // 制造商名称字符串声明
+    // Manufacturer Name String Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoMfrNameProps},
 
-    // 制造商名称字符串值
+    // Manufacturer Name Value
     {
         {ATT_BT_UUID_SIZE, devInfoMfrNameUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfoMfrName},
 
-    // IEEE 11073-20601认证数据列表声明
+    // IEEE 11073-20601 Regulatory Certification Data List Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfo11073CertProps},
 
-    // IEEE 11073-20601认证数据列表值
+    // IEEE 11073-20601 Regulatory Certification Data List Value
     {
         {ATT_BT_UUID_SIZE, devInfo11073CertUUID},
         GATT_PERMIT_READ,
         0,
         (uint8_t *)devInfo11073Cert},
 
-    // PnP ID声明
+    // PnP ID Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &devInfoPnpIdProps},
 
-    // PnP ID值
+    // PnP ID Value
     {
         {ATT_BT_UUID_SIZE, devInfoPnpIdUUID},
         GATT_PERMIT_READ,
@@ -276,40 +285,40 @@ static gattAttribute_t devInfoAttrTbl[] = {
         (uint8_t *)devInfoPnpId}};
 
 /*********************************************************************
- * 本地函数
+ * LOCAL FUNCTIONS
  */
-// 读取属性回调函数
 static bStatus_t devInfo_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                     uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method);
 
 /*********************************************************************
- * Profile回调函数
+ * PROFILE CALLBACKS
  */
-// 设备信息服务回调函数
+// Device Info Service Callbacks
 gattServiceCBs_t devInfoCBs = {
-    devInfo_ReadAttrCB, // 读取回调函数指针
-    NULL,               // 写入回调函数指针
-    NULL                // 授权回调函数指针
+    devInfo_ReadAttrCB, // Read callback function pointer
+    NULL,               // Write callback function pointer
+    NULL                // Authorization callback function pointer
 };
 
 /*********************************************************************
- * 网络层回调函数
+ * NETWORK LAYER CALLBACKS
  */
 
 /*********************************************************************
- * 公共函数
+ * PUBLIC FUNCTIONS
  */
 
 /*********************************************************************
  * @fn      DevInfo_AddService
  *
- * @brief   初始化设备信息服务,通过向GATT服务器注册GATT属性
+ * @brief   Initializes the Device Information service by registering
+ *          GATT attributes with the GATT server.
  *
- * @return  成功或失败
+ * @return  Success or Failure
  */
 bStatus_t DevInfo_AddService(void)
 {
-    // 向GATT服务器应用注册GATT属性列表和回调函数
+    // Register GATT attribute list and CBs with GATT Server App
     return GATTServApp_RegisterService(devInfoAttrTbl,
                                        GATT_NUM_ATTRS(devInfoAttrTbl),
                                        GATT_MAX_ENCRYPT_KEY_SIZE,
@@ -319,12 +328,14 @@ bStatus_t DevInfo_AddService(void)
 /*********************************************************************
  * @fn      DevInfo_SetParameter
  *
- * @brief   设置设备信息参数
+ * @brief   Set a Device Information parameter.
  *
- * @param   param - Profile参数ID
- * @param   len - 要写入数据的长度
- * @param   value - 要写入数据的指针。这取决于参数ID,并且会被转换为适当的数据类型
- *          (例如:uint16_t的数据类型会被转换为uint16_t指针)
+ * @param   param - Profile parameter ID
+ * @param   len - length of data to write
+ * @param   value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -334,7 +345,7 @@ bStatus_t DevInfo_SetParameter(uint8_t param, uint8_t len, void *value)
 
     switch(param)
     {
-        case DEVINFO_SYSTEM_ID:  // 设置系统ID
+        case DEVINFO_SYSTEM_ID:
             tmos_memcpy(devInfoSystemId, value, len);
             break;
 
@@ -349,11 +360,13 @@ bStatus_t DevInfo_SetParameter(uint8_t param, uint8_t len, void *value)
 /*********************************************************************
  * @fn      DevInfo_GetParameter
  *
- * @brief   获取设备信息参数
+ * @brief   Get a Device Information parameter.
  *
- * @param   param - Profile参数ID
- * @param   value - 获取数据的指针。这取决于参数ID,并且会被转换为适当的数据类型
- *          (例如:uint16_t的数据类型会被转换为uint16_t指针)
+ * @param   param - Profile parameter ID
+ * @param   value - pointer to data to get.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -363,39 +376,38 @@ bStatus_t DevInfo_GetParameter(uint8_t param, void *value)
 
     switch(param)
     {
-        case DEVINFO_SYSTEM_ID:  // 获取系统ID
+        case DEVINFO_SYSTEM_ID:
             tmos_memcpy(value, devInfoSystemId, sizeof(devInfoSystemId));
             break;
 
-        case DEVINFO_MODEL_NUMBER:  // 获取型号
+        case DEVINFO_MODEL_NUMBER:
             tmos_memcpy(value, devInfoModelNumber, sizeof(devInfoModelNumber));
             break;
-            
-        case DEVINFO_SERIAL_NUMBER:  // 获取序列号
+        case DEVINFO_SERIAL_NUMBER:
             tmos_memcpy(value, devInfoSerialNumber, sizeof(devInfoSerialNumber));
             break;
 
-        case DEVINFO_FIRMWARE_REV:  // 获取固件版本
+        case DEVINFO_FIRMWARE_REV:
             tmos_memcpy(value, devInfoFirmwareRev, sizeof(devInfoFirmwareRev));
             break;
 
-        case DEVINFO_HARDWARE_REV:  // 获取硬件版本
+        case DEVINFO_HARDWARE_REV:
             tmos_memcpy(value, devInfoHardwareRev, sizeof(devInfoHardwareRev));
             break;
 
-        case DEVINFO_SOFTWARE_REV:  // 获取软件版本
+        case DEVINFO_SOFTWARE_REV:
             tmos_memcpy(value, devInfoSoftwareRev, sizeof(devInfoSoftwareRev));
             break;
 
-        case DEVINFO_MANUFACTURER_NAME:  // 获取制造商名称
+        case DEVINFO_MANUFACTURER_NAME:
             tmos_memcpy(value, devInfoMfrName, sizeof(devInfoMfrName));
             break;
 
-        case DEVINFO_11073_CERT_DATA:  // 获取11073认证数据
+        case DEVINFO_11073_CERT_DATA:
             tmos_memcpy(value, devInfo11073Cert, sizeof(devInfo11073Cert));
             break;
 
-        case DEVINFO_PNP_ID:  // 获取PnP ID
+        case DEVINFO_PNP_ID:
             tmos_memcpy(value, devInfoPnpId, sizeof(devInfoPnpId));
             break;
 
@@ -410,16 +422,16 @@ bStatus_t DevInfo_GetParameter(uint8_t param, void *value)
 /*********************************************************************
  * @fn          devInfo_ReadAttrCB
  *
- * @brief       读取属性的回调函数
+ * @brief       Read an attribute.
  *
- * @param       connHandle - 接收到消息的连接句柄
- * @param       pAttr - 指向属性的指针
- * @param       pValue - 指向要读取数据的指针
- * @param       pLen - 要读取数据的长度
- * @param       offset - 要读取的第一个字节的偏移量
- * @param       maxLen - 可以读取的最大数据长度
+ * @param       connHandle - connection message was received on
+ * @param       pAttr - pointer to attribute
+ * @param       pValue - pointer to data to be read
+ * @param       pLen - length of data to be read
+ * @param       offset - offset of the first octet to be read
+ * @param       maxLen - maximum length of data to be read
  *
- * @return      成功或失败
+ * @return      Success or Failure
  */
 static bStatus_t devInfo_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                     uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method)
@@ -429,146 +441,146 @@ static bStatus_t devInfo_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 
     switch(uuid)
     {
-        case SYSTEM_ID_UUID:  // 读取系统ID
-            // 验证偏移量
+        case SYSTEM_ID_UUID:
+            // verify offset
             if(offset >= sizeof(devInfoSystemId))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度
+                // determine read length
                 *pLen = MIN(maxLen, (sizeof(devInfoSystemId) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoSystemId[offset], *pLen);
             }
             break;
 
-        case MODEL_NUMBER_UUID:  // 读取型号
-            // 验证偏移量
+        case MODEL_NUMBER_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoModelNumber) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoModelNumber) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoModelNumber[offset], *pLen);
             }
             break;
 
-        case SERIAL_NUMBER_UUID:  // 读取序列号
-            // 验证偏移量
+        case SERIAL_NUMBER_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoSerialNumber) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoSerialNumber) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoSerialNumber[offset], *pLen);
             }
             break;
 
-        case FIRMWARE_REV_UUID:  // 读取固件版本
-            // 验证偏移量
+        case FIRMWARE_REV_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoFirmwareRev) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoFirmwareRev) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoFirmwareRev[offset], *pLen);
             }
             break;
 
-        case HARDWARE_REV_UUID:  // 读取硬件版本
-            // 验证偏移量
+        case HARDWARE_REV_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoHardwareRev) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoHardwareRev) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoHardwareRev[offset], *pLen);
             }
             break;
 
-        case SOFTWARE_REV_UUID:  // 读取软件版本
-            // 验证偏移量
+        case SOFTWARE_REV_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoSoftwareRev) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoSoftwareRev) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoSoftwareRev[offset], *pLen);
             }
             break;
 
-        case MANUFACTURER_NAME_UUID:  // 读取制造商名称
-            // 验证偏移量
+        case MANUFACTURER_NAME_UUID:
+            // verify offset
             if(offset >= (sizeof(devInfoMfrName) - 1))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度(不包括空终止符)
+                // determine read length (exclude null terminating character)
                 *pLen = MIN(maxLen, ((sizeof(devInfoMfrName) - 1) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoMfrName[offset], *pLen);
             }
             break;
 
-        case IEEE_11073_CERT_DATA_UUID:  // 读取11073认证数据
-            // 验证偏移量
+        case IEEE_11073_CERT_DATA_UUID:
+            // verify offset
             if(offset >= sizeof(devInfo11073Cert))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度
+                // determine read length
                 *pLen = MIN(maxLen, (sizeof(devInfo11073Cert) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfo11073Cert[offset], *pLen);
             }
             break;
 
-        case PNP_ID_UUID:  // 读取PnP ID
-            // 验证偏移量
+        case PNP_ID_UUID:
+            // verify offset
             if(offset >= sizeof(devInfoPnpId))
             {
                 status = ATT_ERR_INVALID_OFFSET;
             }
             else
             {
-                // 确定读取长度
+                // determine read length
                 *pLen = MIN(maxLen, (sizeof(devInfoPnpId) - offset));
 
-                // 复制数据
+                // copy data
                 tmos_memcpy(pValue, &devInfoPnpId[offset], *pLen);
             }
             break;

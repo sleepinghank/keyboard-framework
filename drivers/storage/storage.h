@@ -22,6 +22,63 @@
 #define STORAGE_MAGIC_NUMBER      0xABCD // 存储魔术数字
 #define STORAGE_VERSION           1     // 配置版本号
 
+
+
+
+#define LINK_NUM_MAX            2
+
+/*********************************************************************
+ * TYPEDEFS
+ */
+
+#define USB_VID     0x05AC
+#define USB_PID     0x024F
+#define USB_REV     0x0100
+
+#define  RF_ROLE_ID_INVALD       (0x07)
+
+#define LED_MODE_ON             0
+#define LED_MODE_1Hz            1
+#define LED_MODE_2Hz            2
+#define LED_MODE_MAX            3
+
+#define LED_LIGHT_0             0
+#define LED_LIGHT_25            1
+#define LED_LIGHT_50            2
+#define LED_LIGHT_75            3
+// #define LED_LIGHT_100           4
+#define LED_LIGHT_MAX           4//对4取余
+
+#define LED_SPEED_1            0
+#define LED_SPEED_2            1
+#define LED_SPEED_3            2
+#define LED_SPEED_4            3
+#define LED_SPEED_5            4
+#define LED_SPEED_MAX          5
+
+#define SYS_WIN            0
+#define SYS_MAC            1
+
+typedef enum
+{
+    BLE_INDEX_IDEL = 0,
+    BLE_INDEX_1,
+    BLE_INDEX_2,
+    BLE_INDEX_3,
+    BLE_INDEX_MAX,
+}access_ble_idx_t;
+
+//#define MODE_USB            0
+//#define MODE_2_4G           1
+//#define MODE_BT             2
+//
+//#define SYS_WIN            0
+//#define SYS_MAC            1
+
+#define BLE_BOND_FLAG_1             (1<<0)
+#define BLE_BOND_FLAG_2             (1<<1)
+#define BLE_BOND_FLAG_3             (1<<2)
+
 /* 数据结构定义 */
 
 // 存储头部

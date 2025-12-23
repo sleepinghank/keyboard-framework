@@ -1,4 +1,4 @@
-/********************************** (C) COPYRIGHT *******************************
+﻿/********************************** (C) COPYRIGHT *******************************
  * File Name          : battservice.c
  * Author             : WCH
  * Version            : V1.0
@@ -11,129 +11,128 @@
  *******************************************************************************/
 
 /*********************************************************************
- * 包含头文件
+ * INCLUDES
  */
+#include <access.h>
 #include "CONFIG.h"
 #include "hiddev.h"
 #include "battservice.h"
 
 /*********************************************************************
- * 宏定义
+ * MACROS
  */
 
 /*********************************************************************
- * 常量定义
+ * CONSTANTS
  */
 
-// ADC电压等级
-#define BATT_ADC_LEVEL_3V            409  // 3V对应的ADC值
-#define BATT_ADC_LEVEL_2V            273  // 2V对应的ADC值
+// ADC voltage levels
+#define BATT_ADC_LEVEL_3V            409
+#define BATT_ADC_LEVEL_2V            273
 
-#define BATT_LEVEL_VALUE_IDX         2    // 电池电量值在属性数组中的位置
-#define BATT_LEVEL_VALUE_CCCD_IDX    3    // 电池电量CCCD在属性数组中的位置
+#define BATT_LEVEL_VALUE_IDX         2    // Position of battery level in attribute array
+#define BATT_LEVEL_VALUE_CCCD_IDX    3    // Position of battery level CCCD in attribute array
 
-#define BATT_LEVEL_VALUE_LEN         1    // 电池电量值长度
+#define BATT_LEVEL_VALUE_LEN         1
+/*********************************************************************
+ * TYPEDEFS
+ */
 
 /*********************************************************************
- * 类型定义
+ * GLOBAL VARIABLES
  */
-
-/*********************************************************************
- * 全局变量
- */
-// 电池服务UUID
+// Battery service
 const uint8_t battServUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(BATT_SERV_UUID), HI_UINT16(BATT_SERV_UUID)};
 
-// 电池电量特征UUID
+// Battery level characteristic
 const uint8_t battLevelUUID[ATT_BT_UUID_SIZE] = {
     LO_UINT16(BATT_LEVEL_UUID), HI_UINT16(BATT_LEVEL_UUID)};
 
 /*********************************************************************
- * 外部变量
+ * EXTERNAL VARIABLES
  */
 
 /*********************************************************************
- * 外部函数
+ * EXTERNAL FUNCTIONS
  */
 
 /*********************************************************************
- * 本地变量
+ * LOCAL VARIABLES
  */
 
-// 应用回调函数
+// Application callback
 static battServiceCB_t battServiceCB;
 
-// 测量设置回调函数
+// Measurement setup callback
 static battServiceSetupCB_t battServiceSetupCB = NULL;
 
-// 测量拆卸回调函数
+// Measurement teardown callback
 static battServiceTeardownCB_t battServiceTeardownCB = NULL;
 
-// 测量计算回调函数
+// Measurement calculation callback
 static battServiceCalcCB_t battServiceCalcCB = NULL;
 
-static uint16_t battMinLevel = BATT_ADC_LEVEL_2V; // VDD/3测量的最小电压值
-static uint16_t battMaxLevel = BATT_ADC_LEVEL_3V; // VDD/3测量的最大电压值
+static uint16_t battMinLevel = BATT_ADC_LEVEL_2V; // For VDD/3 measurements
+static uint16_t battMaxLevel = BATT_ADC_LEVEL_3V; // For VDD/3 measurements
 
-// 临界电池电量设置
+// Critical battery level setting
 static uint8_t battCriticalLevel;
 
-// 用于读取的ADC通道
+// ADC channel to be used for reading
 //static uint8_t battServiceAdcCh = HAL_ADC_CHANNEL_VDD;
 
 /*********************************************************************
- * Profile属性 - 变量
+ * Profile Attributes - variables
  */
 
-// 电池服务属性
+// Battery Service attribute
 static const gattAttrType_t battService = {ATT_BT_UUID_SIZE, battServUUID};
 
-// 电池电量特征
-static uint8_t       battLevelProps = GATT_PROP_READ | GATT_PROP_NOTIFY;  // 支持读取和通知
-static uint8_t       battLevel = 100;  // 初始电量为100%
-static gattCharCfg_t battLevelClientCharCfg[GATT_MAX_NUM_CONN];  // 客户端配置
+// Battery level characteristic
+static uint8_t       battLevelProps = GATT_PROP_READ | GATT_PROP_NOTIFY;
+static uint8_t       battLevel = 100;
+static gattCharCfg_t battLevelClientCharCfg[GATT_MAX_NUM_CONN];
 
-// HID报告参考特征描述符,电池电量
+// HID Report Reference characteristic descriptor, battery level
 static uint8_t hidReportRefBattLevel[HID_REPORT_REF_LEN] = {
     HID_RPT_ID_BATT_LEVEL_IN, HID_REPORT_TYPE_INPUT};
 
 /*********************************************************************
- * Profile属性 - 表
+ * Profile Attributes - Table
  */
 
-// 电池服务属性表
 static gattAttribute_t battAttrTbl[] = {
-    // 电池服务声明
+    // Battery Service
     {
-        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* 类型 */
-        GATT_PERMIT_READ,                       /* 权限 */
-        0,                                      /* 句柄 */
-        (uint8_t *)&battService                 /* 值指针 */
+        {ATT_BT_UUID_SIZE, primaryServiceUUID}, /* type */
+        GATT_PERMIT_READ,                       /* permissions */
+        0,                                      /* handle */
+        (uint8_t *)&battService                 /* pValue */
     },
 
-    // 电池电量特征声明
+    // Battery Level Declaration
     {
         {ATT_BT_UUID_SIZE, characterUUID},
         GATT_PERMIT_READ,
         0,
         &battLevelProps},
 
-    // 电池电量特征值
+    // Battery Level Value
     {
         {ATT_BT_UUID_SIZE, battLevelUUID},
         GATT_PERMIT_READ,
         0,
         &battLevel},
 
-    // 电池电量客户端特征配置
+    // Battery Level Client Characteristic Configuration
     {
         {ATT_BT_UUID_SIZE, clientCharCfgUUID},
         GATT_PERMIT_READ | GATT_PERMIT_WRITE,
         0,
         (uint8_t *)&battLevelClientCharCfg},
 
-    // HID报告参考特征描述符,电池电量输入
+    // HID Report Reference characteristic descriptor, batter level input
     {
         {ATT_BT_UUID_SIZE, reportRefUUID},
         GATT_PERMIT_READ,
@@ -142,50 +141,46 @@ static gattAttribute_t battAttrTbl[] = {
 };
 
 /*********************************************************************
- * 本地函数
+ * LOCAL FUNCTIONS
  */
-// 读取属性回调函数
 static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                 uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method);
-// 写入属性回调函数                                
 static bStatus_t battWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                  uint8_t *pValue, uint16_t len, uint16_t offset, uint8_t method);
-// 通知回调函数                                 
 static void      battNotifyCB(linkDBItem_t *pLinkItem);
-// 电池电量测量函数
 static uint8_t   battMeasure(void);
-// 电池电量通知函数
 static void      battNotifyLevel(void);
 
 /*********************************************************************
- * Profile回调
+ * PROFILE CALLBACKS
  */
-// 电池服务回调函数
+// Battery Service Callbacks
 gattServiceCBs_t battCBs = {
-    battReadAttrCB,  // 读取回调函数指针
-    battWriteAttrCB, // 写入回调函数指针
-    NULL             // 授权回调函数指针
+    battReadAttrCB,  // Read callback function pointer
+    battWriteAttrCB, // Write callback function pointer
+    NULL             // Authorization callback function pointer
 };
 
 /*********************************************************************
- * 公共函数
+ * PUBLIC FUNCTIONS
  */
 
 /*********************************************************************
  * @fn      Batt_AddService
  *
- * @brief   初始化电池服务,通过向GATT服务器注册GATT属性
+ * @brief   Initializes the Battery Service by registering
+ *          GATT attributes with the GATT server.
  *
- * @return  成功或失败
+ * @return  Success or Failure
  */
 bStatus_t Batt_AddService(void)
 {
     uint8_t status = SUCCESS;
 
-    // 初始化客户端特征配置属性
+    // Initialize Client Characteristic Configuration attributes
     GATTServApp_InitCharCfg(INVALID_CONNHANDLE, battLevelClientCharCfg);
 
-    // 向GATT服务器注册GATT属性列表和回调函数
+    // Register GATT attribute list and CBs with GATT Server App
     status = GATTServApp_RegisterService(battAttrTbl,
                                          GATT_NUM_ATTRS(battAttrTbl),
                                          GATT_MAX_ENCRYPT_KEY_SIZE,
@@ -197,11 +192,11 @@ bStatus_t Batt_AddService(void)
 /*********************************************************************
  * @fn      Batt_Register
  *
- * @brief   注册电池服务的回调函数
+ * @brief   Register a callback function with the Battery Service.
  *
- * @param   pfnServiceCB - 回调函数
+ * @param   pfnServiceCB - Callback function.
  *
- * @return  无
+ * @return  None.
  */
 extern void Batt_Register(battServiceCB_t pfnServiceCB)
 {
@@ -211,11 +206,14 @@ extern void Batt_Register(battServiceCB_t pfnServiceCB)
 /*********************************************************************
  * @fn      Batt_SetParameter
  *
- * @brief   设置电池服务参数
+ * @brief   Set a Battery Service parameter.
  *
- * @param   param - 参数ID
- * @param   len - 数据长度
- * @param   value - 数据指针
+ * @param   param - Profile parameter ID
+ * @param   len - length of data to right
+ * @param   value - pointer to data to write.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -225,10 +223,10 @@ bStatus_t Batt_SetParameter(uint8_t param, uint8_t len, void *value)
 
     switch(param)
     {
-        case BATT_PARAM_CRITICAL_LEVEL:  // 设置临界电量
+        case BATT_PARAM_CRITICAL_LEVEL:
             battCriticalLevel = *((uint8_t *)value);
 
-            // 如果当前电量低于临界值且未设置临界状态,则发送通知
+            // If below the critical level and critical state not set, notify it
             if(battLevel < battCriticalLevel)
             {
                 battNotifyLevel();
@@ -246,10 +244,13 @@ bStatus_t Batt_SetParameter(uint8_t param, uint8_t len, void *value)
 /*********************************************************************
  * @fn      Batt_GetParameter
  *
- * @brief   获取电池服务参数
+ * @brief   Get a Battery Service parameter.
  *
- * @param   param - 参数ID
- * @param   value - 数据指针
+ * @param   param - Profile parameter ID
+ * @param   value - pointer to data to get.  This is dependent on
+ *          the parameter ID and WILL be cast to the appropriate
+ *          data type (example: data type of uint16_t will be cast to
+ *          uint16_t pointer).
  *
  * @return  bStatus_t
  */
@@ -258,19 +259,19 @@ bStatus_t Batt_GetParameter(uint8_t param, void *value)
     bStatus_t ret = SUCCESS;
     switch(param)
     {
-        case BATT_PARAM_LEVEL:  // 获取电池电量
+        case BATT_PARAM_LEVEL:
             *((uint8_t *)value) = battLevel;
             break;
 
-        case BATT_PARAM_CRITICAL_LEVEL:  // 获取临界电量
+        case BATT_PARAM_CRITICAL_LEVEL:
             *((uint8_t *)value) = battCriticalLevel;
             break;
 
-        case BATT_PARAM_SERVICE_HANDLE:  // 获取服务句柄
+        case BATT_PARAM_SERVICE_HANDLE:
             *((uint16_t *)value) = GATT_SERVICE_HANDLE(battAttrTbl);
             break;
 
-        case BATT_PARAM_BATT_LEVEL_IN_REPORT:  // 获取电池电量输入报告
+        case BATT_PARAM_BATT_LEVEL_IN_REPORT:
         {
             hidRptMap_t *pRpt = (hidRptMap_t *)value;
 
@@ -293,9 +294,12 @@ bStatus_t Batt_GetParameter(uint8_t param, void *value)
 /*********************************************************************
  * @fn          Batt_MeasLevel
  *
- * @brief       测量电池电量并更新服务特征中的电池电量值。
- *              如果电池电量特征配置为通知且电池电量自上次测量以来发生变化,
- *              则发送通知。
+ * @brief       Measure the battery level and update the battery
+ *              level value in the service characteristics.  If
+ *              the battery level-state characteristic is configured
+ *              for notification and the battery level has changed
+ *              since the last measurement, then a notification
+ *              will be sent.
  *
  * @return      Success
  */
@@ -303,17 +307,17 @@ bStatus_t Batt_MeasLevel(void)
 {
     uint8_t level;
 
-    level = battMeasure();
+//    level = battMeasure();
+//
+//    // If level has gone down
+//    if(level < battLevel)
+//    {
+//        // Update level
+//        battLevel = level;
 
-    // 如果电量降低
-    if(level < battLevel)
-    {
-        // 更新电量
-        battLevel = level;
-
-        // 发送通知
-        battNotifyLevel();
-    }
+        // Send a notification
+    battNotifyLevel();
+//    }
 
     return SUCCESS;
 }
@@ -321,16 +325,16 @@ bStatus_t Batt_MeasLevel(void)
 /*********************************************************************
  * @fn      Batt_Setup
  *
- * @brief   设置要使用的ADC源。默认为VDD/3。
+ * @brief   Set up which ADC source is to be used. Defaults to VDD/3.
  *
- * @param   adc_ch - ADC通道,如HAL_ADC_CHN_AIN6
- * @param   minVal - 最小电池电量
- * @param   maxVal - 最大电池电量
- * @param   sCB - 硬件设置回调
- * @param   tCB - 硬件拆卸回调
- * @param   cCB - 百分比计算回调
+ * @param   adc_ch - ADC Channel, e.g. HAL_ADC_CHN_AIN6
+ * @param   minVal - max battery level
+ * @param   maxVal - min battery level
+ * @param   sCB - HW setup callback
+ * @param   tCB - HW tear down callback
+ * @param   cCB - percentage calculation callback
  *
- * @return  无
+ * @return  none.
  */
 void Batt_Setup(uint8_t adc_ch, uint16_t minVal, uint16_t maxVal,
                 battServiceSetupCB_t sCB, battServiceTeardownCB_t tCB,
@@ -348,16 +352,16 @@ void Batt_Setup(uint8_t adc_ch, uint16_t minVal, uint16_t maxVal,
 /*********************************************************************
  * @fn          battReadAttrCB
  *
- * @brief       读取属性回调函数
+ * @brief       Read an attribute.
  *
- * @param       connHandle - 接收消息的连接句柄
- * @param       pAttr - 属性指针
- * @param       pValue - 要读取的数据指针
- * @param       pLen - 要读取的数据长度
- * @param       offset - 要读取的第一个字节的偏移量
- * @param       maxLen - 要读取的最大数据长度
+ * @param       connHandle - connection message was received on
+ * @param       pAttr - pointer to attribute
+ * @param       pValue - pointer to data to be read
+ * @param       pLen - length of data to be read
+ * @param       offset - offset of the first octet to be read
+ * @param       maxLen - maximum length of data to be read
  *
- * @return      Success或Failure
+ * @return      Success or Failure
  */
 static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                 uint8_t *pValue, uint16_t *pLen, uint16_t offset, uint16_t maxLen, uint8_t method)
@@ -365,7 +369,7 @@ static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
     uint16_t  uuid;
     bStatus_t status = SUCCESS;
 
-    // 确保不是blob操作(profile中没有长属性)
+    // Make sure it's not a blob operation (no attributes in the profile are long)
     if(offset > 0)
     {
         return (ATT_ERR_ATTR_NOT_LONG);
@@ -373,17 +377,17 @@ static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 
     uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);
 
-    // 如果读取电量则测量电池电量
+    // Measure battery level if reading level
     if(uuid == BATT_LEVEL_UUID)
     {
         uint8_t level;
 
         level = battMeasure();
 
-        // 如果电量降低
+        // If level has gone down
         if(level < battLevel)
         {
-            // 更新电量
+            // Update level
             battLevel = level;
         }
 
@@ -406,15 +410,15 @@ static bStatus_t battReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 /*********************************************************************
  * @fn      battWriteAttrCB
  *
- * @brief   在写操作之前验证属性数据
+ * @brief   Validate attribute data prior to a write operation
  *
- * @param   connHandle - 接收消息的连接句柄
- * @param   pAttr - 属性指针
- * @param   pValue - 要写入的数据指针
- * @param   len - 数据长度
- * @param   offset - 要写入的第一个字节的偏移量
+ * @param   connHandle - connection message was received on
+ * @param   pAttr - pointer to attribute
+ * @param   pValue - pointer to data to be written
+ * @param   len - length of data
+ * @param   offset - offset of the first octet to be written
  *
- * @return  Success或Failure
+ * @return  Success or Failure
  */
 static bStatus_t battWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                  uint8_t *pValue, uint16_t len, uint16_t offset, uint8_t method)
@@ -449,11 +453,11 @@ static bStatus_t battWriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 /*********************************************************************
  * @fn          battNotifyCB
  *
- * @brief       发送电量状态特征的通知
+ * @brief       Send a notification of the level state characteristic.
  *
- * @param       connHandle - linkDB项
+ * @param       connHandle - linkDB item
  *
- * @return      无
+ * @return      None.
  */
 static void battNotifyCB(linkDBItem_t *pLinkItem)
 {
@@ -471,7 +475,7 @@ static void battNotifyCB(linkDBItem_t *pLinkItem)
             {
                 noti.handle = battAttrTbl[BATT_LEVEL_VALUE_IDX].handle;
                 noti.len = BATT_LEVEL_VALUE_LEN;
-                noti.pValue[0] = battLevel;
+                noti.pValue[0] = 80;
 
                 if(GATT_Notification(pLinkItem->connectionHandle, &noti, FALSE) != SUCCESS)
                 {
@@ -485,24 +489,25 @@ static void battNotifyCB(linkDBItem_t *pLinkItem)
 /*********************************************************************
  * @fn      battMeasure
  *
- * @brief   使用ADC测量电池电量并以0-100%的百分比返回
+ * @brief   Measure the battery level with the ADC and return
+ *          it as a percentage 0-100%.
  *
- * @return  电池电量
+ * @return  Battery level.
  */
 static uint8_t battMeasure(void)
 {
     uint16_t adc;
     uint8_t  percent;
 
-    // 调用测量设置回调
+    // Call measurement setup callback
     if(battServiceSetupCB != NULL)
     {
         battServiceSetupCB();
     }
 
-    // 配置ADC并执行读取
-    adc = 300;
-    // 调用测量拆卸回调
+    // Configure ADC and perform a read
+    adc = 400;
+    // Call measurement teardown callback
     if(battServiceTeardownCB != NULL)
     {
         battServiceTeardownCB();
@@ -526,9 +531,9 @@ static uint8_t battMeasure(void)
         {
             uint16_t range = battMaxLevel - battMinLevel + 1;
 
-            // 可选,如果要保持偶数,否则直接取除法的下限
+            // optional if you want to keep it even, otherwise just take floor of divide
             // range += (range & 1);
-            range >>= 2; // 除以4
+            range >>= 2; // divide by 4
 
             percent = (uint8_t)((((adc - battMinLevel) * 25) + (range - 1)) / range);
         }
@@ -538,34 +543,35 @@ static uint8_t battMeasure(void)
 }
 
 /*********************************************************************
- * @fn      battNotifyLevel
+ * @fn      battNotifyLevelState
  *
- * @brief   如果建立了连接,发送电池电量状态特征的通知
+ * @brief   Send a notification of the battery level state
+ *          characteristic if a connection is established.
  *
- * @return  无
+ * @return  None.
  */
 static void battNotifyLevel(void)
 {
-    // 执行linkDB回调以发送通知
+    // Execute linkDB callback to send notification
     linkDB_PerformFunc(battNotifyCB);
 }
 
 /*********************************************************************
  * @fn          Batt_HandleConnStatusCB
  *
- * @brief       电池服务链接状态变化处理函数
+ * @brief       Battery Service link status change handler function.
  *
- * @param       connHandle - 连接句柄
- * @param       changeType - 变化类型
+ * @param       connHandle - connection handle
+ * @param       changeType - type of change
  *
- * @return      无
+ * @return      none
  */
 void Batt_HandleConnStatusCB(uint16_t connHandle, uint8_t changeType)
 {
-    // 确保不是回环连接
+    // Make sure this is not loopback connection
     if(connHandle != LOOPBACK_CONNHANDLE)
     {
-        // 如果连接断开则重置客户端特征配置
+        // Reset Client Char Config if connection has dropped
         if((changeType == LINKDB_STATUS_UPDATE_REMOVED) ||
            ((changeType == LINKDB_STATUS_UPDATE_STATEFLAGS) &&
             (!linkDB_Up(connHandle))))

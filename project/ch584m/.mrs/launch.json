@@ -5,12 +5,12 @@
 			"type": "mrs-debugger",
 			"request": "launch",
 			"name": "keyboard-framework",
-			"cwd": "d:\\E\\ProjectCode\\keyboard-framework\\project\\ch584m",
+			"cwd": "d:\\Code\\C_Project\\keyboard-framework\\project\\ch584m",
 			"openOCDCfg": {
 				"useLocalOpenOCD": true,
-				"executable": "c:/MounRiver/MounRiver_Studio2/resources/app/resources/win32/components/WCH/OpenOCD/OpenOCD/bin/openocd.exe",
+				"executable": "d:/Software/Work/MounRiver_Studio2/resources/app/resources/win32/components/WCH/OpenOCD/OpenOCD/bin/openocd.exe",
 				"configOptions": [
-					"-f \"c:/MounRiver/MounRiver_Studio2/resources/app/resources/win32/components/WCH/OpenOCD/OpenOCD/bin/wch-riscv.cfg\" -c \"chip_id CH584/5\""
+					"-f \"d:/Software/Work/MounRiver_Studio2/resources/app/resources/win32/components/WCH/OpenOCD/OpenOCD/bin/wch-riscv.cfg\" -c \"chip_id CH584/5\""
 				],
 				"gdbport": 3333,
 				"telnetport": 4444,
@@ -22,7 +22,7 @@
 				"enableNoZeroWaitingAreaFlash": false
 			},
 			"gdbCfg": {
-				"executable": "c:/MounRiver/MounRiver_Studio2/resources/app/resources/win32/components/WCH/Toolchain/RISC-V Embedded GCC12/bin/riscv-wch-elf-gdb.exe",
+				"executable": "d:/Software/Work/MounRiver_Studio2/resources/app/resources/win32/components/WCH/Toolchain/RISC-V Embedded GCC12/bin/riscv-wch-elf-gdb.exe",
 				"commands": [
 					"set mem inaccessible-by-default off",
 					"set architecture riscv:rv32",
@@ -38,8 +38,8 @@
 					"additionalCommands": []
 				},
 				"loadedFiles": {
-					"executableFile": "d:\\E\\ProjectCode\\keyboard-framework\\project\\ch584m\\obj\\keyboard-framework.elf",
-					"symbolFile": "d:\\E\\ProjectCode\\keyboard-framework\\project\\ch584m\\obj\\keyboard-framework.elf",
+					"executableFile": "d:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj\\keyboard-framework.elf",
+					"symbolFile": "d:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj\\keyboard-framework.elf",
 					"executableFileOffset": 0,
 					"symbolFileOffset": 0
 				},
@@ -58,7 +58,10 @@
 				"showDebugGDBTrace": true,
 				"saveDebugOutputToFile": false,
 				"showDebugOutputTimestamps": true
-			}
+			},
+			"isDualCoreDebug": false,
+			"dualCoreDebugRole": null,
+			"architecture": "RISC-V"
 		}
 	]
 }
