@@ -2,6 +2,10 @@
 #include "hidkbd.h"
 #include "CONFIG.h"
 #include "_bt_driver.h"
+
+access_state_t access_state;            // Access模块的全局状态结构体
+
+
 /*********************************************************************
  * @fn      bt_driver_setup
  *
@@ -46,8 +50,73 @@ void bt_driver_init(bool wakeup_from_low_power)
  */
 void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
 {
-    // Set advertising enabled to start reconnecting
-    hidEmu_adv_enable(TRUE);
+    uint8_t ble_state = 0;
+    access_state.ble_idx = host_idx;
+    // 检查当前工作模式是否为有效的蓝牙通道（BLE_INDEX_1到BLE_INDEX_5）
+
+    // 获取当前蓝牙状态
+    GAPRole_GetParameter( GAPROLE_STATE, &ble_state );
+    // 如果当前通道与目标通道不同，则需要切换通道
+    if (con_work_mode != host_idx){
+        // 清除配对状态，准备新的连接
+        access_state.pairing_state = FALSE;
+        // 根据当前蓝牙状态执行相应操作
+        if( ble_state == GAPROLE_CONNECTED )
+        {
+            // 如果当前已连接，需要断开连接
+            hidEmu_disconnect();
+        }
+        else if( ble_state == GAPROLE_ADVERTISING )
+        {
+            // 如果正在广播，需要停止广播
+            hidEmu_adv_enable( DISABLE );
+        }
+        else
+        {
+            // 其他状态：检查目标通道是否已经绑定过设备
+            if( hidEmu_is_ble_bonded( access_state.ble_idx ) ) // 如果已绑定
+            {
+                // 启用广播，允许设备连接
+                hidEmu_adv_enable( ENABLE );
+            }
+            else
+            {
+                // 如果未绑定设备，上报重连失败状态
+                con_work_mode = access_state.ble_idx;
+            }
+        }
+
+        // 检查是否有正在进行的断开连接任务
+        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+        {
+            // 停止断开连接任务
+            tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
+        }
+    } else {
+        // 上次ble也是这个通道，重复切换到同一通道
+        // 清除配对状态
+        access_state.pairing_state = FALSE;
+        // 如果当前已连接或正在断开连接
+        if( (ble_state == GAPROLE_CONNECTED) || tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ))
+        {
+        } else if (ble_state == GAPROLE_ADVERTISING){
+            // 如果是正在广播，则保持现状不做处理
+
+        } else {
+            // 其他状态：检查目标通道是否已经绑定过设备
+            if( hidEmu_is_ble_bonded( access_state.ble_idx ) ) // 如果已绑定
+            {
+                // 启用广播，允许设备连接
+                hidEmu_adv_enable( ENABLE );
+            }
+            else
+            {
+                // 如果未绑定设备，上报重连失败状态
+            }
+
+        }
+    }
+    
 }
 
 /*********************************************************************
@@ -62,11 +131,56 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
  */
 void bt_driver_pairing_ex(uint8_t host_idx, void *param)
 {
-    // Clear any previous bonding
-    hidEmu_delete_ble_bonded();
+    uint8_t ble_state;                       // 当前蓝牙状态变量
+    pairing_param_t default_pairing_param = {0, 0, 0, 0, 0};
 
-    // Enable advertising in pairing mode
-    hidEmu_adv_enable(TRUE);
+    if (param == NULL) {
+        param = &default_pairing_param;
+    }
+    pairing_param_t* p = (pairing_param_t*)param;
+    // 获取当前蓝牙状态
+    GAPRole_GetParameter( GAPROLE_STATE, &ble_state );
+
+    // 如果当前处于连接状态
+    if( ble_state == GAPROLE_CONNECTED )
+    {
+        // 打印断开连接的调试信息
+        // 当前还在连接中，需要断开连接，然后换地址进行新配对
+        hidEmu_disconnect();
+        // 设置配对状态为TRUE，表示进入配对流程
+        access_state.pairing_state = TRUE;
+        // 开启广播60秒后进入睡眠，睡眠函数中如果还未连接，则停止广播直接睡眠
+        // access_update_idel_sleep_timeout(ADV_IDEL_SLEEP_EVT_TIMEOUT);
+        // 立即返回，等待断开连接完成
+        return;
+    }
+
+    // 检查当前通道是否已经绑定过设备
+    if( hidEmu_is_ble_bonded( access_state.ble_idx ) )
+    {
+        // 当前已经绑定过设备，需要换地址进行新配对
+        // 设置配对状态为TRUE
+        access_state.pairing_state = TRUE;
+    }
+
+    // 检查当前是否正在广播
+    if( ble_state == GAPROLE_ADVERTISING )
+    {
+        // 如果当前正在广播，检查是否在相同通道
+        if( con_work_mode == access_state.ble_idx )
+        {
+            // 同通道多次长按每次都要发送STATE_PAIRING状态，但不关闭广播
+        }
+        // 关闭当前广播，准备重新开始配对广播
+        hidEmu_adv_enable( DISABLE );
+    }
+    else
+    {
+        // 上报配对状态给主控
+        // 启用广播，开始等待配对
+        hidEmu_adv_enable( ENABLE );
+    }
+
 }
 
 /*********************************************************************
@@ -93,7 +207,7 @@ void bt_driver_disconnect(void)
 void bt_driver_send_keyboard(uint8_t *report)
 {
     uint8_t buffer[21];
-    buffer[0] = CMD_CLASS_KEYBOARD;
+    // buffer[0] = CMD_CLASS_KEYBOARD;
     memcpy(&buffer[1], report, 20);
     hidEmu_receive(buffer, 21);
 }
@@ -110,7 +224,7 @@ void bt_driver_send_keyboard(uint8_t *report)
 void bt_driver_send_nkro(uint8_t *report)
 {
     uint8_t buffer[21];
-    buffer[0] = CMD_ALL_KEYBOARD;
+    // buffer[0] = CMD_ALL_KEYBOARD;
     memcpy(&buffer[1], report, 20);
     hidEmu_receive(buffer, 21);
 }
@@ -127,7 +241,7 @@ void bt_driver_send_nkro(uint8_t *report)
 void bt_driver_send_consumer(uint16_t report)
 {
     uint8_t buffer[3];
-    buffer[0] = CMD_CONSUMER;
+    // buffer[0] = CMD_CONSUMER;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
     hidEmu_receive(buffer, 3);
@@ -145,7 +259,7 @@ void bt_driver_send_consumer(uint16_t report)
 void bt_driver_send_system(uint16_t report)
 {
     uint8_t buffer[3];
-    buffer[0] = CMD_SYS_CTL;
+    // buffer[0] = CMD_SYS_CTL;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
     hidEmu_receive(buffer, 3);
@@ -163,7 +277,7 @@ void bt_driver_send_system(uint16_t report)
 void bt_driver_send_mouse(uint8_t *report)
 {
     uint8_t buffer[21];
-    buffer[0] = CMD_MOUSE;
+    // buffer[0] = CMD_MOUSE;
     memcpy(&buffer[1], report, 20);
     hidEmu_receive(buffer, 21);
 }
@@ -179,5 +293,5 @@ void bt_driver_send_mouse(uint8_t *report)
  */
 void bt_driver_update_bat_level(uint8_t bat_lvl)
 {
-    Batt_SetParameter(BATT_PARAM_LEVEL, sizeof(uint8_t), &bat_lvl);
+    // Batt_SetParameter(BATT_PARAM_LEVEL, sizeof(uint8_t), &bat_lvl);
 }
