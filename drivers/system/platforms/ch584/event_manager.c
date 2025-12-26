@@ -141,3 +141,9 @@ uint8_t *OSAL_MsgAllocate(uint16_t len)
 {
     return tmos_msg_allocate(len);
 }
+
+
+uint32_t OSAL_GetTaskTimer( uint8_t taskID, uint16_t event )
+{
+    return tmos_get_task_timer( taskID, event );
+}

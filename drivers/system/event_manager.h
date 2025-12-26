@@ -95,6 +95,19 @@ uint8_t *OSAL_MsgAllocate(uint16_t len);
  */
 void OSAL_SystemProcess(void);
 
+/**
+ * @brief   get last period of time for this event
+ *
+ * @param   taskID - task ID of event
+ * @param   event - event value
+ *
+ * @return  the timer's tick count if found, zero otherwise.
+ */
+uint32_t OSAL_GetTaskTimer( uint8_t taskID, uint16_t event );
+
+
+
+
 #ifdef __cplusplus
 }
 #endif

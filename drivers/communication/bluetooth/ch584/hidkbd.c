@@ -406,7 +406,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
             dprint("Send Security Req ...\n");
             if(GAPBondMgr_PeriSecurityReq(hidEmuConnHandle))
             {
-                tmos_start_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);
+                OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);
             }
         }
 
@@ -432,7 +432,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
         GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
         if(ble_state != GAPROLE_CONNECTED)
         {
-            access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+            //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
             last_led_data = 0xFF;
             // 清空buff
             BLE_buf_out_idx=0;
@@ -531,9 +531,9 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
 //                 }
 //                 else {
 //                     dprint("!\n");
-//                     tmos_start_task(hidEmuTaskId, SEND_PACKET_EVT, 4);
+//                     OSAL_SetDelayedEvent(hidEmuTaskId, SEND_PACKET_EVT, 4);
 //                 }
-//                 tmos_start_task(hidEmuTaskId, DELETE_PACKET_EVT, 4);
+//                 OSAL_SetDelayedEvent(hidEmuTaskId, DELETE_PACKET_EVT, 4);
 //             }
         }
         return (events ^ SEND_PACKET_EVT);
@@ -553,7 +553,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
         //     }
         //     if(UnAckPacket)
         //     {
-        //         tmos_start_task(hidEmuTaskId, DELETE_PACKET_EVT, 4);
+        //         OSAL_SetDelayedEvent(hidEmuTaskId, DELETE_PACKET_EVT, 4);
         //     }
         // }
         return (events ^ DELETE_PACKET_EVT);
@@ -602,13 +602,13 @@ static void hidEmu_ProcessTMOSMsg(tmos_event_hdr_t *pMsg)
 void hidEmu_disconnect()
 {
     GAPRole_TerminateLink(hidEmuConnHandle);
-    if( tmos_get_task_timer( hidEmuTaskId, WAIT_TERMINATE_EVT ) || (tmos_get_event(hidEmuTaskId)&WAIT_TERMINATE_EVT) )
+    if( OSAL_GetTaskTimer( hidEmuTaskId, WAIT_TERMINATE_EVT ) )
     {
 
     }
     else
     {
-        tmos_start_task( hidEmuTaskId , WAIT_TERMINATE_EVT, TERMINATE_EVT_TIMEOUT );
+        OSAL_SetDelayedEvent( hidEmuTaskId , WAIT_TERMINATE_EVT, TERMINATE_EVT_TIMEOUT );
     }
 }
 
@@ -621,29 +621,23 @@ void hidEmu_disconnect()
  */
 void hidEmu_delete_ble_bonded()
 {
-    switch(con_work_mode)
-    {
-        case BLE_INDEX_1:
-            nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_1;
-            break;
-        case BLE_INDEX_2:
-            nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_2;
-            break;
-        case BLE_INDEX_3:
-            nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_3;
-            break;
-        case BLE_INDEX_4:
-            nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_4;
-            break;
-        case BLE_INDEX_5:
-            nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_5;
-            break;
-        default:
-            dprint("work mode err %x\n",con_work_mode);
-            return;
-            break;
-    }
-    nvs_flash_store();
+    // switch(con_work_mode)
+    // {
+    //     case BLE_INDEX_1:
+    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_1;
+    //         break;
+    //     case BLE_INDEX_2:
+    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_2;
+    //         break;
+    //     case BLE_INDEX_3:
+    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_3;
+    //         break;
+    //     default:
+    //         dprint("work mode err %x\n",con_work_mode);
+    //         return;
+    //         break;
+    // }
+    // nvs_flash_store();
 }
 
 /*********************************************************************
@@ -655,49 +649,35 @@ void hidEmu_delete_ble_bonded()
  */
 void hidEmu_save_ble_bonded(uint8_t is_pairing)
 {
-    switch(con_work_mode)
-    {
-        case BLE_INDEX_1:
-            nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_1;
-            if(is_pairing)
-            {
-                nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_1;
-            }
-            break;
-        case BLE_INDEX_2:
-            nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_2;
-            if(is_pairing)
-            {
-                nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_2;
-            }
-            break;
-        case BLE_INDEX_3:
-            nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_3;
-            if(is_pairing)
-            {
-                nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_3;
-            }
-            break;
-        case BLE_INDEX_4:
-            nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_4;
-            if(is_pairing)
-            {
-                nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_4;
-            }
-            break;
-        case BLE_INDEX_5:
-            nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_5;
-            if(is_pairing)
-            {
-                nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_5;
-            }
-            break;
-        default:
-            dprint("work mode err %x\n",con_work_mode);
-            return;
-            break;
-    }
-    nvs_flash_store();
+    // switch(con_work_mode)
+    // {
+    //     case BLE_INDEX_1:
+    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_1;
+    //         if(is_pairing)
+    //         {
+    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_1;
+    //         }
+    //         break;
+    //     case BLE_INDEX_2:
+    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_2;
+    //         if(is_pairing)
+    //         {
+    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_2;
+    //         }
+    //         break;
+    //     case BLE_INDEX_3:
+    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_3;
+    //         if(is_pairing)
+    //         {
+    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_3;
+    //         }
+    //         break;
+    //     default:
+    //         dprint("work mode err %x\n",con_work_mode);
+    //         return;
+    //         break;
+    // }
+    // nvs_flash_store();
 }
 
 /*********************************************************************
@@ -709,28 +689,22 @@ void hidEmu_save_ble_bonded(uint8_t is_pairing)
  */
 uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
 {
-    switch(ble_idx)
-    {
-        case BLE_INDEX_1:
-            return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_1;
-            break;
-        case BLE_INDEX_2:
-            return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_2;
-            break;
-        case BLE_INDEX_3:
-            return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_3;
-            break;
-        case BLE_INDEX_4:
-            return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_4;
-            break;
-        case BLE_INDEX_5:
-            return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_5;
-            break;
-        default:
-            dprint("work mode err %x\n",ble_idx);
-            return 0;
-            break;
-    }
+    // switch(ble_idx)
+    // {
+    //     case BLE_INDEX_1:
+    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_1;
+    //         break;
+    //     case BLE_INDEX_2:
+    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_2;
+    //         break;
+    //     case BLE_INDEX_3:
+    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_3;
+    //         break;
+    //     default:
+    //         dprint("work mode err %x\n",ble_idx);
+    //         return 0;
+    //         break;
+    // }
 }
 
 /*********************************************************************
@@ -742,29 +716,23 @@ uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
  */
 uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx )
 {
-    dprint("是否绑定 %x 通道 %x\n",nvs_flash_info.ble_bond_flag,ble_idx);
-    switch(ble_idx)
-    {
-        case BLE_INDEX_1:
-            return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_1;
-            break;
-        case BLE_INDEX_2:
-            return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_2;
-            break;
-        case BLE_INDEX_3:
-            return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_3;
-            break;
-        case BLE_INDEX_4:
-            return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_4;
-            break;
-        case BLE_INDEX_5:
-            return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_5;
-            break;
-        default:
-            dprint("no bond mode %x\n",ble_idx);
-            return 0;
-            break;
-    }
+    // dprint("是否绑定 %x 通道 %x\n",nvs_flash_info.ble_bond_flag,ble_idx);
+    // switch(ble_idx)
+    // {
+    //     case BLE_INDEX_1:
+    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_1;
+    //         break;
+    //     case BLE_INDEX_2:
+    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_2;
+    //         break;
+    //     case BLE_INDEX_3:
+    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_3;
+    //         break;
+    //     default:
+    //         dprint("no bond mode %x\n",ble_idx);
+    //         return 0;
+    //         break;
+    // }
 }
 
 /*********************************************************************
@@ -919,10 +887,10 @@ uint8_t hidEmu_receive( uint8_t *pData, uint8_t len )
     //锟斤拷锟斤拷锟斤拷锟斤拷锟斤拷锟阶刺?
     GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
     if((ble_state != GAPROLE_CONNECTED)&&
-        (tmos_get_task_timer(hidEmuTaskId, BLE_CLEAR_BUF_EVT)==0)&&
-        ((tmos_get_event(hidEmuTaskId)&BLE_CLEAR_BUF_EVT)==0))
+        (OSAL_GetTaskTimer(hidEmuTaskId, BLE_CLEAR_BUF_EVT)==0)
+        /*&&((tmos_get_event(hidEmuTaskId)&BLE_CLEAR_BUF_EVT)==0)*/)
     {
-        tmos_start_task(hidEmuTaskId, BLE_CLEAR_BUF_EVT, 1600*5);
+        OSAL_SetDelayedEvent(hidEmuTaskId, BLE_CLEAR_BUF_EVT, 1600*5);
     }
     //锟斤拷榛猴拷锟斤拷锟斤拷欠锟斤拷锟?
     if(BLE_buf_data_num==BLE_SEND_BUF_LEN)
@@ -944,89 +912,89 @@ uint8_t hidEmu_receive( uint8_t *pData, uint8_t len )
     dprint("RF %x %d\n",pData[0], len);
 }
 
-/*********************************************************************
- * @fn      hidEmu_class_keyboard_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_class_keyboard_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_CLASS_KEY_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_class_keyboard_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_class_keyboard_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_CLASS_KEY_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_mouse_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_mouse_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_mouse_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_mouse_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_consumer_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_consumer_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_consumer_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_consumer_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_sys_ctl_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_sys_ctl_report(uint8_t data)
-{
-    return HidDev_Report(HID_RPT_ID_SYS_CTL_IN, HID_REPORT_TYPE_INPUT, 1, &data);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_sys_ctl_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_sys_ctl_report(uint8_t data)
+// {
+//     return HidDev_Report(HID_RPT_ID_SYS_CTL_IN, HID_REPORT_TYPE_INPUT, 1, &data);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_all_keyboard_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_all_keyboard_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_ALL_KEY_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_all_keyboard_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_all_keyboard_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_ALL_KEY_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_fn_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_fn_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_FN_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_fn_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_fn_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_FN_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
-/*********************************************************************
- * @fn      hidEmu_smart_wheel_report
- *
- * @brief   Build and send a HID report.
- *
- * @return  none
- */
-uint8_t hidEmu_smart_wheel_report(uint8_t *pData, uint8_t len)
-{
-    return HidDev_Report(HID_RPT_ID_SMART_WHEEL_IN, HID_REPORT_TYPE_INPUT, len, pData);
-}
+// /*********************************************************************
+//  * @fn      hidEmu_smart_wheel_report
+//  *
+//  * @brief   Build and send a HID report.
+//  *
+//  * @return  none
+//  */
+// uint8_t hidEmu_smart_wheel_report(uint8_t *pData, uint8_t len)
+// {
+//     return HidDev_Report(HID_RPT_ID_SMART_WHEEL_IN, HID_REPORT_TYPE_INPUT, len, pData);
+// }
 
 /*********************************************************************
  * @fn      hidEmuStateCB
@@ -1062,7 +1030,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
             {
                 adv_enable_process_flag = FALSE;
                 // 记下当前模式
-                if((access_state.ble_idx<BLE_INDEX_1) || (access_state.ble_idx>BLE_INDEX_5))
+                if((access_state.ble_idx<BLE_INDEX_1) || (access_state.ble_idx>=BLE_INDEX_MAX))
                 {
                     dprint("ADV mode err.. %x\n",access_state.ble_idx);
                     // 状态错误，关闭广播
@@ -1072,7 +1040,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 {
                     con_work_mode = access_state.ble_idx;
                 }
-                if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+                if( OSAL_GetTaskTimer( hidEmuTaskId, SEND_DISCONNECT_EVT )/* || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) */)
                 {
                 }
                 else {
@@ -1091,9 +1059,9 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 hidEmuConnHandle = event->connectionHandle;
                 centralConnHandle = event->connectionHandle;//锟斤拷锟斤拷锟斤拷锟接撅拷锟? 系统识锟斤拷使锟斤拷
 
-                tmos_start_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
-                tmos_stop_task(hidEmuTaskId, BLE_CLEAR_BUF_EVT);
-                if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+                OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
+                OSAL_StopTask(hidEmuTaskId, BLE_CLEAR_BUF_EVT);
+                if( OSAL_GetTaskTimer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/ )
                 {
                   dprint("buf_num %d\n",BLE_buf_data_num);
                 }
@@ -1162,19 +1130,19 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                     {
                         if( access_state.pairing_state )
                         {
-                            access_tran_report(REPORT_CMD_STATE, STATE_PAIRING);
+                            //access_tran_report(REPORT_CMD_STATE, STATE_PAIRING);
                         }
                         else
                         {
                             // 进入新蓝牙模式的回连状态
-                            access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECTING);
+                            //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECTING);
                         }
                         hidEmu_adv_enable(ENABLE);
                     }
                     else {
                         // 没绑定过，无法回连
                         con_work_mode = access_state.ble_idx;
-                        access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECT_FAIL);
+                        //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECT_FAIL);
                     }
                 }
 //                // 记下当前模式 睡眠后模式改为idel，所以这里不能同步模式
@@ -1183,15 +1151,15 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
             }
             else if(pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT)
             {
-                if(tmos_get_task_timer(hidEmuTaskId, WAIT_TERMINATE_EVT))
+                if(OSAL_GetTaskTimer(hidEmuTaskId, WAIT_TERMINATE_EVT))
                 {
-                    tmos_stop_task(hidEmuTaskId, WAIT_TERMINATE_EVT);
+                    OSAL_StopTask(hidEmuTaskId, WAIT_TERMINATE_EVT);
                 }
 //                // 上报蓝牙断开
 //                // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
 //                if( access_state.ble_idx != WORK_MODE_2_4G)
 //                {
-//                    access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+//                    //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
 //                }
                 // 1、切换到其他模式，命令停止的连接，则判断模式，不开启新的广播
                 // 2、还是当前模式没变，只是连接断开，则继续广播，并开启过滤,(注意是否是OTA模式)
@@ -1207,7 +1175,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                         // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                         if( access_state.ble_idx != BLE_INDEX_IDEL)
                         {
-                            access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                            //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                         }
                     }
                     else
@@ -1218,9 +1186,9 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                             // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                             if( access_state.ble_idx != BLE_INDEX_IDEL)
                             {
-                                access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                                //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                             }
-                            access_tran_report(REPORT_CMD_STATE, STATE_PAIRING);
+                            //access_tran_report(REPORT_CMD_STATE, STATE_PAIRING);
                             hidEmu_adv_enable(ENABLE);
                         }
                         else
@@ -1234,7 +1202,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                                     // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                                     if( access_state.ble_idx != BLE_INDEX_IDEL)
                                     {
-                                        access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                                     }
                                 }
                                 else
@@ -1246,9 +1214,9 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                                     hidEmu_adv_enable(ENABLE);
                                     if( hidDevConnSecure )
                                     {
-                                        tmos_start_task(hidEmuTaskId, SEND_DISCONNECT_EVT, DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT);
+                                        OSAL_SetDelayedEvent(hidEmuTaskId, SEND_DISCONNECT_EVT, DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT);
                                     }
-//                                    if(tmos_get_task_timer(access_taskId, ACCESS_IDEL_SLEEP_EVT)<IDEL_SLEEP_EVT_TIMEOUT+160)
+//                                    if(OSAL_GetTaskTimer(access_taskId, ACCESS_IDEL_SLEEP_EVT)<IDEL_SLEEP_EVT_TIMEOUT+160)
 //                                    {
 //                                        access_update_idel_sleep_timeout(IDEL_SLEEP_EVT_TIMEOUT+160);
 //                                    }
@@ -1260,10 +1228,10 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                                 // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                                 if( access_state.ble_idx != BLE_INDEX_IDEL)
                                 {
-                                    access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                                    //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                                 }
                                 // 进入新蓝牙模式的回连状态
-                                access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECTING);
+                                //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECTING);
                                 hidEmu_adv_enable(ENABLE);
                             }
                         }
@@ -1276,10 +1244,10 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                     // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                     if( access_state.ble_idx != BLE_INDEX_IDEL)
                     {
-                        access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                     }
                     // 没绑定过，无法回连
-                    access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECT_FAIL);
+                    //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECT_FAIL);
                 }
                 else //还有可能是IDEL模式
                 {
@@ -1288,7 +1256,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                     // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
                     if( access_state.ble_idx != BLE_INDEX_IDEL)
                     {
-                        access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
+                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
                     }
                 }
 //                // 记下当前模式  深度睡眠后模式改为idel，所以这里不能同步模式
@@ -1451,10 +1419,10 @@ uint16_t Central_ProcessEvent(uint8_t task_id, uint16_t events)
     {
         uint8_t *pMsg;
         
-        if((pMsg = tmos_msg_receive(centralTaskId)) != NULL)
+        if((pMsg = OSAL_MsgReceive(centralTaskId)) != NULL)
         {
             central_ProcessTMOSMsg((tmos_event_hdr_t *)pMsg);
-            tmos_msg_deallocate(pMsg);
+            OSAL_MsgDeallocate(pMsg);
         }
         return (events ^ SYS_EVENT_MSG);
     }
@@ -1476,9 +1444,9 @@ uint16_t Central_ProcessEvent(uint8_t task_id, uint16_t events)
         
         if(i >= 2){
             i = 0;
-            tmos_stop_task(centralTaskId, START_READ_OR_WRITE_EVT);
+            OSAL_StopTask(centralTaskId, START_READ_OR_WRITE_EVT);
         }else{
-            tmos_start_task(centralTaskId, START_READ_OR_WRITE_EVT, 1600);
+            OSAL_SetDelayedEvent(centralTaskId, START_READ_OR_WRITE_EVT, 1600);
         }
         i++;
         
@@ -1629,7 +1597,7 @@ static void centralGATTDiscoveryEvent(gattMsgEvent_t *pMsg)
     }
     
     // 继续读取特征值
-    tmos_start_task(centralTaskId, START_READ_OR_WRITE_EVT, 1600);
+    OSAL_SetDelayedEvent(centralTaskId, START_READ_OR_WRITE_EVT, 1600);
     return;
 }
 /*********************************************************************

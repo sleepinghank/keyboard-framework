@@ -59,11 +59,11 @@ typedef struct {
     void (*connect_ex)(uint8_t, uint16_t);
     void (*pairing_ex)(uint8_t, void *);
     void (*disconnect)(void);
-    void (*send_keyboard)(uint8_t *);
-    void (*send_nkro)(uint8_t *);
-    void (*send_consumer)(uint16_t);
-    void (*send_system)(uint16_t);
-    void (*send_mouse)(uint8_t *);
+    uint8_t (*send_keyboard)(uint8_t *);
+    uint8_t (*send_nkro)(uint8_t *);
+    uint8_t (*send_consumer)(uint16_t);
+    uint8_t (*send_system)(uint16_t);
+    uint8_t (*send_mouse)(uint8_t *);
     void (*update_bat_level)(uint8_t);
 } wt_func_t;
 // clang-format on

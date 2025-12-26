@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 typedef struct
 {
@@ -19,4 +19,7 @@ typedef struct {
     uint8_t     txPower;     /* Only available for BLE module */
     // const char* leName;      /* Only available for BLE module */
 } pairing_param_t;
+
+extern access_state_t access_state;
+
 

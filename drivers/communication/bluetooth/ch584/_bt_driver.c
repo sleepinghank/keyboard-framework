@@ -2,6 +2,9 @@
 #include "hidkbd.h"
 #include "CONFIG.h"
 #include "_bt_driver.h"
+#include "hiddev.h"
+#include "hidkbdservice.h"
+
 
 access_state_t access_state;            // Access模块的全局状态结构体
 
@@ -87,17 +90,17 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
         }
 
         // 检查是否有正在进行的断开连接任务
-        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+        if( OSAL_GetTaskTimer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /* || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/ )
         {
             // 停止断开连接任务
-            tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
+            OSAL_StopTask(hidEmuTaskId, SEND_DISCONNECT_EVT);
         }
     } else {
         // 上次ble也是这个通道，重复切换到同一通道
         // 清除配对状态
         access_state.pairing_state = FALSE;
         // 如果当前已连接或正在断开连接
-        if( (ble_state == GAPROLE_CONNECTED) || tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ))
+        if( (ble_state == GAPROLE_CONNECTED) || OSAL_GetTaskTimer( hidEmuTaskId, SEND_DISCONNECT_EVT ))
         {
         } else if (ble_state == GAPROLE_ADVERTISING){
             // 如果是正在广播，则保持现状不做处理
@@ -202,14 +205,14 @@ void bt_driver_disconnect(void)
  *
  * @param   report - keyboard report data
  *
- * @return  none
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
-void bt_driver_send_keyboard(uint8_t *report)
+uint8_t bt_driver_send_keyboard(uint8_t *report)
 {
     uint8_t buffer[21];
     // buffer[0] = CMD_CLASS_KEYBOARD;
     memcpy(&buffer[1], report, 20);
-    hidEmu_receive(buffer, 21);
+    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
 }
 
 /*********************************************************************
@@ -219,14 +222,14 @@ void bt_driver_send_keyboard(uint8_t *report)
  *
  * @param   report - NKRO keyboard report data
  *
- * @return  none
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
-void bt_driver_send_nkro(uint8_t *report)
+uint8_t bt_driver_send_nkro(uint8_t *report)
 {
     uint8_t buffer[21];
     // buffer[0] = CMD_ALL_KEYBOARD;
     memcpy(&buffer[1], report, 20);
-    hidEmu_receive(buffer, 21);
+    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
 }
 
 /*********************************************************************
@@ -236,15 +239,15 @@ void bt_driver_send_nkro(uint8_t *report)
  *
  * @param   report - consumer report data
  *
- * @return  none
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
-void bt_driver_send_consumer(uint16_t report)
+uint8_t bt_driver_send_consumer(uint16_t report)
 {
     uint8_t buffer[3];
     // buffer[0] = CMD_CONSUMER;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
-    hidEmu_receive(buffer, 3);
+    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
 }
 
 /*********************************************************************
@@ -254,15 +257,15 @@ void bt_driver_send_consumer(uint16_t report)
  *
  * @param   report - system control report data
  *
- * @return  none
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
-void bt_driver_send_system(uint16_t report)
+uint8_t bt_driver_send_system(uint16_t report)
 {
     uint8_t buffer[3];
     // buffer[0] = CMD_SYS_CTL;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
-    hidEmu_receive(buffer, 3);
+    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
 }
 
 /*********************************************************************
@@ -272,14 +275,14 @@ void bt_driver_send_system(uint16_t report)
  *
  * @param   report - mouse report data
  *
- * @return  none
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
-void bt_driver_send_mouse(uint8_t *report)
+uint8_t bt_driver_send_mouse(uint8_t *report)
 {
     uint8_t buffer[21];
     // buffer[0] = CMD_MOUSE;
     memcpy(&buffer[1], report, 20);
-    hidEmu_receive(buffer, 21);
+    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
 }
 
 /*********************************************************************
