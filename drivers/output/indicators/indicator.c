@@ -57,7 +57,7 @@ static indicator_config_t connected_config    = INDICATOR_CONFIG_CONNECTD;
 static indicator_config_t reconnecting_config = INDICATOR_CONFIG_RECONNECTING;
 static indicator_config_t disconnected_config = INDICATOR_CONFIG_DISCONNECTED;
 indicator_config_t indicator_config;
-static bluetooth_state_t indicator_state;
+static wt_state_t indicator_state;
 static uint16_t          next_period;
 static indicator_type_t  type;
 static uint32_t          indicator_timer_buffer = 0;
@@ -306,7 +306,7 @@ static void indicator_timer_cb(void *arg) {
     }
 }
 
-void indicator_set(bluetooth_state_t state, uint8_t host_index) {
+void indicator_set(wt_state_t state, uint8_t host_index) {
 //    if (get_transport() != TRANSPORT_BLUETOOTH) return;
 //    dprintf("indicator set: %d, %d\n", state, host_index);
 

@@ -24,6 +24,7 @@
 #include "transport.h"
 #include "host_driver.h"
 #include "report.h"
+#include "product_config.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -39,8 +40,8 @@ extern uint8_t         retry;
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 
-static wt_func_t  wireless_transport;  
-#if (P2P4G_ENABLE_FLAG == TRUE)
+static wt_func_t  wireless_transport;
+#ifdef P2P4G_ENABLE_FLAG
 extern wt_func_t p24g_driver;  // 2.4G驱动实例
 #endif
 
@@ -119,7 +120,7 @@ void wireless_set_transport(wt_func_t *transport) {
 }
 
 // 切换到蓝牙驱动
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
 void wireless_switch_to_bt_driver(void) {
     wireless_transport.init = bt_driver_init;
     wireless_transport.connect_ex = bt_driver_connect_ex;
@@ -136,11 +137,10 @@ void wireless_switch_to_bt_driver(void) {
 #endif
 
 // 切换到2.4G驱动
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
 void wireless_switch_to_p24g_driver(void) {
     if (p24g_driver) {
-        // current_driver = (wt_func_t*)p24g_driver;
-        wireless_transport = *current_driver;
+        wireless_transport = p24g_driver;
         kc_printf("Wireless: Switched to P24G driver\n");
     } else {
         kc_printf("Wireless: P24G driver not registered\n");
@@ -149,9 +149,9 @@ void wireless_switch_to_p24g_driver(void) {
 #endif
 
 // 切换到USB模式
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
 void wireless_switch_to_usb_mode(void) {
-    current_driver = NULL;
+
     kc_printf("Wireless: Switched to USB mode\n");
 }
 #endif
@@ -518,7 +518,7 @@ void wireless_task(void) {
 
 void send_string_task(void) {
     if ((get_transport() & TRANSPORT_WIRELESS) && wireless_get_state() == WT_CONNECTED) {
-        wireless_transport.task();
+        // wireless_transport.task();
 #ifndef DISABLE_REPORT_BUFFER
         report_buffer_task();
 #endif

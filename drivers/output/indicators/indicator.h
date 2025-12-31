@@ -15,11 +15,10 @@
  */
 
 #pragma once
-
+#include "wireless.h"
 #include "product_config.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include "bt_driver.h"
 
 /* Indication of pairing */
 #ifndef INDICATOR_CONFIG_PARING
@@ -112,7 +111,7 @@ typedef struct {
 } backlight_state_t;
 
 void indicator_init(void);
-void indicator_set(bluetooth_state_t state, uint8_t host_index);
+void indicator_set(wt_state_t state, uint8_t host_index);
 void indicator_backlight_timer_reset(bool enable);
 bool indicator_hook_key(uint16_t keycode);
 void indicator_enable(void);

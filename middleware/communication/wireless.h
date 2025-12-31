@@ -20,7 +20,7 @@
 #include "wireless_event_type.h"
 #include "action.h"
 #include "bt_driver.h"
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
 #include "p24g_driver.h"
 #endif
 
@@ -75,16 +75,16 @@ void wireless_config_reset(void);
 
 void wireless_set_transport(wt_func_t *transport);
 
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
 void wireless_switch_to_bt_driver(void);
 #endif
 
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
 void wireless_register_p24g_driver(p24g_driver_t *driver);
 void wireless_switch_to_p24g_driver(void);
 #endif
 
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
 void wireless_switch_to_usb_mode(void);
 #endif
 

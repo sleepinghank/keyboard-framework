@@ -126,6 +126,4 @@
 /* Communication transport enable flags */
 #define USB_ENABLE_FLAG          FALSE
 #define BLUETOOTH_ENABLE_FLAG    TRUE
-#define P2P4G_ENABLE_FLAG        FALSE
-
-
+// #define P2P4G_ENABLE_FLAG        TRUE

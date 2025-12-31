@@ -40,7 +40,7 @@ nkro_t nkro = {false, false};
 
 static void transport_changed(transport_t new_transport);
 
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
 __attribute__((weak)) void bt_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
@@ -52,9 +52,9 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
         wireless_disconnect();
 
         uint32_t t = timer_read32();
-        while (timer_elapsed32(t) < 50) {
-            wireless_transport.task();
-        }
+        // while (timer_elapsed32(t) < 50) {
+        //     wireless_transport.task();
+        // }
         // wireless_connect();
         wireless_connect_ex(30, 0);
         // TODO: Clear USB report
@@ -70,7 +70,7 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
 }
 #endif
 
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
 __attribute__((weak)) void p24g_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
@@ -82,9 +82,9 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
         wireless_disconnect();
 
         uint32_t t = timer_read32();
-        while (timer_elapsed32(t) < 50) {
-            wireless_transport.task();
-        }
+        // while (timer_elapsed32(t) < 50) {
+        //     wireless_transport.task();
+        // }
         wireless_connect_ex(P24G_INDEX, 0);
         // wireless_connect();
         //  TODO: Clear USB report
@@ -100,12 +100,12 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
 }
 #endif
 
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
 __attribute__((weak)) void usb_power_connect(void) {}
 __attribute__((weak)) void usb_power_disconnect(void) {}
 #endif
 
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
 __attribute__((weak)) void usb_transport_enable(bool enable) {
     if (enable) {
         if (host_get_driver() != &usb_driver) {
@@ -132,21 +132,21 @@ __attribute__((weak)) void usb_transport_enable(bool enable) {
 
 void set_transport(transport_t new_transport) {
     if (transport != new_transport) {
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
         if (transport == TRANSPORT_USB || ((transport != TRANSPORT_USB) && wireless_get_state() == WT_CONNECTED)) clear_keyboard();
 #endif
 
         transport = new_transport;
 
         switch (transport) {
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
             case TRANSPORT_USB:
                 usb_transport_enable(true);
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
                 bt_transport_enable(false);
 #endif
                 wait_ms(5);
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
                 p24g_transport_enable(false);
 #endif
                 wireless_disconnect();
@@ -156,14 +156,14 @@ void set_transport(transport_t new_transport) {
                 break;
 #endif
 
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
             case TRANSPORT_BLUETOOTH:
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
                 p24g_transport_enable(false);
                 wait_ms(1);
 #endif
                 bt_transport_enable(true);
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
                 lpm_timer_reset();
@@ -172,14 +172,14 @@ void set_transport(transport_t new_transport) {
                 break;
 #endif
 
-#if (P2P4G_ENABLE_FLAG == TRUE)
+#ifdef P2P4G_ENABLE_FLAG
             case TRANSPORT_P2P4:
-#if (BLUETOOTH_ENABLE_FLAG == TRUE)
+#ifdef BLUETOOTH_ENABLE_FLAG
                 bt_transport_enable(false);
                 wait_ms(1);
 #endif
                 p24g_transport_enable(true);
-#if (USB_ENABLE_FLAG == TRUE)
+#ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
                 lpm_timer_reset();

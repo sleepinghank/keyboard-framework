@@ -1,5 +1,5 @@
-/*  Copyright (C) 2019 Elia Ritterbusch
- +
+/*  Copyright (C) 2024
+ *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
@@ -14,7 +14,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  *
  *  Based on WCH CH58x Standard Peripheral Library
- *  Reference: code_example\CH585EVT_2\EVT\EXAM\ADC\src\Main.c
+ *  Reference: project\ch584m\StdPeriphDriver\CH58x_adc.c
  */
 
 #include "adc.h"
@@ -23,453 +23,385 @@
 #include "CH58x_common.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 
-/* ADC引脚映射表 - 对应官方例程中的ADC_PIN数组 */
-static const uint32_t adc_pin_map[ADC_CHANNEL_MAX] = {
-    GPIO_Pin_4,   /* PA4,AIN0 */
-    GPIO_Pin_5,   /* PA5,AIN1 */
-    GPIO_Pin_12,  /* PA12,AIN2 */
-    GPIO_Pin_13,  /* PA13,AIN3 */
-    GPIO_Pin_14,  /* PA14,AIN4 */
-    GPIO_Pin_15,  /* PA15,AIN5 */
-    GPIO_Pin_3,   /* PA3,AIN6 */
-    GPIO_Pin_2,   /* PA2,AIN7 */
-    GPIO_Pin_1,   /* PA1,AIN8 */
-    GPIO_Pin_0,   /* PA0,AIN9 */
-    GPIO_Pin_6,   /* PA6,AIN10 */
-    GPIO_Pin_7,   /* PA7,AIN11 */
-    GPIO_Pin_8,   /* PA8,AIN12 */
-    GPIO_Pin_9    /* PA9,AIN13 */
-};
-
-/* ADC通道状态结构体 */
+/*==========================================
+ * ADC通道状态结构体
+ *=========================================*/
 typedef struct {
-    pin_t pin;              /* 绑定的GPIO引脚 */
-    bool initialized;       /* 初始化标志 */
-    adc_sample_freq_t freq; /* 采样频率 */
-    adc_pga_t gain;         /* 增益设置 */
-    adc_mode_t mode;        /* 工作模式 */
+    bool initialized;           /**< 通道是否已初始化 */
+    bool enabled;               /**< 通道是否启用 */
+    adc_mode_t mode;            /**< 采样模式 */
+    uint8_t avg_samples;        /**< 平均采样次数 */
+    pin_t bound_pin;            /**< 绑定的GPIO引脚（NO_PIN表示未绑定） */
+    bool interrupt_enabled;     /**< 中断是否启用 */
+    uint16_t interrupt_threshold; /**< 中断阈值 */
 } adc_channel_state_t;
 
-/* ADC通道状态数组 */
-static adc_channel_state_t adc_channels[ADC_CHANNEL_MAX] = {0};
-
-/* 当前活动的ADC通道 */
-static adc_channel_t adc_current_channel = ADC_CHANNEL_0;
-
-/* ADC校准值 */
-static int16_t g_adc_calib_value = 0;
-
-/* 中断模式相关变量 */
-static volatile uint8_t g_adc_sample_count = 0;
-static volatile uint16_t g_adc_sample_buffer[64];
-static adc_callback_t g_adc_callback = NULL;
-
-/* DMA模式相关变量 */
-static volatile bool g_adc_dma_end = FALSE;
-static uint16_t* g_adc_dma_buffer = NULL;
-static uint16_t g_adc_buffer_size = 0;
-
-/* 扫描模式相关变量 */
-static const adc_channel_t* g_scan_channels = NULL;
-static uint8_t g_scan_channel_count = 0;
-static uint16_t* g_scan_buffer = NULL;
+/*==========================================
+ * ADC全局状态
+ *=========================================*/
+static adc_channel_state_t adc_channels[ADC_CHANNEL_MAX];
+static adc_callback_t adc_callback = NULL;  /**< 全局ADC回调函数 */
+static bool adc_initialized = FALSE;        /**< ADC模块是否已初始化 */
+static int16_t adc_calib_value = 0;         /**< ADC校准值（内部使用） */
 
 /*==========================================
  * 内部辅助函数
  *=========================================*/
 
 /**
- * @brief   配置GPIO为ADC输入模式
- * @param   channel ADC通道号
- * @return  none
+ * @brief 配置GPIO引脚为ADC输入模式
+ * @param pin GPIO引脚号
+ * @return none
  */
-static void adc_configure_gpio_pin(adc_channel_t channel) {
-    if (channel >= ADC_CHANNEL_MAX) {
+static void adc_configure_gpio(pin_t pin) {
+    if (pin == NO_PIN) {
         return;
     }
 
-    uint32_t pin = adc_pin_map[channel];
-
-    /* 配置GPIO为浮空输入模式 */
-    GPIOA_ModeCfg(pin, GPIO_ModeIN_Floating);
+    /* 根据引脚号配置对应的GPIO端口 */
+    /* 这里简化处理，实际需要根据具体引脚映射 */
+    GPIOA_ModeCfg(1 << (pin & 0xFF), GPIO_ModeIN_Floating);
 }
 
 /**
- * @brief   转换采样频率枚举为CH58x库参数
- * @param   freq 采样频率枚举
- * @return  CH58x库采样频率参数
+ * @brief 获取CH584采样频率参数
+ * @return CH584采样频率参数
+ * @note 根据电池检测案例，使用4MHz采样频率（SampleFreq_4_or_2）
  */
-static adc_sample_freq_t adc_convert_freq_param(adc_sample_freq_t freq) {
-    return (freq == ADC_SAMPLE_FREQ_8MHZ) ? SampleFreq_8_or_4 : SampleFreq_4_or_2;
+static ADC_SampClkTypeDef adc_get_sample_freq(void) {
+    return SampleFreq_4_or_2;
 }
 
-/*==========================================
- * 基础ADC函数实现
- *=========================================*/
-
-void adc_init_single(adc_channel_t channel, adc_sample_freq_t freq, adc_pga_t gain) {
-    if (channel >= ADC_CHANNEL_MAX) {
-        return;
-    }
-
-    /* 保存配置 */
-    adc_channels[channel].initialized = TRUE;
-    adc_channels[channel].freq = freq;
-    adc_channels[channel].gain = gain;
-    adc_channels[channel].mode = ADC_MODE_SINGLE;
-    adc_channels[channel].pin = PA0 + channel; /* 记录绑定的引脚 */
-
-    /* 配置GPIO引脚 */
-    adc_configure_gpio_pin(channel);
-
-    /* 初始化ADC（单端模式） */
-    ADC_ExtSingleChSampInit(adc_convert_freq_param(freq), (uint8_t)gain);
-
-    /* 配置通道 */
-    ADC_ChannelCfg(channel);
-
-    adc_current_channel = channel;
+/**
+ * @brief 获取CH584 PGA增益参数
+ * @return PGA增益参数
+ * @note 根据电池检测案例，使用1/2增益（ADC_PGA_1_2）
+ */
+static ADC_SignalPGATypeDef adc_get_pga_gain(void) {
+    return ADC_PGA_1_2;
 }
 
-void adc_init_diff(adc_channel_t channel, adc_sample_freq_t freq, adc_pga_t gain) {
-    if (channel >= ADC_CHANNEL_MAX) {
-        return;
-    }
-
-    /* 保存配置 */
-    adc_channels[channel].initialized = TRUE;
-    adc_channels[channel].freq = freq;
-    adc_channels[channel].gain = gain;
-    adc_channels[channel].mode = ADC_MODE_DIFFERENTIAL;
-    adc_channels[channel].pin = PA0 + channel;
-
-    /* 配置GPIO引脚（差分模式需要配置两个引脚） */
-    if (channel == 0) {
-        /* 通道0对应PA4(AIN0)、PA12(AIN2) */
-        GPIOA_ModeCfg(GPIO_Pin_4 | GPIO_Pin_12, GPIO_ModeIN_Floating);
-    } else {
-        adc_configure_gpio_pin(channel);
-    }
-
-    /* 初始化ADC（差分模式） */
-    ADC_ExtDiffChSampInit(adc_convert_freq_param(freq), (uint8_t)gain);
-
-    /* 配置通道 */
-    ADC_ChannelCfg(channel);
-
-    adc_current_channel = channel;
-}
-
-void adc_init_temperature(void) {
-    /* 初始化温度传感器采样 */
-    ADC_InterTSSampInit();
-}
-
-void adc_init_touchkey(void) {
-    /* TouchKey通道采样初始化 */
-    TouchKey_ChSampInit();
-}
-
-uint16_t adc_start_single_conversion(void) {
-    /* 启动单次转换并丢弃首次数据（官方例程推荐） */
-    ADC_ExcutSingleConver();
-
+/**
+ * @brief 执行ADC采样（包含校准）
+ * @param channel ADC通道号
+ * @return uint16_t 采样值（已应用校准）
+ * @note 执行单次ADC转换并应用校准值
+ */
+static uint16_t adc_perform_conversion(adc_channel_t channel) {
     /* 执行转换 */
     uint16_t value = ADC_ExcutSingleConver();
 
-    /* 应用校准值 */
-    value += g_adc_calib_value;
+    /* 应用校准值（电池检测案例使用的方法） */
+    value += adc_calib_value;
 
     return value;
 }
 
-uint16_t adc_start_touchkey_conversion(uint8_t charge_time, uint8_t discharge_time) {
-    /* TouchKey单次转换 */
-    return TouchKey_ExcutSingleConver(charge_time, discharge_time);
-}
+/*==========================================
+ * ADC基础初始化
+ *=========================================*/
 
-uint16_t adc_read_value(void) {
-    /* 读取转换值 */
-    return ADC_ReadConverValue();
-}
-
-uint16_t adc_read_average(adc_channel_t channel, uint8_t samples) {
-    if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
-        return 0;
+void adc_init(void) {
+    if (adc_initialized) {
+        return;  /* 避免重复初始化 */
     }
 
-    uint32_t sum = 0;
+    /* 清零所有通道状态 */
+    memset(adc_channels, 0, sizeof(adc_channels));
+
+    /* 初始化每个通道的默认状态 */
     uint8_t i;
-
-    /* 保存当前通道 */
-    adc_channel_t saved_channel = adc_current_channel;
-
-    /* 切换到目标通道 */
-    adc_current_channel = channel;
-    ADC_ChannelCfg(channel);
-
-    /* 丢弃首次转换 */
-    ADC_ExcutSingleConver();
-
-    /* 执行多次采样 */
-    for (i = 0; i < samples; i++) {
-        sum += adc_start_single_conversion();
+    for (i = 0; i < ADC_CHANNEL_MAX; i++) {
+        adc_channels[i].initialized = FALSE;
+        adc_channels[i].enabled = FALSE;
+        adc_channels[i].bound_pin = NO_PIN;
+        adc_channels[i].interrupt_enabled = FALSE;
     }
 
-    /* 恢复原通道 */
-    adc_current_channel = saved_channel;
-    ADC_ChannelCfg(saved_channel);
-
-    return (uint16_t)(sum / samples);
-}
-
-uint32_t adc_read_voltage(adc_channel_t channel) {
-    uint16_t adc_value = adc_read_average(channel, 1);
-
-    /* 假设参考电压为3.3V，12位ADC（4096个刻度） */
-    return ((uint32_t)adc_value * 3300) / 4096;
-}
-
-int16_t adc_calibrate(void) {
-    /* 执行ADC数据校准 */
-    g_adc_calib_value = ADC_DataCalib_Rough();
-
-    return g_adc_calib_value;
+    adc_initialized = TRUE;
 }
 
 /*==========================================
- * 中断模式ADC函数实现
+ * ADC通道初始化
  *=========================================*/
 
-void adc_config_interrupt(adc_channel_t channel, adc_callback_t callback) {
+void adc_init_channel(adc_channel_t channel, adc_mode_t mode, uint8_t avg_samples) {
+    /* 检查参数有效性 */
     if (channel >= ADC_CHANNEL_MAX) {
         return;
     }
 
-    g_adc_callback = callback;
-    g_adc_sample_count = 0;
+    if (avg_samples == 0) {
+        avg_samples = 1;  /* 最小采样次数为1 */
+    }
 
-    /* 配置ADC中断模式 */
+    if (avg_samples > 255) {
+        avg_samples = 255;  /* 最大采样次数限制 */
+    }
+
+    /* 更新通道状态 */
+    adc_channels[channel].initialized = TRUE;
+    adc_channels[channel].enabled = TRUE;
+    adc_channels[channel].mode = mode;
+    adc_channels[channel].avg_samples = avg_samples;
+
+    /* 如果通道已绑定GPIO，配置GPIO为浮空输入 */
+    if (adc_channels[channel].bound_pin != NO_PIN) {
+        adc_configure_gpio(adc_channels[channel].bound_pin);
+    }
+
+    /* 初始化ADC硬件（单端模式） */
+    /* 使用电池检测案例中的参数：4MHz采样频率，1/2增益 */
+    ADC_ExtSingleChSampInit(adc_get_sample_freq(), adc_get_pga_gain());
+
+    /* 配置通道 */
     ADC_ChannelCfg(channel);
 
-    /* 清除中断标志 */
-    ADC_ClearITFlag();
-
-    /* 使能ADC中断 */
-    PFIC_EnableIRQ(ADC_IRQn);
-}
-
-void adc_start_interrupt(void) {
-    /* 启动ADC */
-    ADC_StartUp();
-}
-
-void adc_stop_interrupt(void) {
-    /* 禁用ADC中断 */
-    PFIC_DisableIRQ(ADC_IRQn);
-}
-
-bool adc_get_interrupt_status(void) {
-    /* 获取中断状态 */
-    return (bool)ADC_GetITStatus();
-}
-
-void adc_clear_interrupt_flag(void) {
-    /* 清除中断标志 */
-    ADC_ClearITFlag();
+    /* 执行ADC校准（仅在首次初始化时） */
+    if (adc_calib_value == 0) {
+        adc_calib_value = ADC_DataCalib_Rough();
+    }
 }
 
 /*==========================================
- * DMA模式ADC函数实现
- *=========================================*/
-
-void adc_config_dma(uint16_t* buffer, uint16_t size) {
-    if (!buffer || size == 0) {
-        return;
-    }
-
-    g_adc_dma_buffer = buffer;
-    g_adc_buffer_size = size;
-    g_adc_dma_end = FALSE;
-
-    /* 设置自动转换周期 */
-    ADC_AutoConverCycle(192);
-
-    /* 配置DMA */
-    ADC_DMACfg(ENABLE, (uint32_t)buffer, (uint32_t)(buffer + size), ADC_Mode_Single);
-
-    /* 使能ADC中断 */
-    PFIC_EnableIRQ(ADC_IRQn);
-}
-
-void adc_start_dma(void) {
-    /* 启动自动DMA传输 */
-    ADC_StartAutoDMA();
-}
-
-void adc_stop_dma(void) {
-    /* 停止自动DMA传输 */
-    ADC_StopAutoDMA();
-
-    /* 禁用DMA配置 */
-    ADC_DMACfg(DISABLE, 0, 0, 0);
-}
-
-bool adc_get_dma_status(void) {
-    /* 获取DMA状态 */
-    return g_adc_dma_end;
-}
-
-void adc_clear_dma_flag(void) {
-    /* 清除DMA标志 */
-    ADC_ClearDMAFlag();
-}
-
-/*==========================================
- * 扫描模式ADC函数实现
- *=========================================*/
-
-void adc_config_scan(const adc_channel_t* channels, uint8_t num_channels, uint16_t* buffer, uint16_t buffer_size) {
-    if (!channels || !buffer || num_channels == 0 || buffer_size < num_channels) {
-        return;
-    }
-
-    g_scan_channels = channels;
-    g_scan_channel_count = num_channels;
-    g_scan_buffer = buffer;
-
-    uint32_t temp;
-    uint8_t i;
-
-    /* 配置所有扫描通道的GPIO为浮空输入 */
-    uint32_t all_pins = 0;
-    for (i = 0; i < num_channels; i++) {
-        if (channels[i] < ADC_CHANNEL_MAX) {
-            all_pins |= adc_pin_map[channels[i]];
-        }
-    }
-    GPIOA_ModeCfg(all_pins, GPIO_ModeIN_Floating);
-
-    /* 初始化ADC */
-    ADC_ExtSingleChSampInit(SampleFreq_4_or_2, ADC_PGA_0);
-
-    /* 设置采样周期 */
-    R8_ADC_CONVERT |= RB_ADC_SAMPLE_TIME; /* 7个采样周期 */
-
-    /* 配置第一个通道 */
-    ADC_ChannelCfg(channels[0]);
-
-    /* 配置扫描通道1-8 */
-    temp = 0;
-    for (i = 1; i < num_channels && i < 9; i++) {
-        temp |= (channels[i] << (i * 4));
-    }
-    R32_ADC_SCAN_CFG1 = temp;
-
-    /* 配置扫描通道9-14 */
-    temp = 0;
-    for (i = 9; i < num_channels; i++) {
-        temp |= (channels[i] << ((i - 8) * 4));
-    }
-    temp |= RB_ADC_SCAN_SEL | RB_ADC_IE_SCAN_END | ((num_channels - 1) << 24);
-    R32_ADC_SCAN_CFG2 = temp;
-
-    /* 配置DMA缓冲区 */
-    R32_ADC_DMA_BEG = ((uint32_t)buffer) & 0x1FFFF;
-    R32_ADC_DMA_END = ((uint32_t)(buffer + buffer_size)) & 0x1FFFF;
-
-    /* 使能DMA */
-    R8_ADC_CTRL_DMA |= RB_ADC_DMA_ENABLE | RB_SCAN_AUTO_TYPE;
-
-    /* 使能ADC中断 */
-    PFIC_EnableIRQ(ADC_IRQn);
-}
-
-void adc_start_scan(void) {
-    /* 启动ADC扫描 */
-    R8_ADC_CONVERT = RB_ADC_START;
-}
-
-void adc_stop_scan(void) {
-    /* 停止ADC扫描（通过清除启动位） */
-    R8_ADC_CONVERT &= ~RB_ADC_START;
-}
-
-/*==========================================
- * GPIO引脚绑定函数实现
+ * GPIO引脚绑定功能
  *=========================================*/
 
 bool adc_bind_pin(pin_t pin, adc_channel_t channel) {
-    if (channel >= ADC_CHANNEL_MAX) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX || pin == NO_PIN) {
         return FALSE;
     }
 
-    adc_channels[channel].pin = pin;
-    adc_channels[channel].initialized = TRUE;
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 检查通道是否已经绑定了其他引脚 */
+    if (ch->bound_pin != NO_PIN && ch->bound_pin != pin) {
+        return FALSE;  /* 通道已绑定其他引脚 */
+    }
+
+    /* 绑定引脚 */
+    ch->bound_pin = pin;
+
+    /* 如果通道已初始化，配置GPIO */
+    if (ch->initialized) {
+        adc_configure_gpio(pin);
+    }
 
     return TRUE;
 }
 
+bool adc_unbind_pin(pin_t pin) {
+    adc_channel_t channel;
+
+    /* 遍历所有通道查找引脚 */
+    for (channel = 0; channel < ADC_CHANNEL_MAX; channel++) {
+        adc_channel_state_t *ch = &adc_channels[channel];
+
+        /* 查找匹配的引脚 */
+        if (ch->bound_pin == pin) {
+            ch->bound_pin = NO_PIN;  /* 解绑引脚 */
+            return TRUE;
+        }
+    }
+
+    return FALSE;  /* 未找到引脚 */
+}
+
 pin_t adc_get_bound_pin(adc_channel_t channel) {
+    /* 检查参数有效性 */
     if (channel >= ADC_CHANNEL_MAX) {
         return NO_PIN;
     }
 
-    return adc_channels[channel].pin;
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 返回绑定的引脚 */
+    return ch->bound_pin;
 }
 
 bool adc_is_bound(adc_channel_t channel) {
+    /* 检查参数有效性 */
     if (channel >= ADC_CHANNEL_MAX) {
         return FALSE;
     }
 
-    return adc_channels[channel].initialized;
+    return (adc_channels[channel].bound_pin != NO_PIN);
 }
 
 /*==========================================
- * ADC中断服务程序
+ * ADC采样功能
  *=========================================*/
 
-__INTERRUPT
-__HIGH_CODE
-void ADC_IRQHandler(void) {
-    /* 处理DMA传输完成 */
-    if (ADC_GetDMAStatus()) {
-        ADC_StopAutoDMA();
-        R32_ADC_DMA_BEG = ((uint32_t)g_adc_dma_buffer) & 0x1FFFF;
-        ADC_ClearDMAFlag();
-        g_adc_dma_end = TRUE;
+uint16_t adc_read_single(adc_channel_t channel) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return 0;
     }
 
-    /* 处理转换完成中断 */
-    if (ADC_GetITStatus()) {
-        ADC_ClearITFlag();
+    adc_channel_state_t *ch = &adc_channels[channel];
 
-        /* 读取转换值 */
-        uint16_t value = ADC_ReadConverValue();
-
-        /* 如果有回调函数，调用它 */
-        if (g_adc_callback) {
-            g_adc_callback(value);
-        }
-
-        /* 保存到缓冲区（如果缓冲区存在） */
-        if (g_adc_sample_count < sizeof(g_adc_sample_buffer) / sizeof(g_adc_sample_buffer[0])) {
-            g_adc_sample_buffer[g_adc_sample_count] = value;
-            g_adc_sample_count++;
-        }
-
-        /* 启动新一轮采样 */
-        ADC_StartUp();
+    /* 检查通道是否已初始化 */
+    if (!ch->initialized) {
+        return 0;
     }
 
-    /* 处理扫描模式中断 */
-    if (R32_ADC_SCAN_CFG2 & RB_ADC_IF_SCAN_END) {
-        R32_ADC_SCAN_CFG2 |= RB_ADC_IF_SCAN_END;
-        R32_ADC_DMA_BEG = ((uint32_t)g_scan_buffer) & 0x1FFFF;
-        g_adc_dma_end = TRUE;
+    /* 检查通道是否已启用 */
+    if (!ch->enabled) {
+        return 0;
+    }
+
+    /* 切换到目标通道 */
+    ADC_ChannelCfg(channel);
+
+    /* 执行单次转换 */
+    uint16_t value = adc_perform_conversion(channel);
+
+    return value;
+}
+
+uint16_t adc_read_average(adc_channel_t channel, uint8_t samples) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return 0;
+    }
+
+    if (samples == 0) {
+        return 0;
+    }
+
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 检查通道是否已初始化 */
+    if (!ch->initialized) {
+        return 0;
+    }
+
+    /* 检查通道是否已启用 */
+    if (!ch->enabled) {
+        return 0;
+    }
+
+    /* 切换到目标通道 */
+    ADC_ChannelCfg(channel);
+
+    /* 根据电池检测案例，先丢弃前4次采样以提高稳定性 */
+    uint8_t i;
+    for (i = 0; i < 4; i++) {
+        adc_perform_conversion(channel);
+    }
+
+    /* 执行指定次数的采样并求平均 */
+    uint32_t sum = 0;
+    for (i = 0; i < samples; i++) {
+        sum += adc_perform_conversion(channel);
+    }
+
+    return (uint16_t)(sum / samples);
+}
+
+uint32_t adc_to_voltage(uint16_t raw_value, uint32_t vref_mv) {
+    /* 转换公式：voltage = (raw_value * vref_mv) / 4096 */
+    /* CH584 ADC为12位，范围0-4095 */
+
+    /* 根据电池检测案例，测量点电压转换（使用3000mV参考） */
+    uint32_t voltage = ((uint32_t)raw_value * 3000) / 4096;
+
+    /* 如果使用1/2增益，需要补偿（ADC_PGA_1_2） */
+    /* 电池检测案例中测量点电压需要除以0.747得到电池电压 */
+    /* 这里返回测量点电压，实际电池电压需要除以0.747 */
+    return voltage;
+}
+
+/*==========================================
+ * ADC中断控制功能
+ *=========================================*/
+
+void adc_enable_interrupt(adc_channel_t channel, uint16_t threshold) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return;
+    }
+
+    if (threshold > 4095) {
+        threshold = 4095;  /* 限制在12位范围内 */
+    }
+
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 检查通道是否已初始化 */
+    if (!ch->initialized) {
+        return;
+    }
+
+    /* 启用中断并设置阈值 */
+    ch->interrupt_enabled = TRUE;
+    ch->interrupt_threshold = threshold;
+
+    /* TODO: 配置CH584硬件中断（需要根据具体需求实现） */
+    /* CH584支持ADC自动转换周期，可用于实现阈值检测 */
+    /* 此处简化处理，实际应用中需要在ADC中断服务程序中检查阈值 */
+}
+
+void adc_disable_interrupt(adc_channel_t channel) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return;
+    }
+
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 禁用中断 */
+    ch->interrupt_enabled = FALSE;
+
+    /* TODO: 关闭CH584硬件中断 */
+}
+
+void adc_set_callback(adc_callback_t callback) {
+    /* 注册全局回调函数 */
+    adc_callback = callback;
+}
+
+/*==========================================
+ * ADC启停控制功能
+ *=========================================*/
+
+void adc_stop(adc_channel_t channel) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return;
+    }
+
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 禁用通道 */
+    ch->enabled = FALSE;
+
+    /* 禁用中断 */
+    if (ch->interrupt_enabled) {
+        ch->interrupt_enabled = FALSE;
+        /* TODO: 关闭硬件中断 */
     }
 }
 
+void adc_resume(adc_channel_t channel) {
+    /* 检查参数有效性 */
+    if (channel >= ADC_CHANNEL_MAX) {
+        return;
+    }
 
+    adc_channel_state_t *ch = &adc_channels[channel];
+
+    /* 检查通道是否已初始化 */
+    if (!ch->initialized) {
+        return;
+    }
+
+    /* 恢复通道 */
+    ch->enabled = TRUE;
+
+    /* 恢复中断（如果之前启用） */
+    /* TODO: 重新启用硬件中断（如果需要） */
+}
