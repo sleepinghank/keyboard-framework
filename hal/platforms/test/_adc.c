@@ -40,28 +40,34 @@ static adc_channel_t adc_current_channel = ADC_CHANNEL_0;
  * Channel-based ADC functions
  *=========================================*/
 
-void adc_init(adc_channel_t channel) {
+void adc_init(void) {
+    ADC_DEBUG_PRINT("adc_init: ADC硬件初始化完成");
+    // 在测试平台中，无需实际硬件初始化
+}
+
+void adc_init_channel(adc_channel_t channel, adc_mode_t mode, uint8_t avg_samples) {
     if (channel >= ADC_CHANNEL_MAX) {
-        ADC_DEBUG_PRINT("adc_init: Invalid channel %d", channel);
+        ADC_DEBUG_PRINT("adc_init_channel: Invalid channel %d", channel);
         return;
     }
 
     // Initialize the ADC channel
     adc_channels[channel].initialized = true;
-    ADC_DEBUG_PRINT("adc_init: Initialized channel %d", channel);
+    ADC_DEBUG_PRINT("adc_init_channel: Initialized channel %d, mode=%d, samples=%d",
+                    channel, mode, avg_samples);
 }
 
 void adc_init_all(void) {
     adc_channel_t i;
     for (i = 0; i < ADC_CHANNEL_MAX; i++) {
-        adc_init(i);
+        adc_init_channel(i, ADC_MODE_SINGLE, 1);
     }
     ADC_DEBUG_PRINT("adc_init_all: Initialized all %d channels", ADC_CHANNEL_MAX);
 }
 
-uint16_t adc_read(adc_channel_t channel) {
+uint16_t adc_read_single(adc_channel_t channel) {
     if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
-        ADC_DEBUG_PRINT("adc_read: Invalid channel %d", channel);
+        ADC_DEBUG_PRINT("adc_read_single: Invalid channel %d", channel);
         return 0;
     }
 
@@ -70,7 +76,7 @@ uint16_t adc_read(adc_channel_t channel) {
     // Test返回值（模拟ADC采样值）
     static uint16_t test_value = 2048; // 模拟中间值
 
-    ADC_DEBUG_PRINT("adc_read(channel: %d) - 读取ADC值: %d",
+    ADC_DEBUG_PRINT("adc_read_single(channel: %d) - 读取ADC值: %d",
                     channel, test_value);
 
     // 测试代码：返回模拟值（每次递增，模拟变化）
@@ -89,7 +95,7 @@ uint16_t adc_read_average(adc_channel_t channel, uint8_t samples) {
     uint8_t i;
 
     for (i = 0; i < samples; i++) {
-        sum += adc_read(channel);
+        sum += adc_read_single(channel);
     }
 
     uint16_t average = sum / samples;
@@ -99,19 +105,11 @@ uint16_t adc_read_average(adc_channel_t channel, uint8_t samples) {
     return average;
 }
 
-uint32_t adc_read_voltage(adc_channel_t channel) {
-    if (channel >= ADC_CHANNEL_MAX || !adc_channels[channel].initialized) {
-        ADC_DEBUG_PRINT("adc_read_voltage: Invalid channel %d", channel);
-        return 0;
-    }
-
-    // 假设参考电压为3300mV (3.3V)，12位ADC (4096个刻度)
-    uint16_t adc_value = adc_read(channel);
-    uint32_t voltage_mv = (adc_value * 3300) / 4096;
-
-    ADC_DEBUG_PRINT("adc_read_voltage(channel: %d) - 电压值: %d mV",
-                    channel, voltage_mv);
-
+uint32_t adc_to_voltage(uint16_t raw_value, uint32_t vref_mv) {
+    // 将ADC原始值转换为电压值
+    uint32_t voltage_mv = (raw_value * vref_mv) / 4096;
+    ADC_DEBUG_PRINT("adc_to_voltage(raw=%d, vref=%d) - 电压值: %d mV",
+                    raw_value, vref_mv, voltage_mv);
     return voltage_mv;
 }
 
@@ -122,8 +120,10 @@ uint16_t adc_read_advanced(adc_channel_t channel, uint8_t samples, uint32_t refe
     }
 
     uint16_t adc_value = adc_read_average(channel, samples);
-    ADC_DEBUG_PRINT("adc_read_advanced(channel: %d, samples: %d, ref: %d mV) - ADC值: %d",
-                    channel, samples, reference_mv, adc_value);
+    uint32_t voltage_mv = adc_to_voltage(adc_value, reference_mv);
+
+    ADC_DEBUG_PRINT("adc_read_advanced(channel: %d, samples: %d, ref: %d mV) - ADC值: %d, 电压: %d mV",
+                    channel, samples, reference_mv, adc_value, voltage_mv);
 
     return adc_value;
 }
@@ -184,16 +184,69 @@ bool adc_is_bound(adc_channel_t channel) {
  * @note    此函数将引脚配置为模拟输入模式，用于ADC采样
  */
 void adc_set_pin(pin_t pin) {
-    ADC_DEBUG_PRINT("adc_set_pin(pin: 0x%02X) - 设置引脚为ADC输入模式", 
+    ADC_DEBUG_PRINT("adc_set_pin(pin: 0x%02X) - 设置引脚为ADC输入模式",
                     pin);
-    
+
     // TODO: 实际实现时，需要：
     // 1. 配置GPIO为模拟输入模式
     // 2. 配置ADC通道
     // 3. 初始化ADC外设（如果尚未初始化）
-    
+
     // 测试代码：调用GPIO设置函数（模拟）
     // gpio_set_pin_input(pin);
 }
 
+/*==========================================
+ * Missing ADC functions
+ *=========================================*/
+
+bool adc_unbind_pin(pin_t pin) {
+    ADC_DEBUG_PRINT("adc_unbind_pin(pin: 0x%02X) - 解除引脚绑定", pin);
+    // 测试平台中无需实际操作
+    return true;
+}
+
+void adc_enable_interrupt(adc_channel_t channel, uint16_t threshold) {
+    if (channel >= ADC_CHANNEL_MAX) {
+        ADC_DEBUG_PRINT("adc_enable_interrupt: Invalid channel %d", channel);
+        return;
+    }
+    ADC_DEBUG_PRINT("adc_enable_interrupt(channel: %d, threshold: %d) - 启用中断",
+                    channel, threshold);
+    // 测试平台中无需实际中断
+}
+
+void adc_disable_interrupt(adc_channel_t channel) {
+    if (channel >= ADC_CHANNEL_MAX) {
+        ADC_DEBUG_PRINT("adc_disable_interrupt: Invalid channel %d", channel);
+        return;
+    }
+    ADC_DEBUG_PRINT("adc_disable_interrupt(channel: %d) - 禁用中断", channel);
+    // 测试平台中无需实际中断
+}
+
+void adc_set_callback(adc_callback_t callback) {
+    ADC_DEBUG_PRINT("adc_set_callback - 设置ADC回调函数");
+    // 测试平台中无需实际回调
+    // static adc_callback_t user_callback = NULL;
+    // user_callback = callback;
+}
+
+void adc_stop(adc_channel_t channel) {
+    if (channel >= ADC_CHANNEL_MAX) {
+        ADC_DEBUG_PRINT("adc_stop: Invalid channel %d", channel);
+        return;
+    }
+    ADC_DEBUG_PRINT("adc_stop(channel: %d) - 停止ADC通道", channel);
+    // 测试平台中无需实际停止
+}
+
+void adc_resume(adc_channel_t channel) {
+    if (channel >= ADC_CHANNEL_MAX) {
+        ADC_DEBUG_PRINT("adc_resume: Invalid channel %d", channel);
+        return;
+    }
+    ADC_DEBUG_PRINT("adc_resume(channel: %d) - 恢复ADC通道", channel);
+    // 测试平台中无需实际恢复
+}
 

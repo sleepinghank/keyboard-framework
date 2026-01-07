@@ -1,0 +1,139 @@
+/* Copyright 2024
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "wireless.h"
+#include "indicator.h"
+#include "battery.h"
+#include "print.h"
+
+#ifdef RGB_MATRIX_ENABLE
+#    include "rgb_matrix.h"
+#endif
+
+#ifdef LED_MATRIX_ENABLE
+#    include "led_matrix.h"
+#endif
+
+/*********************************************************************
+ * @fn      wireless_enter_reset_kb
+ *
+ * @brief   无线模块重置回调函数
+ * @param   reason 重置原因
+ * @return  none
+ *
+ * @note    应用层可以重写此函数以实现自定义的初始化逻辑
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_reset_kb(uint8_t reason) {
+    println("Wireless: System reset");
+    // 测试平台实现：无需实际硬件初始化
+}
+
+/*********************************************************************
+ * @fn      wireless_enter_discoverable_kb
+ *
+ * @brief   进入可发现模式（配对模式）回调函数
+ * @param   host_idx 主机索引
+ * @return  none
+ *
+ * @note    当无线模块进入配对模式时调用
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_discoverable_kb(uint8_t host_idx) {
+    println("Wireless: Entering discoverable mode");
+    // 设置指示灯为配对状态
+    indicator_set(WT_PARING, host_idx);
+}
+
+/*********************************************************************
+ * @fn      wireless_enter_reconnecting_kb
+ *
+ * @brief   进入重连模式回调函数
+ * @param   host_idx 主机索引
+ * @return  none
+ *
+ * @note    当无线模块尝试重连时调用
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_reconnecting_kb(uint8_t host_idx) {
+    println("Wireless: Entering reconnecting mode");
+    // 设置指示灯为重连状态
+    indicator_set(WT_RECONNECTING, host_idx);
+}
+
+/*********************************************************************
+ * @fn      wireless_enter_connected_kb
+ *
+ * @brief   连接成功回调函数
+ * @param   host_idx 主机索引
+ * @return  none
+ *
+ * @note    当无线模块成功连接主机时调用
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_connected_kb(uint8_t host_idx) {
+    println("Wireless: Connected to host");
+
+    // 清除键盘状态
+    // clear_keyboard();
+
+#ifdef NKRO_ENABLE
+    // 启用NKRO
+    // keymap_config.nkro = true;
+#endif
+
+    // 更新电池电量到模块
+    // wireless_update_battery_level(battery_get_percentage());
+
+    // 设置指示灯为连接状态
+    indicator_set(WT_CONNECTED, host_idx);
+}
+
+/*********************************************************************
+ * @fn      wireless_enter_disconnected_kb
+ *
+ * @brief   断开连接回调函数
+ * @param   host_idx 主机索引
+ * @param   reason 断开原因
+ * @return  none
+ *
+ * @note    当无线模块断开连接时调用
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason) {
+    println("Wireless: Disconnected from host");
+
+    // 设置指示灯为断开状态
+    indicator_set(WT_DISCONNECTED, host_idx);
+}
+
+/*********************************************************************
+ * @fn      wireless_enter_sleep_kb
+ *
+ * @brief   进入睡眠模式回调函数
+ * @return  none
+ *
+ * @note    当无线模块进入低功耗模式时调用
+ *********************************************************************/
+__attribute__((weak)) void wireless_enter_sleep_kb(void) {
+    println("Wireless: Entering sleep mode");
+
+#if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
+    // 关闭LED背光以节省电量
+#    ifdef LED_MATRIX_ENABLE
+    // led_matrix_disable_noeeprom();
+#    endif
+
+#    ifdef RGB_MATRIX_ENABLE
+    // rgb_matrix_disable_noeeprom();
+#    endif
+#endif
+}

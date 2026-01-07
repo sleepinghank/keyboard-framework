@@ -44,9 +44,13 @@ typedef struct {
 } nkro_t;
 #endif
 
-#if defined(BLUETOOTH_ENABLE_FLAG) || defined(P2P4G_ENABLE_FLAG)
+#if defined(BLUETOOTH_ENABLE_FLAG) && defined(P2P4G_ENABLE_FLAG)
 #    define TRANSPORT_WIRELESS (TRANSPORT_BLUETOOTH | TRANSPORT_P2P4)
-#else
+#elif defined(BLUETOOTH_ENABLE_FLAG)
+#    define TRANSPORT_WIRELESS TRANSPORT_BLUETOOTH
+#elif defined(P2P4G_ENABLE_FLAG)
+#    define TRANSPORT_WIRELESS TRANSPORT_P2P4
+else 
 #    define TRANSPORT_WIRELESS 0
 #endif
 

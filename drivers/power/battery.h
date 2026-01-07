@@ -181,6 +181,25 @@ uint8_t battery_get_power_state(void);
  */
 void battery_task(void);
 
+/*********************************************************************
+ * @fn      battery_is_critical_low
+ *
+ * @brief   检查电池是否处于严重低电状态
+ *
+ * @return  bool - 是否严重低电
+ */
+bool battery_is_critical_low(void);
+
+/*********************************************************************
+ * @fn      battery_is_empty
+ *
+ * @brief   检查电池是否已经完全耗尽（需要关机）
+ *          判断条件：电压 < 关机电压阈值 (3.0V)
+ *
+ * @return  bool - true表示电池耗尽，false表示仍有电量
+ */
+bool battery_is_empty(void);
+
 // 保留的兼容性函数
 void     battery_measure(void);
 bool     battery_power_on_sample(void);

@@ -16,6 +16,7 @@
 #include "battery.h"
 #include "gpio.h"
 #include "timer.h"
+#include "indicator.h"
 
 // 分压电阻配置 (KΩ)
 #ifndef RVD_R1
@@ -95,7 +96,7 @@ void battery_init(void) {
     g_adc_value = 0;
     g_battery_voltage = FULL_VOLTAGE_VALUE;
     g_battery_percentage = 100;
-    g_battery_timer = timer_read_ms();
+    g_battery_timer = timer_read();
 
     // 启动ADC转换
     battery_measure();
@@ -337,8 +338,8 @@ bool battery_power_on_sample(void) {
  * @return  none
  */
 void battery_task(void) {
-    uint32_t current_time = timer_read_ms();
-    uint32_t elapsed = timer_elapsed_ms(g_battery_timer);
+    uint32_t current_time = timer_read();
+    uint32_t elapsed = timer_elapsed(g_battery_timer);
 
     // 检查是否到达测量间隔
     uint32_t measure_interval = VOLTAGE_MEASURE_INTERVAL;
@@ -366,4 +367,43 @@ void battery_task(void) {
         // 重置定时器
         g_battery_timer = current_time;
     }
+}
+
+/*********************************************************************
+ * @fn      battery_is_critical_low
+ *
+ * @brief   检查电池是否处于严重低电状态
+ *          判断条件：电量百分比 < 5% 或 电压 < 3.3V
+ *
+ * @return  bool - true表示严重低电，false表示正常
+ */
+bool battery_is_critical_low(void) {
+    // 检查电量百分比是否低于5%
+    if (g_battery_percentage < 5) {
+        return true;
+    }
+
+    // 检查电压是否低于严重低电阈值 (3.3V)
+    if (g_battery_voltage < CRITICAL_VOLTAGE_VALUE) {
+        return true;
+    }
+
+    return false;
+}
+
+/*********************************************************************
+ * @fn      battery_is_empty
+ *
+ * @brief   检查电池是否已经完全耗尽（需要关机）
+ *          判断条件：电压 < 关机电压阈值 (3.0V)
+ *
+ * @return  bool - true表示电池耗尽，false表示仍有电量
+ */
+bool battery_is_empty(void) {
+    // 检查电压是否低于关机电压阈值 (3.0V)
+    if (g_battery_voltage < SHUTDOWN_VOLTAGE_VALUE) {
+        return true;
+    }
+
+    return false;
 }

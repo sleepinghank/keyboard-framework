@@ -314,7 +314,7 @@ void indicator_set(wt_state_t state, uint8_t host_index) {
     static uint8_t current_host  = 0;
 
     bool host_index_changed = false;
-    if (current_host != host_index && state != BLUETOOTH_DISCONNECTED) {
+    if (current_host != host_index && state != WT_DISCONNECTED) {
         host_index_changed = true;
         current_host       = host_index;
     }
@@ -332,7 +332,7 @@ void indicator_set(wt_state_t state, uint8_t host_index) {
 //    indicator_reset_backlit_time();
 
     switch (state) {
-        case BLUETOOTH_DISCONNECTED:
+        case WT_DISCONNECTED:
 #ifdef HOST_LED_PIN_LIST
             writePin(host_led_pin_list[host_index - 1], !HOST_LED_PIN_ON_STATE);
 #endif
@@ -348,8 +348,8 @@ void indicator_set(wt_state_t state, uint8_t host_index) {
             }
             break;
 
-        case BLUETOOTH_CONNECTED:
-            if (indicator_state != BLUETOOTH_CONNECTED) {
+        case WT_CONNECTED:
+            if (indicator_state != WT_CONNECTED) {
                 INDICATOR_SET(connected);
                 indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : host_index;
                 indicator_timer_cb((void *)&indicator_config.type);
@@ -357,21 +357,21 @@ void indicator_set(wt_state_t state, uint8_t host_index) {
 //            indicator_set_backlit_timeout(DECIDE_TIME(CONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
-        case BLUETOOTH_PARING:
+        case WT_PARING:
             INDICATOR_SET(pairing);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : LED_ON | host_index;
             indicator_timer_cb((void *)&indicator_config.type);
 //            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
-        case BLUETOOTH_RECONNECTING:
+        case WT_RECONNECTING:
             INDICATOR_SET(reconnecting);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : LED_ON | host_index;
             indicator_timer_cb((void *)&indicator_config.type);
 //            indicator_set_backlit_timeout(DECIDE_TIME(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT * 1000, indicator_config.duration));
             break;
 
-        case BLUETOOTH_SUSPEND:
+        case WT_SUSPEND:
             INDICATOR_SET(disconnected);
             indicator_config.value = (indicator_config.type == INDICATOR_NONE) ? 0 : host_index;
             indicator_timer_cb((void *)&indicator_config.type);

@@ -204,15 +204,16 @@ void transport_notify_driver_switch(transport_t new_transport) {
         case TRANSPORT_USB:
             wireless_switch_to_usb_mode();
             break;
-
+#ifdef BLUETOOTH_ENABLE_FLAG
         case TRANSPORT_BLUETOOTH:
             wireless_switch_to_bt_driver();
             break;
-
+#endif
+#ifdef P2P4G_ENABLE_FLAG
         case TRANSPORT_P2P4:
             wireless_switch_to_p24g_driver();
             break;
-
+#endif
         default:
             break;
     }

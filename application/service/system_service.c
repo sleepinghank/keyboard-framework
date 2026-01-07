@@ -24,7 +24,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理低电关机事件
     if (events & SYSTEM_LOW_BATTERY_SHUTDOWN_EVT) {
-        PRINT("System: Low battery shutdown\r\n");
+        println("System: Low battery shutdown");
         // TODO: 处理低电关机逻辑
         // - 保存当前配置到EEPROM
         // - 断开所有连接
@@ -36,7 +36,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理系统空闲事件
     if (events & SYSTEM_IDLE_EVT) {
-        PRINT("System: System idle detected\r\n");
+        println("System: System idle detected");
         // TODO: 处理系统空闲逻辑
         // - 检查是否进入低功耗模式
         // - 关闭不必要的外设
@@ -47,7 +47,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理系统关机事件
     if (events & SYSTEM_SHUTDOWN_EVT) {
-        PRINT("System: System shutdown\r\n");
+        println("System: System shutdown");
         // TODO: 处理系统关机逻辑
         // - 保存所有配置
         // - 断开连接
@@ -58,7 +58,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理深度睡眠事件
     if (events & SYSTEM_DEEP_SLEEP_EVT) {
-        PRINT("System: Enter deep sleep\r\n");
+        println("System: Enter deep sleep");
         // TODO: 处理深度睡眠逻辑
         // - 保存关键状态
         // - 配置唤醒源
@@ -69,7 +69,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理系统存储事件
     if (events & SYSTEM_STORAGE_EVT) {
-        PRINT("System: Storage operation\r\n");
+        println("System: Storage operation");
         // TODO: 处理系统存储逻辑
         // - 读写EEPROM配置
         // - 保存用户设置
@@ -80,7 +80,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理系统唤醒事件
     if (events & SYSTEM_WAKEUP_EVT) {
-        PRINT("System: System wakeup\r\n");
+        println("System: System wakeup");
         // TODO: 处理系统唤醒逻辑
         // - 恢复外设配置
         // - 重新建立连接
@@ -91,7 +91,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理恢复出厂设置事件
     if (events & SYSTEM_FACTORY_RESET_EVT) {
-        PRINT("System: Factory reset\r\n");
+        println("System: Factory reset");
         // TODO: 处理恢复出厂设置逻辑
         // - 清空用户配置
         // - 恢复默认设置
@@ -102,7 +102,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理OTA升级事件
     if (events & SYSTEM_OTA_EVT) {
-        PRINT("System: OTA update\r\n");
+        println("System: OTA update");
         // TODO: 处理OTA升级逻辑
         // - 进入升级模式
         // - 接收升级固件

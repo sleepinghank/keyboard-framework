@@ -40,7 +40,7 @@ extern uint8_t         retry;
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 
-static wt_func_t  wireless_transport;
+wt_func_t  wireless_transport;
 #ifdef P2P4G_ENABLE_FLAG
 extern wt_func_t p24g_driver;  // 2.4G驱动实例
 #endif

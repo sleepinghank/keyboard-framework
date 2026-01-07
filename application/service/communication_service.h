@@ -1,5 +1,6 @@
 
 #pragma once
+#include <stdint.h>
 
 /** 所有通讯相关服务事件
  * reset

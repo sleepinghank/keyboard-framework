@@ -68,6 +68,9 @@ typedef struct {
 } wt_func_t;
 // clang-format on
 
+// Wireless transport function table (extern, defined in wireless.c)
+extern wt_func_t wireless_transport;
+
 extern void register_wt_tasks(void);
 
 void wireless_init(void);
