@@ -6,7 +6,7 @@
 #include "hidkbdservice.h"
 
 
-access_state_t access_state;            // Access模块的全局状态结构体
+
 
 
 /*********************************************************************

@@ -21,7 +21,6 @@
 #include "hidkbdservice.h"
 #include "hiddev.h"
 #include "HAL.h"
-#include "nvs_flash.h"
 #include "hidkbd.h"
 #include "event_manager.h"
 #include <string.h>
@@ -146,6 +145,8 @@ uint8_t adv_enable_process_flag = FALSE;
 /*********************************************************************
  * LOCAL VARIABLES
  */
+access_state_t access_state;            // Access模块的全局状态结构体
+bleConfig_t ble;
 
 // GAP Profile - Name attribute for SCAN RSP data
 static uint8_t scanRspData[] = {
@@ -302,17 +303,17 @@ void HidEmu_Init()
         GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
 
         // 从flash恢复设备名称
-        // scanRspData[0] = nvs_flash_info.ble_name_len+1;
+        // scanRspData[0] = storage_get_config_ptr()->ble_name_len+1;
         // scanRspData[1] = GAP_ADTYPE_LOCAL_NAME_COMPLETE;
-        // memcpy(&scanRspData[2], nvs_flash_info.ble_name_data, nvs_flash_info.ble_name_len);
-        // memcpy(&advertData[13-2-4], scanRspData, nvs_flash_info.ble_name_len+2);
+        // memcpy(&scanRspData[2], storage_get_config_ptr()->ble_name_data, storage_get_config_ptr()->ble_name_len);
+        // memcpy(&advertData[13-2-4], scanRspData, storage_get_config_ptr()->ble_name_len+2);
 //        dprint("len %d %x\n",scanRspData[0],scanRspData[1]);
         GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
         GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData);//实际的广播参数设置，之前的sdk截断了这个广播包
     }
 
     // Set the GAP Characteristics
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, nvs_flash_info.ble_name_len, (void *)nvs_flash_info.ble_name_data);
+    GGS_SetParameter(GGS_DEVICE_NAME_ATT, storage_get_config_ptr()->ble_name_len, (void *)storage_get_config_ptr()->ble_name_data);
 
     // Setup the GAP Bond Manager
     {
@@ -433,7 +434,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
         if(ble_state != GAPROLE_CONNECTED)
         {
             //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-            last_led_data = 0xFF;
+            // last_led_data = 0xFF;
             // 清空buff
             BLE_buf_out_idx=0;
             BLE_buf_data_num=0;
@@ -624,13 +625,13 @@ void hidEmu_delete_ble_bonded()
     // switch(con_work_mode)
     // {
     //     case BLE_INDEX_1:
-    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_1;
+    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_1;
     //         break;
     //     case BLE_INDEX_2:
-    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_2;
+    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_2;
     //         break;
     //     case BLE_INDEX_3:
-    //         nvs_flash_info.ble_bond_flag &= ~BLE_BOND_FLAG_3;
+    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_3;
     //         break;
     //     default:
     //         dprint("work mode err %x\n",con_work_mode);
@@ -652,24 +653,24 @@ void hidEmu_save_ble_bonded(uint8_t is_pairing)
     // switch(con_work_mode)
     // {
     //     case BLE_INDEX_1:
-    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_1;
+    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_1;
     //         if(is_pairing)
     //         {
-    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_1;
+    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_1;
     //         }
     //         break;
     //     case BLE_INDEX_2:
-    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_2;
+    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_2;
     //         if(is_pairing)
     //         {
-    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_2;
+    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_2;
     //         }
     //         break;
     //     case BLE_INDEX_3:
-    //         nvs_flash_info.ble_bond_flag |= BLE_BOND_FLAG_3;
+    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_3;
     //         if(is_pairing)
     //         {
-    //             nvs_flash_info.ble_mac_flag ^= BLE_BOND_FLAG_3;
+    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_3;
     //         }
     //         break;
     //     default:
@@ -692,13 +693,13 @@ uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
     // switch(ble_idx)
     // {
     //     case BLE_INDEX_1:
-    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_1;
+    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_1;
     //         break;
     //     case BLE_INDEX_2:
-    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_2;
+    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_2;
     //         break;
     //     case BLE_INDEX_3:
-    //         return nvs_flash_info.ble_mac_flag & BLE_BOND_FLAG_3;
+    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_3;
     //         break;
     //     default:
     //         dprint("work mode err %x\n",ble_idx);
@@ -716,17 +717,17 @@ uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
  */
 uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx )
 {
-    // dprint("是否绑定 %x 通道 %x\n",nvs_flash_info.ble_bond_flag,ble_idx);
+    // dprint("是否绑定 %x 通道 %x\n",storage_get_config_ptr()->ble_bond_flag,ble_idx);
     // switch(ble_idx)
     // {
     //     case BLE_INDEX_1:
-    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_1;
+    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_1;
     //         break;
     //     case BLE_INDEX_2:
-    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_2;
+    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_2;
     //         break;
     //     case BLE_INDEX_3:
-    //         return nvs_flash_info.ble_bond_flag & BLE_BOND_FLAG_3;
+    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_3;
     //         break;
     //     default:
     //         dprint("no bond mode %x\n",ble_idx);
@@ -791,9 +792,9 @@ void hidEmu_adv_enable(uint8_t enable)
         GAP_ConfigDeviceAddr(ADDRTYPE_STATIC, ownAddr);
 
         // 有需求是不同通道蓝牙名字不一样比如通道1名称为“BT-1”，通道2名称为“BT-2”等，则MCU发送是“BT-$”,这个美元符号表示蓝牙不同通道显示不同的名称
-        // for(i=0; i<nvs_flash_info.ble_name_len; i++ )
+        // for(i=0; i<storage_get_config_ptr()->ble_name_len; i++ )
         // {
-        //     if(nvs_flash_info.ble_name_data[i]=='$')
+        //     if(storage_get_config_ptr()->ble_name_data[i]=='$')
         //     {
         //         scanRspData[2+i] = access_state.ble_idx+0x30-BLE_INDEX_IDEL;
         //         need_update = 1;
@@ -802,11 +803,11 @@ void hidEmu_adv_enable(uint8_t enable)
         // if( need_update )
         // {
         //     dprint( "need_update\n");
-        //     GGS_SetParameter(GGS_DEVICE_NAME_ATT, nvs_flash_info.ble_name_len, (void *)&scanRspData[2]);
+        //     GGS_SetParameter(GGS_DEVICE_NAME_ATT, storage_get_config_ptr()->ble_name_len, (void *)&scanRspData[2]);
         // }
-        // GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, nvs_flash_info.ble_name_len+2, scanRspData);
-        // memcpy(&advertData[13-2-4], scanRspData, nvs_flash_info.ble_name_len+2);
-        // GAPRole_SetParameter(GAPROLE_ADVERT_DATA, nvs_flash_info.ble_name_len+2+13-2-4, advertData);//唤醒之后恢复广播导致广播包截断
+        // GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, storage_get_config_ptr()->ble_name_len+2, scanRspData);
+        // memcpy(&advertData[13-2-4], scanRspData, storage_get_config_ptr()->ble_name_len+2);
+        // GAPRole_SetParameter(GAPROLE_ADVERT_DATA, storage_get_config_ptr()->ble_name_len+2+13-2-4, advertData);//唤醒之后恢复广播导致广播包截断
     }
     if(initial_advertising_enable && hidEmu_is_ble_bonded(access_state.ble_idx) && (!access_state.pairing_state))
     {
@@ -839,19 +840,19 @@ void hidEmu_adv_enable(uint8_t enable)
 uint8_t hidEmu_update_device_name()
 {
     uint8_t i;
-    scanRspData[0] = nvs_flash_info.ble_name_len+1;
+    scanRspData[0] = storage_get_config_ptr()->ble_name_len+1;
     scanRspData[1] = GAP_ADTYPE_LOCAL_NAME_COMPLETE;
-    memcpy(&scanRspData[2], nvs_flash_info.ble_name_data, nvs_flash_info.ble_name_len);
-    for(i=0; i<nvs_flash_info.ble_name_len; i++ )
+    memcpy(&scanRspData[2], storage_get_config_ptr()->ble_name_data, storage_get_config_ptr()->ble_name_len);
+    for(i=0; i<storage_get_config_ptr()->ble_name_len; i++ )
     {
-        if(nvs_flash_info.ble_name_data[i]=='$')
+        if(storage_get_config_ptr()->ble_name_data[i]=='$')
         {
             scanRspData[2+i] = access_state.ble_idx+0x30-BLE_INDEX_IDEL;
 //                need_update = 1;
         }
     }
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, nvs_flash_info.ble_name_len, (void *)&scanRspData[2]);
-    return GAP_UpdateAdvertisingData( hidEmuTaskId, FALSE, nvs_flash_info.ble_name_len+2, scanRspData );
+    GGS_SetParameter(GGS_DEVICE_NAME_ATT, storage_get_config_ptr()->ble_name_len, (void *)&scanRspData[2]);
+    return GAP_UpdateAdvertisingData( hidEmuTaskId, FALSE, storage_get_config_ptr()->ble_name_len+2, scanRspData );
 }
 
 /*********************************************************************
@@ -995,7 +996,8 @@ uint8_t hidEmu_receive( uint8_t *pData, uint8_t len )
 // {
 //     return HidDev_Report(HID_RPT_ID_SMART_WHEEL_IN, HID_REPORT_TYPE_INPUT, len, pData);
 // }
-
+// Task ID
+uint8_t access_taskId = INVALID_TASK_ID;
 /*********************************************************************
  * @fn      hidEmuStateCB
  *
@@ -1016,9 +1018,9 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
             if(access_taskId != INVALID_TASK_ID)//等待access任务注册成功
             {
 // 初始化完成后，检查是否需要直接切换到对应连接  记录的  当前的  恢复成flash记录的通道
-                if(nvs_flash_info.ble_idx != access_state.ble_idx)
+                if(storage_get_config_ptr()->ble_idx != access_state.ble_idx)
                 {
-                    access_ctl_process( nvs_flash_info.ble_idx + CTL_MODE_BLE_1 - BLE_INDEX_1);
+                    access_ctl_process( storage_get_config_ptr()->ble_idx);
                 }
             }
             dprint("Initialized..\n");
@@ -1044,7 +1046,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 {
                 }
                 else {
-                    last_led_data = 0xFF;
+                    // last_led_data = 0xFF;
                 }
                 dprint("Advertising..\n");
             }

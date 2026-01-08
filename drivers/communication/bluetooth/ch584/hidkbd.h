@@ -23,7 +23,15 @@ extern "C" {
 /*********************************************************************
  * CONSTANTS
  */
-
+typedef struct
+{
+    uint8_t pairing_state;
+    uint8_t Fn_state;
+    volatile uint8_t sleep_en;
+    uint8_t deep_sleep_flag;
+    uint8_t idel_sleep_flag;
+    access_ble_idx_t  ble_idx;
+} access_state_t;
 // Task Events
 #define START_DEVICE_EVT          0x0001
 //#define START_REPORT_EVT          0x0002
@@ -40,6 +48,7 @@ extern "C" {
 #define START_SVC_DISCOVERY_EVT       0x0008
 #define START_READ_OR_WRITE_EVT       0x0080
 #define START_WRITE_CCCD_EVT          0x0100
+#define RF_DATA_LED                 0x81
 
 /*********************************************************************
  * MACROS
@@ -58,6 +67,7 @@ typedef void (*pfnHidEmuReceiveCB_t)( uint8_t *pData, uint8_t len );
 // Supervision timeout value (units of 10ms)
 #define DEFAULT_DESIRED_CONN_TIMEOUT         300
 
+#define DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT       1600*2  // 断开连接后多久停止广播睡眠
 /*********************************************************************
  * FUNCTIONS
  */
@@ -71,6 +81,7 @@ extern access_ble_idx_t con_work_mode;
 extern uint8_t adv_enable_process_flag;
 extern uint8_t hidEmuTaskId;
 extern uint8_t hidDevConnSecure;
+extern access_state_t access_state;
 /*
  * Task Initialization for the BLE Application
  */

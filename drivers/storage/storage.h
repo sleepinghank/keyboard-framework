@@ -96,7 +96,27 @@ typedef struct {
     uint8_t backlight_brightness;       // 背光亮度 (0-100)
     uint8_t language;                   // 语言设置 (0-255)
     uint8_t led_mode;                   // LED模式 (0-255)
-
+    uint8_t   check_val_A;
+    uint8_t   check_val_B;
+    uint8_t   led_onoff;
+    uint8_t   ble_idx;
+    uint8_t   ble_bond_flag;
+    uint8_t   ble_mac_flag;
+    uint8_t   ble_irk_flag[5];
+    uint8_t   ble_name_len;
+    uint8_t   ble_name_data[22];
+    uint8_t   led_light;
+    uint8_t   work_mode;
+    uint8_t   rf_device_id;
+    uint8_t   peer_mac[6];
+    uint8_t   usb_vid_pid[4];
+    uint8_t   usb_prod_info_len;
+    uint8_t   usb_prod_info[31];
+    uint8_t   capacitance;
+    // >>> 新增字段：背光颜色 / 范围
+    uint8_t   led_blink_range;
+    // 校验和放在最后
+    uint8_t   check_sum;
     // 用户配置
     uint16_t gesture_map[32];           // 手势映射数组 (64字节)
     uint8_t macro_data[32];             // 宏数据 (32字节)
