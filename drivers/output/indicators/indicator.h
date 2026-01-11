@@ -1,4 +1,4 @@
-/* Copyright 2022 @ lokher (https://www.keychron.com)
+/* Copyright 2025 @ keyboard-framework
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,119 +14,122 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+/**
+ * @file indicator.h
+ * @brief 指示灯应用层API接口
+ *
+ * 提供简洁的LED控制接口，业务层通过此接口控制LED
+ */
+
 #pragma once
-#include "wireless.h"
-#include "product_config.h"
+
+#include "indicator_driver.h"
+#include "gpio.h"
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Indication of pairing */
-#ifndef INDICATOR_CONFIG_PARING
-#    define INDICATOR_CONFIG_PARING {INDICATOR_BLINK, 1000, 1000, 0, true, 0};
-#endif
+/**
+ * @brief LED实例结构
+ *
+ * 业务层定义此结构的实例来控制LED
+ */
+typedef struct indicator_t indicator_t;
 
-/* Indication on Connected */
-#ifndef INDICATOR_CONFIG_CONNECTD
-#    define INDICATOR_CONFIG_CONNECTD {INDICATOR_ON_OFF, 2000, 250, 2000, true, 0};
-#endif
+/* ========== 初始化 ========== */
 
-/* Reconnecting indication */
-#ifndef INDICATOR_CONFIG_RECONNECTING
-#    define INDICATOR_CONFIG_RECONNECTING {INDICATOR_BLINK, 100, 100, 600, true, 0};
-#endif
+/**
+ * @brief 初始化LED实例
+ * @param ind LED实例指针
+ * @param pin GPIO引脚
+ * @param active_high true=高电平亮, false=低电平亮
+ * @return 0=成功, <0=失败
+ *
+ * @example
+ * indicator_t bt_led;
+ * indicator_init(&bt_led, PIN_A1, true);
+ */
+int indicator_init(indicator_t* ind, pin_t pin, bool active_high);
 
-/* Disconnected indication */
-#ifndef INDICATOR_CONFIG_DISCONNECTED
-#    define INDICATOR_CONFIG_DISCONNECTED {INDICATOR_NONE, 100, 100, 600, false, 0};
-#endif
+/**
+ * @brief 反初始化LED实例
+ * @param ind LED实例指针
+ *
+ * 停止指示并释放GPIO资源
+ */
+void indicator_deinit(indicator_t* ind);
 
-/* Uint: Second */
-#ifndef DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT
-#    define DISCONNECTED_BACKLIGHT_OFF_DELAY_TIME 40
-#endif
+/* ========== 控制 ========== */
 
-/* Uint: Second, the timer restarts on key activities. */
-#ifndef CONNECTED_BACKLIGHT_DISABLE_TIMEOUT
-#    define CONNECTED_BACKLIGHT_OFF_DELAY_TIME 600
-#endif
+/**
+ * @brief 启动LED指示
+ * @param ind LED实例指针
+ * @param config 配置参数指针
+ * @return 0=成功, <0=失败
+ *
+ * @example
+ * ind_config_t cfg = {IND_MODE_BLINK, 500, 500, 0, 0};
+ * indicator_start(&bt_led, &cfg);
+ */
+int indicator_start(indicator_t* ind, const ind_config_t* config);
 
-#if defined(BAT_LOW_LED_PIN) || defined(BAT_LOW_LED_PIN_STATE)
-/* Uint: ms */
-#    ifndef LOW_BAT_LED_BLINK_PERIOD
-#        define LOW_BAT_LED_BLINK_PERIOD 1000
-#    endif
+/**
+ * @brief 停止LED指示
+ * @param ind LED实例指针
+ *
+ * 立即停止指示并熄灭LED
+ */
+void indicator_stop(indicator_t* ind);
 
-#    ifndef LOW_BAT_LED_BLINK_DURATION
-#        define LOW_BAT_LED_BLINK_DURATION 10000
-#    endif
-#endif
+/**
+ * @brief 更新配置
+ * @param ind LED实例指针
+ * @param config 新配置参数指针
+ * @return 0=成功, <0=失败
+ *
+ * 停止当前指示并启动新配置
+ */
+int indicator_update(indicator_t* ind, const ind_config_t* config);
 
-#ifdef LOW_BAT_IND_INDEX
-/* Uint: ms */
-#    ifndef LOW_BAT_LED_BLINK_PERIOD
-#        define LOW_BAT_LED_BLINK_PERIOD 500
-#    endif
+/* ========== 状态查询 ========== */
 
-#    ifndef LOW_BAT_LED_BLINK_TIMES
-#        define LOW_BAT_LED_BLINK_TIMES 3
-#    endif
+/**
+ * @brief 检查LED是否正在运行
+ * @param ind LED实例指针
+ * @return true=运行中, false=空闲
+ */
+bool indicator_is_running(const indicator_t* ind);
 
-#    ifndef LOW_BAT_LED_TRIG_INTERVAL
-#        define LOW_BAT_LED_TRIG_INTERVAL 30000
-#    endif
-#endif
+/* ========== 任务 ========== */
 
-#if BT_HOST_MAX_COUNT > 6
-#    pragma error("HOST_COUNT max value is 6")
-#endif
+/**
+ * @brief LED任务函数
+ * @param ind LED实例指针
+ * @return true=LED仍在运行, false=LED已完成
+ *
+ * 需要在主循环中定期调用
+ *
+ * @example
+ * while (1) {
+ *     indicator_task(&bt_led);
+ *     // ... 其他任务
+ * }
+ */
+bool indicator_task(indicator_t* ind);
 
-typedef enum { INDICATOR_NONE, INDICATOR_OFF, INDICATOR_ON, INDICATOR_ON_OFF, INDICATOR_BLINK, INDICATOR_LAST } indicator_type_t;
+/* ========== 常用配置宏 ========== */
 
-typedef union {
-    uint8_t raw;
-    struct {
-        bool    num_lock : 1;
-        bool    caps_lock : 1;
-        bool    scroll_lock : 1;
-        bool    compose : 1;
-        bool    kana : 1;
-        uint8_t reserved : 3;
-    };
-} led_t;
+/**
+ * @brief 常用配置宏定义
+ *
+ * @example
+ * indicator_start(&led, &(ind_config_t)IND_BLINK_SLOW);
+ */
 
-
-typedef struct {
-    indicator_type_t type;
-    uint32_t         on_time;
-    uint32_t         off_time;
-    uint32_t         duration;
-    bool             highlight;
-    uint8_t          value;
-    uint32_t         elapsed;
-} indicator_config_t;
-
-typedef struct {
-    uint8_t value;
-    bool    saved;
-} backlight_state_t;
-
-void indicator_init(void);
-void indicator_set(wt_state_t state, uint8_t host_index);
-void indicator_backlight_timer_reset(bool enable);
-bool indicator_hook_key(uint16_t keycode);
-void indicator_enable(void);
-void indicator_disable(void);
-void indicator_stop(void);
-void indicator_eeconfig_reload(void);
-bool indicator_is_enabled(void);
-bool indicator_is_running(void);
-void os_state_indicate(void);
-
-#ifdef BAT_LOW_LED_PIN
-void indicator_battery_low_enable(bool enable);
-#endif
-#if defined(LOW_BAT_IND_INDEX)
-void indicator_battery_low_backlit_enable(bool enable);
-#endif
-
-void indicator_task(void);
+#define IND_OFF          {IND_MODE_OFF, 0, 0, 0, 0}
+#define IND_ON_FOREVER   {IND_MODE_ON, 0, 0, 0, 0}
+#define IND_ON_1S        {IND_MODE_ON, 0, 0, 1000, 0}
+#define IND_ON_2S        {IND_MODE_ON, 0, 0, 2000, 0}
+#define IND_BLINK_SLOW   {IND_MODE_BLINK, 500, 500, 0, 0}
+#define IND_BLINK_FAST   {IND_MODE_BLINK, 100, 100, 0, 0}
+#define IND_BLINK_3_TIMES {IND_MODE_BLINK, 500, 500, 0, 3}
+#define IND_HEARTBEAT    {IND_MODE_HEARTBEAT, 200, 200, 0, 0}

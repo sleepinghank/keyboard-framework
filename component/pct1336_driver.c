@@ -275,6 +275,7 @@ void pct1336_set_init_params(pct1336_params_t* params, uint8_t len)
     init_params = params;
     init_params_len = len;
 }
+
 int8_t pct1336_init()
 { 
     // 参数有效性检查

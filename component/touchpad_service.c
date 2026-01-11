@@ -11,19 +11,8 @@
  */
 #include "touchpad_service.h"
 #include "pct1336_driver.h"
-#include "SET.h"
-#include "kb_para_profile.h"
-#include "i2c_master.h"
-#include "Set_gpio.h"
-#include "timer.h"
-#include "HID_OVER_GATT_KEYBOARD_OTA_Profile_PTP.h"
-#include "keyboard.h"
-#include "pxi_par2860_ble_lib.h"
-#include "debug_log.h"
-#include "ble.h"
 #include "math.h"
 #include <stdlib.h>
-#include "Storage1.h"
 /*********************************************************************
  * MACROS 宏定义
  */
