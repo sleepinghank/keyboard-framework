@@ -125,7 +125,7 @@ void system_init_drivers(void) {
     battery_init();
 
     // 3. 指示灯初始化
-    indicator_init();
+    // indicator_init();
 
     // 标记Driver init完成
     g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_INIT;

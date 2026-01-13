@@ -20,7 +20,7 @@
  */
 
 #include "indicator_hal.h"
-
+#include "string.h"
 void ind_hal_init(const ind_hal_config_t* cfg) {
     if (cfg == NULL) return;
 

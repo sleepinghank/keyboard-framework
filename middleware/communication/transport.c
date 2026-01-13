@@ -60,7 +60,7 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
         // TODO: Clear USB report
         //}
     } else {
-        indicator_stop();
+        // indicator_stop();
 
         if (wireless_get_state() == WT_CONNECTED && transport == TRANSPORT_BLUETOOTH) {
             report_keyboard_t empty_report = {0};
@@ -90,7 +90,7 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
         //  TODO: Clear USB report
         //}
     } else {
-        indicator_stop();
+        // indicator_stop();
 
         if (wireless_get_state() == WT_CONNECTED && transport == TRANSPORT_P2P4) {
             report_keyboard_t empty_report = {0};
@@ -244,7 +244,7 @@ static void reinit_led_drvier(void) {
 
 void transport_changed(transport_t new_transport) {
     kc_printf("transport_changed %d\n\r", new_transport);
-    indicator_init();
+    // indicator_init();
 
 #if (REINIT_LED_DRIVER)
     reinit_led_drvier();

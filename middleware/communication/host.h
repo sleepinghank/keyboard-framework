@@ -30,6 +30,18 @@ extern "C" {
 extern uint8_t keyboard_idle;
 extern uint8_t keyboard_protocol;
 
+typedef union {
+    uint8_t raw;
+    struct {
+        bool    num_lock : 1;
+        bool    caps_lock : 1;
+        bool    scroll_lock : 1;
+        bool    compose : 1;
+        bool    kana : 1;
+        uint8_t reserved : 3;
+    };
+} led_t;
+
 /* host driver */
 void           host_set_driver(host_driver_t *driver);
 host_driver_t *host_get_driver(void);
