@@ -146,7 +146,7 @@ uint8_t adv_enable_process_flag = FALSE;
  * LOCAL VARIABLES
  */
 access_state_t access_state;            // Access模块的全局状态结构体
-bleConfig_t ble;
+bleConfig_t ble_config;
 
 // GAP Profile - Name attribute for SCAN RSP data
 static uint8_t scanRspData[] = {
@@ -760,7 +760,7 @@ void hidEmu_adv_enable(uint8_t enable)
         {
             adv_enable_process_flag = TRUE;
         }
-        ble.SNVAddr = (access_state.ble_idx - BLE_INDEX_1) * 0x100 + BLE_SNV_ADDR;
+        ble_config.SNVAddr = (access_state.ble_idx - BLE_INDEX_1) * 0x100 + BLE_SNV_ADDR;
         GAPBondMgr_SetParameter( GAPBOND_AUTO_SYNC_RL, sizeof(uint8_t), &RL_enable );
         RL_enable = FALSE;
         GAPBondMgr_SetParameter( GAPBOND_AUTO_SYNC_RL, sizeof(uint8_t), &RL_enable );

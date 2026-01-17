@@ -71,6 +71,7 @@ set(SOURCES
     ./drivers/output/backlight/backlight.c
     ./drivers/output/backlight/backlight_pwm.c
     ./drivers/output/indicators/indicator.c
+    ./drivers/output/indicators/indicator_hal.c
     ./drivers/output/logging/debug.c
     ./drivers/output/logging/print.c
     ./drivers/output/logging/sendchar.c

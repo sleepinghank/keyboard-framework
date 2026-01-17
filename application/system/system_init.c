@@ -36,6 +36,7 @@
 #include "pin_defs.h"
 #include "pwm.h"
 #include "adc.h"
+#include "system_hal.h"
 
 // 系统初始化状态
 typedef enum {
@@ -60,13 +61,17 @@ static volatile bool g_system_initialized = false;
 
 void system_setup_hal(void) {
     // HAL层基础初始化
-    i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
 
-    platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_0);
+    // 首先初始化所有GPIO为安全状态，防止悬空漏电
+    system_hal_gpio_init_all();
 
-    adc_bind_pin(ADC_PIN,ADC_CHANNEL);
+    // i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
 
-    pwm_init();
+    platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_1);
+
+    // adc_bind_pin(ADC_PIN,ADC_CHANNEL);
+
+    // pwm_init();
 
     // 标记HAL setup完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_SETUP;
@@ -104,9 +109,9 @@ void system_setup_application(void) {
 void system_init_hal(void) {
     // HAL层初始化阶段
     // Timer已在setup阶段初始化，此处可进行HAL层其他初始化
-    i2c_init();
-    platform_uart_init(PLATFORM_UART_0, 115200, 0);
-    pwm_init();
+    // i2c_init();
+    platform_uart_init(PLATFORM_UART_1, 115200, 0);
+    // pwm_init();
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }

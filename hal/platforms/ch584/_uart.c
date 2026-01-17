@@ -99,6 +99,7 @@ static void configure_uart_pins(platform_uart_t uart, pin_t rx_pin, pin_t tx_pin
                 /* 检查是否为PB13 (TXD1_) */
                 if (GET_GPIO_PORT(tx_pin) == PORTB && GET_GPIO_PIN(tx_pin) == 13) {
                     GPIOPinRemap(ENABLE, RB_PIN_UART1);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 } else if (GET_GPIO_PORT(tx_pin) == PORTA && GET_GPIO_PIN(tx_pin) == 9) {
                     /* PA9是默认TXD1，无需映射 */
@@ -206,15 +207,19 @@ error_code_t platform_uart_init(platform_uart_t uart, uint32_t baudrate, uint8_t
     /* 配置波特率 */
     switch (uart_num) {
         case 0:
+            UART0_DefInit( );
             UART0_BaudRateCfg(baudrate);
             break;
         case 1:
+            UART1_DefInit( );
             UART1_BaudRateCfg(baudrate);
             break;
         case 2:
+            UART2_DefInit( );
             UART2_BaudRateCfg(baudrate);
             break;
         case 3:
+            UART3_DefInit( );
             UART3_BaudRateCfg(baudrate);
             break;
         default:

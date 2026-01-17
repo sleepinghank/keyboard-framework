@@ -16,92 +16,338 @@
 
 /**
  * @file indicator.c
- * @brief 指示灯应用层实现
+ * @brief 指示灯驱动实现
  *
- * 实现对业务层的API接口
+ * 使用主循环轮询 + 时间戳方式驱动状态机
+ * 参考 Keychron indicator.c 实现
  */
 
 #include "indicator.h"
 #include "indicator_hal.h"
-#include "indicator_driver.h"
+#include "indicator_config.h"
+#include "timer.h"
 #include <string.h>
 
-/* ========== 初始化 ========== */
+/* ============ 内部定义 ============ */
 
-int indicator_init(indicator_t* ind, pin_t pin, bool active_high) {
-    if (ind == NULL) return -1;
+// 状态机阶段
+typedef enum {
+    PHASE_IDLE = 0,     // 空闲
+    PHASE_DELAY,        // 延迟等待
+    PHASE_ON,           // LED 点亮
+    PHASE_OFF,          // LED 熄灭
+} ind_phase_t;
 
-    // 清零结构
-    memset(ind, 0, sizeof(indicator_t));
+// LED 运行时状态
+typedef struct {
+    ind_effect_t effect;        // 当前灯效配置
+    ind_phase_t  phase;         // 当前阶段
+    uint8_t      count;         // 已闪烁次数
+    bool         is_on;         // 当前是否点亮
+    uint32_t     timer;         // 阶段开始时间戳
+    uint16_t     next_period;   // 下一次切换的间隔时间
+} ind_led_state_t;
 
-    // 硬件配置
-    ind->hw.pin         = pin;
-    ind->hw.active_high = active_high;
+/* ============ 模块状态 ============ */
 
-    // 初始化硬件
-    ind_hal_config_t hal_cfg = {
-        .pin = pin,
-        .active_high = active_high
-    };
-    ind_hal_init(&hal_cfg);
+static ind_led_state_t ind_states[IND_LED_COUNT];   // LED 状态数组
+static ind_lpm_callback_t ind_lpm_cb = NULL;        // 低功耗回调
+static bool ind_initialized = false;                // 初始化标志
 
-    // 默认配置
-    ind->config.mode     = IND_MODE_OFF;
-    ind->config.on_time  = 0;
-    ind->config.off_time = 0;
-    ind->config.duration = 0;
-    ind->config.repeat   = 0;
+/* ============ 预定义灯效 ============ */
 
-    return 0;
+const ind_effect_t IND_OFF = {
+    .mode = IND_MODE_OFF,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 0, .repeat = 0
+};
+
+const ind_effect_t IND_ON = {
+    .mode = IND_MODE_ON,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 0, .repeat = 0
+};
+
+const ind_effect_t IND_ON_1S = {
+    .mode = IND_MODE_ON,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 1000, .repeat = 0
+};
+
+const ind_effect_t IND_ON_2S = {
+    .mode = IND_MODE_ON,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 2000, .repeat = 0
+};
+
+const ind_effect_t IND_ON_3S = {
+    .mode = IND_MODE_ON,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 3000, .repeat = 0
+};
+
+const ind_effect_t IND_BLINK_SLOW = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 250, .off_ms = 250, .delay_ms = 0, .duration_ms = 0, .repeat = 0
+};
+
+const ind_effect_t IND_BLINK_FAST = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 50, .off_ms = 50, .delay_ms = 0, .duration_ms = 0, .repeat = 0
+};
+
+const ind_effect_t IND_BLINK_1 = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 1
+};
+
+const ind_effect_t IND_BLINK_2 = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 2
+};
+
+const ind_effect_t IND_BLINK_3 = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 3
+};
+
+const ind_effect_t IND_DELAY_ON = {
+    .mode = IND_MODE_ON,
+    .on_ms = 0, .off_ms = 0, .delay_ms = 500, .duration_ms = 0, .repeat = 0
+};
+
+const ind_effect_t IND_DELAY_BLINK = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 250, .off_ms = 250, .delay_ms = 500, .duration_ms = 0, .repeat = 0
+};
+
+/* ============ 内部函数 ============ */
+
+/**
+ * @brief 检查并触发低功耗回调
+ */
+static void check_lpm_callback(void) {
+    if (ind_lpm_cb == NULL) {
+        return;
+    }
+
+    bool all_off = !indicator_any_active();
+    ind_lpm_cb(all_off);
 }
 
-void indicator_deinit(indicator_t* ind) {
-    if (ind == NULL) return;
+/**
+ * @brief 处理单个 LED 的状态机（超时回调）
+ */
+static void process_led_timeout(uint8_t led_id) {
+    if (led_id >= IND_LED_COUNT) {
+        return;
+    }
 
-    // 停止指示
-    indicator_stop(ind);
+    ind_led_state_t* state = &ind_states[led_id];
+    const ind_effect_t* eff = &state->effect;
 
-    // 反初始化硬件
-    ind_hal_deinit(ind->hw.pin);
+    switch (state->phase) {
+        case PHASE_IDLE:
+            // 空闲状态，不处理
+            state->next_period = 0;
+            break;
+
+        case PHASE_DELAY:
+            // 延迟结束，进入实际模式
+            if (eff->mode == IND_MODE_OFF) {
+                // OFF 模式
+                ind_hal_set(led_id, false);
+                state->is_on = false;
+                state->phase = PHASE_IDLE;
+                state->next_period = 0;
+            } else if (eff->mode == IND_MODE_ON) {
+                // ON 模式：点亮
+                ind_hal_set(led_id, true);
+                state->is_on = true;
+                state->phase = PHASE_ON;
+
+                if (eff->duration_ms > 0) {
+                    // 有持续时间限制
+                    state->next_period = eff->duration_ms;
+                } else {
+                    // 无限常亮，进入空闲（但保持亮）
+                    state->phase = PHASE_IDLE;
+                    state->next_period = 0;
+                }
+            } else if (eff->mode == IND_MODE_BLINK) {
+                // BLINK 模式：开始闪烁，先亮
+                ind_hal_set(led_id, true);
+                state->is_on = true;
+                state->count = 0;
+                state->phase = PHASE_ON;
+                state->next_period = eff->on_ms;
+            }
+            // 重置定时器
+            state->timer = timer_read32();
+            break;
+
+        case PHASE_ON:
+            // 当前亮，需要切换
+            if (eff->mode == IND_MODE_ON) {
+                // 常亮模式：duration 到期，熄灭
+                ind_hal_set(led_id, false);
+                state->is_on = false;
+                state->phase = PHASE_IDLE;
+                state->next_period = 0;
+                check_lpm_callback();
+            } else if (eff->mode == IND_MODE_BLINK) {
+                // 闪烁模式：从亮切换到灭
+                ind_hal_set(led_id, false);
+                state->is_on = false;
+                state->count++;
+
+                // 检查是否完成所有闪烁
+                if (eff->repeat > 0 && state->count >= eff->repeat) {
+                    state->phase = PHASE_IDLE;
+                    state->next_period = 0;
+                    check_lpm_callback();
+                } else {
+                    state->phase = PHASE_OFF;
+                    state->next_period = eff->off_ms;
+                    state->timer = timer_read32();
+                }
+            }
+            break;
+
+        case PHASE_OFF:
+            // 当前灭，切换到亮
+            if (eff->mode == IND_MODE_BLINK) {
+                ind_hal_set(led_id, true);
+                state->is_on = true;
+                state->phase = PHASE_ON;
+                state->next_period = eff->on_ms;
+                state->timer = timer_read32();
+            }
+            break;
+    }
 }
 
-/* ========== 控制 ========== */
+/**
+ * @brief 启动 LED 灯效
+ */
+static void start_led_effect(uint8_t led_id, const ind_effect_t* effect) {
+    if (led_id >= IND_LED_COUNT || effect == NULL) {
+        return;
+    }
 
-int indicator_start(indicator_t* ind, const ind_config_t* config) {
-    if (ind == NULL || config == NULL) return -1;
+    ind_led_state_t* state = &ind_states[led_id];
 
-    ind_driver_start(ind, config);
-    return 0;
+    // 保存新配置
+    state->effect = *effect;
+    state->count = 0;
+    state->is_on = false;
+    state->timer = timer_read32();
+
+    // 根据模式处理
+    if (effect->mode == IND_MODE_OFF) {
+        // OFF 模式：立即熄灭
+        ind_hal_set(led_id, false);
+        state->phase = PHASE_IDLE;
+        state->next_period = 0;
+        check_lpm_callback();
+    } else if (effect->delay_ms > 0) {
+        // 有延迟：进入延迟阶段
+        ind_hal_set(led_id, false);
+        state->phase = PHASE_DELAY;
+        state->next_period = effect->delay_ms;
+    } else {
+        // 无延迟：立即进入延迟处理（会转到实际模式）
+        state->phase = PHASE_DELAY;
+        state->next_period = 0;
+        process_led_timeout(led_id);
+    }
 }
 
-void indicator_stop(indicator_t* ind) {
-    if (ind == NULL) return;
+/* ============ 公共接口 ============ */
 
-    ind_driver_stop(ind);
+void indicator_init(void) {
+    if (ind_initialized) {
+        return;
+    }
+
+    // 初始化 HAL
+    ind_hal_init();
+
+    // 初始化状态
+    for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+        memset(&ind_states[i], 0, sizeof(ind_led_state_t));
+        ind_states[i].phase = PHASE_IDLE;
+    }
+
+    ind_initialized = true;
 }
 
-int indicator_update(indicator_t* ind, const ind_config_t* config) {
-    if (ind == NULL || config == NULL) return -1;
+void indicator_deinit(void) {
+    if (!ind_initialized) {
+        return;
+    }
 
-    // 停止当前指示
-    ind_driver_stop(ind);
+    // 停止所有灯效
+    indicator_off_all();
 
-    // 启动新配置
-    ind_driver_start(ind, config);
+    // 反初始化 HAL
+    ind_hal_deinit();
 
-    return 0;
+    ind_initialized = false;
 }
 
-/* ========== 状态查询 ========== */
+void indicator_set(uint8_t led_id, const ind_effect_t* effect) {
+    if (!ind_initialized || led_id >= IND_LED_COUNT || effect == NULL) {
+        return;
+    }
 
-bool indicator_is_running(const indicator_t* ind) {
-    if (ind == NULL) return false;
-    return (ind->runtime.state == IND_STATE_RUNNING);
+    start_led_effect(led_id, effect);
 }
 
-/* ========== 任务 ========== */
+void indicator_off(uint8_t led_id) {
+    indicator_set(led_id, &IND_OFF);
+}
 
-bool indicator_task(indicator_t* ind) {
-    if (ind == NULL) return false;
-    return ind_driver_task(ind);
+void indicator_off_all(void) {
+    for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+        indicator_off(i);
+    }
+}
+
+bool indicator_is_active(uint8_t led_id) {
+    if (!ind_initialized || led_id >= IND_LED_COUNT) {
+        return false;
+    }
+
+    ind_led_state_t* state = &ind_states[led_id];
+
+    // IDLE 且灯灭才算不活跃
+    return (state->phase != PHASE_IDLE) || state->is_on;
+}
+
+bool indicator_any_active(void) {
+    for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+        if (indicator_is_active(i)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void indicator_set_lpm_callback(ind_lpm_callback_t callback) {
+    ind_lpm_cb = callback;
+}
+
+void indicator_task(void) {
+    if (!ind_initialized) {
+        return;
+    }
+
+    // 遍历所有 LED，检查是否超时
+    for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+        ind_led_state_t* state = &ind_states[i];
+
+        // 只处理非空闲状态
+        if (state->phase != PHASE_IDLE && state->next_period > 0) {
+            // 检查是否超时
+            if (timer_elapsed32(state->timer) >= state->next_period) {
+                process_led_timeout(i);
+            }
+        }
+    }
 }

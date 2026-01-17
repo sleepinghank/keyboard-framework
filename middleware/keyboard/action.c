@@ -11,7 +11,6 @@
 #include "debug.h"
 #include <string.h>
 #include "keycode_config.h"
-#include "wait.h"
 #include "action_layer.h"
 #include "keymap_common.h"
 #include "combo.h"

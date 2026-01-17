@@ -15,11 +15,44 @@
  */
 #pragma once
 
-
 #define PAL_LINE(port, pad) ((port) << 6) | (pad)
 
 #define PORTA 0
 #define PORTB 1
+
+/*==========================================
+ * CH584 GPIO 配置信息
+ * =========================================*/
+
+/* GPIO 端口数量 */
+#define GPIO_PORT_COUNT         2
+
+/* 每个端口的引脚数量 */
+#define GPIO_PORTA_PIN_COUNT    24
+#define GPIO_PORTB_PIN_COUNT    24
+
+/* 全部引脚掩码 (24位有效) */
+#define GPIO_ALL_PINS_MASK      0x00FFFFFF
+
+/*
+ * 保留引脚掩码 - 这些引脚不应被默认初始化
+ *
+ * PORTA 保留引脚:
+ *   - PA4/PA5: 32K晶振 (根据实际硬件配置)
+ *
+ * PORTB 保留引脚:
+ *   - PB10/PB11: USB D+/D-
+ *   - PB22: 复位引脚 (RST)
+ *   - PB23: 复位引脚 (仅某些封装)
+ */
+#define GPIO_PORTA_RESERVED_MASK    0x00000000  /* PA无保留引脚 */
+#define GPIO_PORTB_RESERVED_MASK    0x00C00C00  /* PB10, PB11, PB22, PB23 */
+
+/*
+ * 默认初始化配置
+ * 输入上拉模式可防止引脚悬空导致的漏电
+ */
+#define GPIO_DEFAULT_MODE_INPUT_PULLUP  1
 
 /* GPIO端口类型判断宏 */
 #define GPIO_PORT_MASK 0xFC0  /* 端口号掩码: 高6位 (0xFC0 = 111111000000b) */

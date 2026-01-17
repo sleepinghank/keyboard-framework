@@ -18,7 +18,6 @@
 #include "wireless.h"
 #include "report_buffer.h"
 #include "lpm.h"
-#include "wait.h"
 #include "battery.h"
 #include "indicator.h"
 #include "transport.h"

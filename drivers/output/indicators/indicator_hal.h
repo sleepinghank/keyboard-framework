@@ -18,43 +18,34 @@
  * @file indicator_hal.h
  * @brief 指示灯硬件抽象层
  *
- * 提供GPIO LED的硬件操作接口，封装底层GPIO操作
+ * 提供 LED 硬件操作接口，封装底层 GPIO 操作
+ * HAL 层内部处理极性转换，上层只需传入逻辑状态
  */
 
 #pragma once
 
-#include "gpio.h"
+#include <stdint.h>
 #include <stdbool.h>
 
 /**
- * @brief LED硬件配置
+ * @brief 初始化所有 LED 硬件
+ *
+ * 根据配置表初始化所有 LED 引脚为输出模式，并设置初始状态为熄灭
  */
-typedef struct {
-    pin_t pin;            /**< GPIO引脚 */
-    bool  active_high;    /**< true=高电平亮, false=低电平亮 */
-} ind_hal_config_t;
+void ind_hal_init(void);
 
 /**
- * @brief 初始化LED硬件
- * @param cfg 硬件配置
+ * @brief 设置 LED 状态
+ * @param index LED 索引
+ * @param on true=点亮, false=熄灭
  *
- * 配置GPIO为输出模式，并设置初始状态为熄灭
+ * HAL 层内部根据配置表自动处理 active_high/active_low 极性转换
  */
-void ind_hal_init(const ind_hal_config_t* cfg);
+void ind_hal_set(uint8_t index, bool on);
 
 /**
- * @brief 设置LED状态
- * @param pin GPIO引脚
- * @param is_on true=点亮, false=熄灭
+ * @brief 反初始化所有 LED 硬件
  *
- * 根据active_high配置自动转换电平
+ * 将所有 LED 引脚设置为输入模式以节省功耗
  */
-void ind_hal_set(pin_t pin, bool is_on);
-
-/**
- * @brief 反初始化LED硬件
- * @param pin GPIO引脚
- *
- * 设置为输入模式以节省功耗
- */
-void ind_hal_deinit(pin_t pin);
+void ind_hal_deinit(void);

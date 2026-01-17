@@ -104,7 +104,7 @@
 #define I2C_CHANNEL 0
 
 /* URAT */
-#define UART_TX_PIN A1
+#define UART_TX_PIN B13
 #define UART_RX_PIN NO_PIN
 #define UART_CHANNEL 0
 

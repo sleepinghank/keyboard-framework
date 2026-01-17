@@ -9,14 +9,30 @@
  * - 进入主循环，按层级调用各模块生命周期函数
  * - 遵循_setup → _init → _pre_task → _task → _post_task的模式
  */
-#include "CH585SFR.h"
-#include "timer.h"
+
+#include "system_hal.h"
+#include "event_manager.h"
+#include "system_init.h"
+#include "sys_config.h"
 
 /**
  * @brief 主函数 - 系统启动入口
  * @return int (通常不会返回)
  */
-int main(void) {
-    PRINT("starting main.c...\r\n");
+int main(void)
+{
+    // 1. 系统硬件初始化（时钟、GPIO等）
+    system_hal_init();
+    // 调用系统初始化协调器
+    uint32_t init_result = system_init_coordinator();
+   if (init_result != 0) {
+#if (PRINTF_ENABLE == TRUE && PRINTF_LEVEL >= PRINTF_LEVEL_ERROR)
+        printf("ERROR: System initialization failed! Error code: %d\r\n", init_result);
+#endif
+        return init_result;
+    }
+
+    // 最后的时间循环器
+    OSAL_SystemProcess();
     return 0;
 }

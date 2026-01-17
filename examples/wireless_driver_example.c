@@ -28,7 +28,7 @@
 #include "indicator.h"
 #include "battery.h"
 #include "communication/lpm.h"
-
+#include "transport.h"
 /**
  * @brief 无线驱动初始化示例
  * @param 无

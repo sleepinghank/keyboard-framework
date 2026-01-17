@@ -17,7 +17,6 @@
 #include "combo.h"
 #include <stddef.h>
 #include "timer.h"
-#include "wait.h"
 #include "keyboard.h"
 #include "keymap_common.h"
 #include "action_layer.h"

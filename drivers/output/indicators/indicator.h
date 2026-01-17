@@ -16,120 +16,184 @@
 
 /**
  * @file indicator.h
- * @brief 指示灯应用层API接口
+ * @brief 指示灯驱动接口
  *
- * 提供简洁的LED控制接口，业务层通过此接口控制LED
+ * 提供简洁的 LED 控制接口，支持多种灯效模式
+ * 使用 OSAL 事件驱动，无需主循环轮询
+ *
+ * @example
+ * // 初始化
+ * indicator_init();
+ *
+ * // 设置灯效
+ * indicator_set(LED_BT1, &IND_BLINK_SLOW);
+ *
+ * // 关闭
+ * indicator_off(LED_BT1);
  */
 
 #pragma once
 
-#include "indicator_driver.h"
-#include "gpio.h"
 #include <stdint.h>
 #include <stdbool.h>
 
+/* ============ 类型定义 ============ */
+
 /**
- * @brief LED实例结构
- *
- * 业务层定义此结构的实例来控制LED
+ * @brief 灯效模式
  */
-typedef struct indicator_t indicator_t;
-
-/* ========== 初始化 ========== */
+typedef enum {
+    IND_MODE_OFF = 0,   /**< 熄灭 */
+    IND_MODE_ON,        /**< 常亮 */
+    IND_MODE_BLINK,     /**< 闪烁 */
+} ind_mode_t;
 
 /**
- * @brief 初始化LED实例
- * @param ind LED实例指针
- * @param pin GPIO引脚
- * @param active_high true=高电平亮, false=低电平亮
- * @return 0=成功, <0=失败
+ * @brief 灯效配置
+ */
+typedef struct {
+    ind_mode_t mode;        /**< 灯效模式 */
+    uint16_t   on_ms;       /**< 亮持续时间 (ms) */
+    uint16_t   off_ms;      /**< 灭持续时间 (ms) */
+    uint16_t   delay_ms;    /**< 延迟启动时间 (ms), 0=立即 */
+    uint16_t   duration_ms; /**< 总持续时间 (ms), 0=由repeat决定 */
+    uint8_t    repeat;      /**< 重复次数, 0=无限 */
+} ind_effect_t;
+
+/**
+ * @brief 低功耗回调函数类型
+ * @param all_off true=所有灯已熄灭, false=有灯在运行
+ *
+ * 当所有灯都熄灭时调用此回调，用于通知系统可进入低功耗
+ */
+typedef void (*ind_lpm_callback_t)(bool all_off);
+
+/* ============ 核心接口 ============ */
+
+/**
+ * @brief 初始化指示灯模块
+ *
+ * 初始化硬件和 OSAL 任务，必须在使用其他接口前调用
+ */
+void indicator_init(void);
+
+/**
+ * @brief 反初始化指示灯模块
+ *
+ * 停止所有灯效，释放资源
+ */
+void indicator_deinit(void);
+
+/**
+ * @brief 设置 LED 灯效
+ * @param led_id LED 索引（使用别名如 LED_BT1）
+ * @param effect 灯效配置指针
+ *
+ * 后设置的灯效会覆盖前面的
  *
  * @example
- * indicator_t bt_led;
- * indicator_init(&bt_led, PIN_A1, true);
+ * indicator_set(LED_BT1, &IND_BLINK_SLOW);
  */
-int indicator_init(indicator_t* ind, pin_t pin, bool active_high);
+void indicator_set(uint8_t led_id, const ind_effect_t* effect);
 
 /**
- * @brief 反初始化LED实例
- * @param ind LED实例指针
- *
- * 停止指示并释放GPIO资源
+ * @brief 关闭指定 LED
+ * @param led_id LED 索引
  */
-void indicator_deinit(indicator_t* ind);
-
-/* ========== 控制 ========== */
+void indicator_off(uint8_t led_id);
 
 /**
- * @brief 启动LED指示
- * @param ind LED实例指针
- * @param config 配置参数指针
- * @return 0=成功, <0=失败
- *
- * @example
- * ind_config_t cfg = {IND_MODE_BLINK, 500, 500, 0, 0};
- * indicator_start(&bt_led, &cfg);
+ * @brief 关闭所有 LED
  */
-int indicator_start(indicator_t* ind, const ind_config_t* config);
+void indicator_off_all(void);
 
 /**
- * @brief 停止LED指示
- * @param ind LED实例指针
- *
- * 立即停止指示并熄灭LED
- */
-void indicator_stop(indicator_t* ind);
-
-/**
- * @brief 更新配置
- * @param ind LED实例指针
- * @param config 新配置参数指针
- * @return 0=成功, <0=失败
- *
- * 停止当前指示并启动新配置
- */
-int indicator_update(indicator_t* ind, const ind_config_t* config);
-
-/* ========== 状态查询 ========== */
-
-/**
- * @brief 检查LED是否正在运行
- * @param ind LED实例指针
+ * @brief 检查指定 LED 是否在运行
+ * @param led_id LED 索引
  * @return true=运行中, false=空闲
  */
-bool indicator_is_running(const indicator_t* ind);
-
-/* ========== 任务 ========== */
+bool indicator_is_active(uint8_t led_id);
 
 /**
- * @brief LED任务函数
- * @param ind LED实例指针
- * @return true=LED仍在运行, false=LED已完成
+ * @brief 检查是否有任意 LED 在运行
+ * @return true=有灯在运行, false=全部熄灭
+ */
+bool indicator_any_active(void);
+
+/**
+ * @brief 注册低功耗回调
+ * @param callback 回调函数
  *
- * 需要在主循环中定期调用
+ * 当所有灯都熄灭时会调用此回调
+ */
+void indicator_set_lpm_callback(ind_lpm_callback_t callback);
+
+/**
+ * @brief 指示灯任务函数
+ *
+ * 需要在主循环中定期调用，用于驱动状态机
  *
  * @example
  * while (1) {
- *     indicator_task(&bt_led);
+ *     indicator_task();
  *     // ... 其他任务
  * }
  */
-bool indicator_task(indicator_t* ind);
+void indicator_task(void);
 
-/* ========== 常用配置宏 ========== */
+/* ============ 预定义灯效 ============ */
+
+/** 熄灭 */
+extern const ind_effect_t IND_OFF;
+
+/** 常亮（无限） */
+extern const ind_effect_t IND_ON;
+
+/** 常亮 1 秒后熄灭 */
+extern const ind_effect_t IND_ON_1S;
+
+/** 常亮 2 秒后熄灭 */
+extern const ind_effect_t IND_ON_2S;
+
+/** 常亮 3 秒后熄灭 */
+extern const ind_effect_t IND_ON_3S;
+
+/** 慢闪 (500ms 周期) */
+extern const ind_effect_t IND_BLINK_SLOW;
+
+/** 快闪 (100ms 周期) */
+extern const ind_effect_t IND_BLINK_FAST;
+
+/** 闪烁 1 次 */
+extern const ind_effect_t IND_BLINK_1;
+
+/** 闪烁 2 次 */
+extern const ind_effect_t IND_BLINK_2;
+
+/** 闪烁 3 次 */
+extern const ind_effect_t IND_BLINK_3;
+
+/** 延迟 500ms 后常亮 */
+extern const ind_effect_t IND_DELAY_ON;
+
+/** 延迟 500ms 后闪烁 */
+extern const ind_effect_t IND_DELAY_BLINK;
+
+/* ============ 便捷宏 ============ */
 
 /**
- * @brief 常用配置宏定义
- *
- * @example
- * indicator_start(&led, &(ind_config_t)IND_BLINK_SLOW);
+ * @brief 创建自定义闪烁灯效
+ * @param on_time 亮时间 (ms)
+ * @param off_time 灭时间 (ms)
+ * @param cnt 闪烁次数, 0=无限
  */
+#define IND_BLINK_CUSTOM(on_time, off_time, cnt) \
+    ((ind_effect_t){IND_MODE_BLINK, (on_time), (off_time), 0, 0, (cnt)})
 
-#define IND_OFF          {IND_MODE_OFF, 0, 0, 0, 0}
-#define IND_ON_FOREVER   {IND_MODE_ON, 0, 0, 0, 0}
-#define IND_ON_1S        {IND_MODE_ON, 0, 0, 1000, 0}
-#define IND_ON_2S        {IND_MODE_ON, 0, 0, 2000, 0}
-#define IND_BLINK_SLOW   {IND_MODE_BLINK, 500, 500, 0, 0}
-#define IND_BLINK_FAST   {IND_MODE_BLINK, 100, 100, 0, 0}
-#define IND_BLINK_3_TIMES {IND_MODE_BLINK, 500, 500, 0, 3}
-#define IND_HEARTBEAT    {IND_MODE_HEARTBEAT, 200, 200, 0, 0}
+/**
+ * @brief 创建延迟亮灯效
+ * @param delay 延迟时间 (ms)
+ * @param duration 持续时间 (ms), 0=无限
+ */
+#define IND_DELAY_ON_CUSTOM(delay, duration) \
+    ((ind_effect_t){IND_MODE_ON, 0, 0, (delay), (duration), 0})
