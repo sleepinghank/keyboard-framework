@@ -1,283 +1,322 @@
-/*
-Copyright 2013 Mathias Andersson <wraul@dbox.se>
+/* Copyright 2025 @ keyboard-framework
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+/**
+ * @file backlight.c
+ * @brief 背光灯驱动实现
+ */
 
 #include "backlight.h"
-#include "eeprom.h"
-// #include "eeconfig.h"
-#include "debug.h"
+#include "backlight_hal.h"
+#include "backlight_config.h"
 
-backlight_config_t backlight_config;
+/* ============ 预设颜色表 ============ */
 
-#ifndef BACKLIGHT_DEFAULT_ON
-#    define BACKLIGHT_DEFAULT_ON true
-#endif
+static const bl_rgb_t preset_colors[BL_COLOR_COUNT] = {
+    [BL_COLOR_RED]     = {100,   0,   0},
+    [BL_COLOR_GREEN]   = {  0, 100,   0},
+    [BL_COLOR_BLUE]    = {  0,   0, 100},
+    [BL_COLOR_YELLOW]  = {100, 100,   0},
+    [BL_COLOR_CYAN]    = {  0, 100, 100},
+    [BL_COLOR_MAGENTA] = {100,   0, 100},
+    [BL_COLOR_WHITE]   = {100, 100, 100},
+};
 
-#ifndef BACKLIGHT_DEFAULT_LEVEL
-#    define BACKLIGHT_DEFAULT_LEVEL BACKLIGHT_LEVELS
-#endif
+/* ============ 预设亮度表 ============ */
 
-#ifndef BACKLIGHT_DEFAULT_BREATHING
-#    define BACKLIGHT_DEFAULT_BREATHING false
+static const uint8_t preset_levels[BL_LEVEL_COUNT] = {
+    [BL_LEVEL_OFF]    = 0,
+    [BL_LEVEL_LOW]    = BACKLIGHT_LEVEL_LOW,
+    [BL_LEVEL_MEDIUM] = BACKLIGHT_LEVEL_MEDIUM,
+    [BL_LEVEL_HIGH]   = BACKLIGHT_LEVEL_HIGH,
+};
+
+/* ============ 模块状态 ============ */
+
+static bl_state_t bl_state;
+static bl_preset_color_t bl_current_color_index = BL_COLOR_WHITE;
+static bl_preset_level_t bl_current_level_index = BL_LEVEL_HIGH;
+static bool bl_initialized = false;
+
+/* ============ 内部函数 ============ */
+
+static void apply_output(void) {
+    if (!bl_state.enable) {
+#ifdef BACKLIGHT_TYPE_RGB
+        bl_hal_set_rgb(0, 0, 0);
 #else
-#    undef BACKLIGHT_DEFAULT_BREATHING
-#    define BACKLIGHT_DEFAULT_BREATHING true
+        bl_hal_set_single(0);
 #endif
+        return;
+    }
 
-#ifdef BACKLIGHT_BREATHING
-// TODO: migrate to backlight_config_t
-static uint8_t breathing_period = BREATHING_PERIOD;
+#ifdef BACKLIGHT_TYPE_RGB
+    uint8_t r = (uint16_t)bl_state.color.r * bl_state.brightness / 100;
+    uint8_t g = (uint16_t)bl_state.color.g * bl_state.brightness / 100;
+    uint8_t b = (uint16_t)bl_state.color.b * bl_state.brightness / 100;
+    bl_hal_set_rgb(r, g, b);
+#else
+    bl_hal_set_single(bl_state.brightness);
 #endif
+}
 
-/** \brief Backlight initialization
- *
- * FIXME: needs doc
- */
-void backlight_init(void) {
-    /* check signature */
-    // if (!eeconfig_is_enabled()) {
-    //     eeconfig_init();
-    //     eeconfig_update_backlight_default();
-    // }
-    backlight_config.raw = eeconfig_read_backlight();
-    if (backlight_config.level > BACKLIGHT_LEVELS) {
-        backlight_config.level = BACKLIGHT_LEVELS;
+/* ============ 初始化 ============ */
+
+void backlight_init(const bl_state_t* state) {
+    if (bl_initialized) {
+        return;
     }
-    backlight_set(backlight_config.enable ? backlight_config.level : 0);
-}
 
-/** \brief Backlight increase
- *
- * FIXME: needs doc
- */
-void backlight_increase(void) {
-    if (backlight_config.level < BACKLIGHT_LEVELS) {
-        backlight_config.level++;
+    bl_hal_init();
+
+    if (state != NULL) {
+        bl_state = *state;
+    } else {
+        bl_state.enable = BACKLIGHT_DEFAULT_ON;
+        bl_state.brightness = BACKLIGHT_DEFAULT_BRIGHTNESS;
+        bl_state.color = preset_colors[BL_COLOR_WHITE];
     }
-    backlight_config.enable = 1;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight increase: %u\n", backlight_config.level);
-    backlight_set(backlight_config.level);
+
+    apply_output();
+    bl_initialized = true;
 }
 
-/** \brief Backlight decrease
- *
- * FIXME: needs doc
- */
-void backlight_decrease(void) {
-    if (backlight_config.level > 0) {
-        backlight_config.level--;
-        backlight_config.enable = !!backlight_config.level;
-        eeconfig_update_backlight(backlight_config.raw);
+void backlight_deinit(void) {
+    if (!bl_initialized) {
+        return;
     }
-    dprintf("backlight decrease: %u\n", backlight_config.level);
-    backlight_set(backlight_config.level);
+
+    bl_state.enable = false;
+    apply_output();
+    bl_hal_deinit();
+    bl_initialized = false;
 }
 
-/** \brief Backlight toggle
- *
- * FIXME: needs doc
- */
-void backlight_toggle(void) {
-    bool enabled = backlight_config.enable;
-    dprintf("backlight toggle: %u\n", enabled);
-    if (enabled)
-        backlight_disable();
-    else
-        backlight_enable();
-}
+/* ============ 开关控制 ============ */
 
-/** \brief Enable backlight
- *
- * FIXME: needs doc
- */
 void backlight_enable(void) {
-    if (backlight_config.enable) return; // do nothing if backlight is already on
-
-    backlight_config.enable = true;
-    if (backlight_config.raw == 1) // enabled but level == 0
-        backlight_config.level = 1;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight enable\n");
-    backlight_set(backlight_config.level);
-}
-
-/** \brief Disable backlight
- *
- * FIXME: needs doc
- */
-void backlight_disable(void) {
-    if (!backlight_config.enable) return; // do nothing if backlight is already off
-
-    backlight_config.enable = false;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight disable\n");
-    backlight_set(0);
-}
-
-/** /brief Get the backlight status
- *
- * FIXME: needs doc
- */
-bool is_backlight_enabled(void) {
-    return backlight_config.enable;
-}
-
-/** \brief Backlight step through levels
- *
- * FIXME: needs doc
- */
-void backlight_step(void) {
-    backlight_config.level++;
-    if (backlight_config.level > BACKLIGHT_LEVELS) {
-        backlight_config.level = 0;
+    if (!bl_initialized || bl_state.enable) {
+        return;
     }
-    backlight_config.enable = !!backlight_config.level;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight step: %u\n", backlight_config.level);
-    backlight_set(backlight_config.level);
+
+    bl_state.enable = true;
+    apply_output();
 }
 
-/** \brief Backlight set level without EEPROM update
- *
- */
-void backlight_level_noeeprom(uint8_t level) {
-    if (level > BACKLIGHT_LEVELS) level = BACKLIGHT_LEVELS;
-    backlight_config.level  = level;
-    backlight_config.enable = !!backlight_config.level;
-    backlight_set(backlight_config.level);
+void backlight_disable(void) {
+    if (!bl_initialized || !bl_state.enable) {
+        return;
+    }
+
+    bl_state.enable = false;
+    apply_output();
 }
 
-/** \brief Backlight set level
- *
- * FIXME: needs doc
- */
-void backlight_level(uint8_t level) {
-    backlight_level_noeeprom(level);
-    eeconfig_update_backlight(backlight_config.raw);
+void backlight_toggle(void) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    bl_state.enable = !bl_state.enable;
+    apply_output();
 }
 
-uint8_t eeconfig_read_backlight(void) {
-    return eeprom_read_byte(EECONFIG_BACKLIGHT);
+bool backlight_is_enabled(void) {
+    return bl_state.enable;
 }
 
-void eeconfig_update_backlight(uint8_t val) {
-    eeprom_update_byte(EECONFIG_BACKLIGHT, val);
+/* ============ 亮度控制 ============ */
+
+void backlight_set_brightness(uint8_t brightness) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    if (brightness > 100) {
+        brightness = 100;
+    }
+
+    bl_state.brightness = brightness;
+    apply_output();
 }
 
-void eeconfig_update_backlight_current(void) {
-    eeconfig_update_backlight(backlight_config.raw);
+uint8_t backlight_get_brightness(void) {
+    return bl_state.brightness;
 }
 
-void eeconfig_update_backlight_default(void) {
-    backlight_config.enable    = BACKLIGHT_DEFAULT_ON;
-    backlight_config.breathing = BACKLIGHT_DEFAULT_BREATHING;
-    backlight_config.level     = BACKLIGHT_DEFAULT_LEVEL;
-    eeconfig_update_backlight(backlight_config.raw);
+void backlight_brightness_increase(uint8_t step) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    uint8_t new_val = bl_state.brightness + step;
+    if (new_val > 100) {
+        new_val = 100;
+    }
+
+    bl_state.brightness = new_val;
+    bl_state.enable = true;
+    apply_output();
 }
 
-/** \brief Get backlight level
- *
- * FIXME: needs doc
- */
-uint8_t get_backlight_level(void) {
-    return backlight_config.level;
+void backlight_brightness_decrease(uint8_t step) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    if (bl_state.brightness <= step) {
+        bl_state.brightness = 0;
+    } else {
+        bl_state.brightness -= step;
+    }
+
+    apply_output();
 }
 
-#ifdef BACKLIGHT_BREATHING
-/** \brief Backlight breathing toggle
- *
- * FIXME: needs doc
- */
-void backlight_toggle_breathing(void) {
-    bool breathing = backlight_config.breathing;
-    dprintf("backlight breathing toggle: %u\n", breathing);
-    if (breathing)
-        backlight_disable_breathing();
-    else
-        backlight_enable_breathing();
+void backlight_set_preset_level(bl_preset_level_t level) {
+    if (!bl_initialized || level >= BL_LEVEL_COUNT) {
+        return;
+    }
+
+    bl_current_level_index = level;
+    bl_state.brightness = preset_levels[level];
+
+    if (level == BL_LEVEL_OFF) {
+        bl_state.enable = false;
+    } else {
+        bl_state.enable = true;
+    }
+
+    apply_output();
 }
 
-/** \brief Enable backlight breathing
- *
- * FIXME: needs doc
- */
-void backlight_enable_breathing(void) {
-    if (backlight_config.breathing) return; // do nothing if breathing is already on
+void backlight_level_step(void) {
+    if (!bl_initialized) {
+        return;
+    }
 
-    backlight_config.breathing = true;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight breathing enable\n");
-    breathing_enable();
+    bl_current_level_index++;
+    if (bl_current_level_index >= BL_LEVEL_COUNT) {
+        bl_current_level_index = BL_LEVEL_OFF;
+    }
+
+    backlight_set_preset_level(bl_current_level_index);
 }
 
-/** \brief Disable backlight breathing
- *
- * FIXME: needs doc
- */
-void backlight_disable_breathing(void) {
-    if (!backlight_config.breathing) return; // do nothing if breathing is already off
+/* ============ 颜色控制 ============ */
 
-    backlight_config.breathing = false;
-    eeconfig_update_backlight(backlight_config.raw);
-    dprintf("backlight breathing disable\n");
-    breathing_disable();
+void backlight_set_color(const bl_rgb_t* rgb) {
+    if (!bl_initialized || rgb == NULL) {
+        return;
+    }
+
+    bl_state.color = *rgb;
+    apply_output();
 }
 
-/** \brief Get the backlight breathing status
- *
- * FIXME: needs doc
- */
-bool is_backlight_breathing(void) {
-    return backlight_config.breathing;
+void backlight_set_rgb(uint8_t r, uint8_t g, uint8_t b) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    if (r > 100) r = 100;
+    if (g > 100) g = 100;
+    if (b > 100) b = 100;
+
+    bl_state.color.r = r;
+    bl_state.color.g = g;
+    bl_state.color.b = b;
+    apply_output();
 }
 
-// following are marked as weak purely for backwards compatibility
-__attribute__((weak)) void breathing_period_set(uint8_t value) {
-    breathing_period = value ? value : 1;
+void backlight_get_color(bl_rgb_t* rgb) {
+    if (rgb == NULL) {
+        return;
+    }
+
+    *rgb = bl_state.color;
 }
 
-__attribute__((weak)) uint8_t get_breathing_period(void) {
-    return breathing_period;
+void backlight_set_channel(char channel, uint8_t value) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    if (value > 100) {
+        value = 100;
+    }
+
+    switch (channel) {
+        case 'r':
+        case 'R':
+            bl_state.color.r = value;
+            break;
+        case 'g':
+        case 'G':
+            bl_state.color.g = value;
+            break;
+        case 'b':
+        case 'B':
+            bl_state.color.b = value;
+            break;
+        default:
+            return;
+    }
+
+    apply_output();
 }
 
-__attribute__((weak)) void breathing_period_default(void) {
-    breathing_period_set(BREATHING_PERIOD);
+void backlight_set_preset_color(bl_preset_color_t color) {
+    if (!bl_initialized || color >= BL_COLOR_COUNT) {
+        return;
+    }
+
+    bl_current_color_index = color;
+    bl_state.color = preset_colors[color];
+    apply_output();
 }
 
-__attribute__((weak)) void breathing_period_inc(void) {
-    breathing_period_set(breathing_period + 1);
+void backlight_color_step(void) {
+    if (!bl_initialized) {
+        return;
+    }
+
+    bl_current_color_index++;
+    if (bl_current_color_index >= BL_COLOR_COUNT) {
+        bl_current_color_index = BL_COLOR_RED;
+    }
+
+    backlight_set_preset_color(bl_current_color_index);
 }
 
-__attribute__((weak)) void breathing_period_dec(void) {
-    breathing_period_set(breathing_period - 1);
+/* ============ 状态管理 ============ */
+
+void backlight_get_state(bl_state_t* state) {
+    if (state == NULL) {
+        return;
+    }
+
+    *state = bl_state;
 }
 
-__attribute__((weak)) void breathing_toggle(void) {
-    if (is_breathing())
-        breathing_disable();
-    else
-        breathing_enable();
+void backlight_restore_state(const bl_state_t* state) {
+    if (!bl_initialized || state == NULL) {
+        return;
+    }
+
+    bl_state = *state;
+    apply_output();
 }
-
-#endif
-
-// defaults for backlight api
-__attribute__((weak)) void backlight_init_ports(void) {}
-
-__attribute__((weak)) void backlight_set(uint8_t level) {}
-
-__attribute__((weak)) void backlight_task(void) {}
