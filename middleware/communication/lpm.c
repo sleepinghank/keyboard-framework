@@ -83,14 +83,22 @@ void lpm_task(void) {
         lpm_timer_buffer = 0;
     }
 
-//    if (get_transport() == TRANSPORT_BLUETOOTH && lpm_time_up && !indicator_is_running()
+    /* 低功耗模式进入条件:
+     * 1. 使用蓝牙传输模式
+     * 2. 空闲超时时间已到
+     * 3. 指示灯不在运行中
+     * 4. 没有按键按下
+     * 5. 不在电池采样期间
+     */
+//    if (get_transport() == TRANSPORT_BLUETOOTH && lpm_time_up && !indicator_any_active()
 //#ifdef LED_MATRIX_ENABLE
 //        && led_matrix_is_driver_shutdown()
 //#endif
 //#ifdef RGB_MATRIX_ENABLE
 //        && rgb_matrix_is_driver_shutdown()
 //#endif
-//        && !lpm_any_matrix_action() && !battery_power_on_sample())
-
-//        enter_power_mode(PM_STOP);
+//        && !lpm_any_matrix_action() && !battery_power_on_sample()) {
+//
+//        enter_power_mode(PM_STOP0);
+//    }
 }

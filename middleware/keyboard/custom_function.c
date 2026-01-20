@@ -7,7 +7,7 @@
 #include "timer.h"
 #include "print.h"
 #include <string.h>
-
+#include "wait.h"
 // Tap Dance implementation
 #if TAP_DANCE_ENABLE
 static tap_dance_state_t tap_dance_state[MATRIX_ROWS][MATRIX_COLS];

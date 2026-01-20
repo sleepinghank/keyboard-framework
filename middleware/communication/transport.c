@@ -21,6 +21,7 @@
 #include "host_driver.h"
 #include "keycode_config.h"
 #include "host.h"
+#include "wait.h"
 
 #ifndef REINIT_LED_DRIVER
 #    define REINIT_LED_DRIVER 0

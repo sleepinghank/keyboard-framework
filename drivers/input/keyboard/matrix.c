@@ -22,6 +22,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debounce.h"
 
 #include "print.h"
+#include "wait.h"
 
 #  define ROWS_PER_HAND (MATRIX_ROWS)
 

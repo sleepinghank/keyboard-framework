@@ -14,24 +14,23 @@
 #include "event_manager.h"
 #include "system_init.h"
 #include "sys_config.h"
-
+#include "debug.h"
 /**
  * @brief 主函数 - 系统启动入口
  * @return int (通常不会返回)
  */
 int main(void)
 {
-    // 1. 系统硬件初始化（时钟、GPIO等）
-    system_hal_init();
     // 调用系统初始化协调器
     uint32_t init_result = system_init_coordinator();
    if (init_result != 0) {
 #if (PRINTF_ENABLE == TRUE && PRINTF_LEVEL >= PRINTF_LEVEL_ERROR)
-        printf("ERROR: System initialization failed! Error code: %d\r\n", init_result);
+        dprintf("ERROR: System initialization failed! Error code: %d\r\n", init_result);
 #endif
         return init_result;
     }
-
+    dprint("System initialized successfully.\r\n");
+    
     // 最后的时间循环器
     OSAL_SystemProcess();
     return 0;

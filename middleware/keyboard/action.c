@@ -14,6 +14,7 @@
 #include "action_layer.h"
 #include "keymap_common.h"
 #include "combo.h"
+#include "wait.h"
 
 // Modifier state
 uint8_t current_mods = 0;

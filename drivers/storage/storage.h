@@ -151,6 +151,9 @@ bool storage_load_config(storage_config_t *config);
 // 保存配置到EEPROM
 bool storage_save_config(const storage_config_t *config);
 
+// 直接保存当前配置到EEPROM (无需传参，直接保存g_storage_pool)
+bool storage_save(void);
+
 // 获取默认配置
 void storage_get_default_config(storage_config_t *config);
 

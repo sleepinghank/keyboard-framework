@@ -22,7 +22,7 @@
 #include "action_layer.h"
 #include "action_util.h"
 #include "keymap_introspection.h"
-
+#include "wait.h"
 __attribute__((weak)) void process_combo_event(uint16_t combo_index, bool pressed) {}
 
 #ifndef COMBO_ONLY_FROM_LAYER
@@ -651,5 +651,22 @@ bool is_combo_enabled(void) {
 }
 
 void combo_init(void){
-    
+    // 初始化combo使能状态
+    b_combo_enable = true;
+
+    // 重置定时器
+#ifndef COMBO_NO_TIMER
+    timer = 0;
+#endif
+    longest_term = 0;
+
+    // 清空键缓冲区
+    key_buffer_size = 0;
+
+    // 清空combo缓冲区
+    combo_buffer_read = 0;
+    combo_buffer_write = 0;
+
+    // 重置所有combo状态
+    clear_combos();
 }

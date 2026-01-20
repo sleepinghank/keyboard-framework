@@ -29,6 +29,12 @@
 #include "wireless.h"
 #include "keyboard.h"
 
+// application services
+#include "system_service.h"
+#include "input_service.h"
+#include "output_service.h"
+#include "communication_service.h"
+
 // hal
 #include "i2c_master.h"
 #include "gpio.h"
@@ -67,7 +73,7 @@ void system_setup_hal(void) {
 
     // i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
 
-    platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_1);
+    // platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_1);
 
     // adc_bind_pin(ADC_PIN,ADC_CHANNEL);
 
@@ -80,7 +86,7 @@ void system_setup_hal(void) {
 void system_setup_drivers(void) {
     // 驱动层setup阶段
     // - 矩阵扫描setup
-    matrix_setup();
+    // matrix_setup();
 
     // 标记Driver setup完成
     g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_SETUP;
@@ -110,7 +116,7 @@ void system_init_hal(void) {
     // HAL层初始化阶段
     // Timer已在setup阶段初始化，此处可进行HAL层其他初始化
     // i2c_init();
-    platform_uart_init(PLATFORM_UART_1, 115200, 0);
+    // platform_uart_init(PLATFORM_UART_1, 115200, 0);
     // pwm_init();
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
@@ -121,13 +127,13 @@ void system_init_drivers(void) {
     // 按依赖关系顺序初始化各驱动
 
     // 时钟初始化
-    timer_init();
+    // timer_init();
 
     // 1. 存储系统初始化 (最优先)
     storage_init();
 
     // 2. 电池管理初始化
-    battery_init();
+    // battery_init();
 
     // 3. 指示灯初始化
     // indicator_init();
@@ -141,16 +147,16 @@ void system_init_middleware(void) {
     // 按依赖关系顺序初始化各中间件
 
     // 3. 报告缓冲区初始化
-    report_buffer_init();
+    // report_buffer_init();
 
     // 4. 低功耗管理初始化
-    lpm_init();
+    // lpm_init();
 
     // 5. 无线管理层初始化
-    wireless_init();
+    // wireless_init();
 
     // 6. 键盘处理初始化
-    keyboard_init();
+    // keyboard_init();
 
     // 标记Middleware init完成
     g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_INIT;
@@ -158,7 +164,11 @@ void system_init_middleware(void) {
 
 void system_init_application(void) {
     // 应用层初始化阶段
-    // 此处可初始化应用服务
+    // 初始化各应用服务
+    system_service_init();
+    input_service_init();
+    output_service_init();
+    commu_service_init();
 
     // 标记Application init完成
     g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;
@@ -174,6 +184,10 @@ void system_init_application(void) {
  * =========================================*/
 
 uint32_t system_init_coordinator(void) {
+    // 1. 系统硬件初始化（时钟、GPIO等）
+    system_hal_init();
+
+
     // 阶段1: _setup 阶段 (早期启动)
     system_setup_hal();
     system_setup_drivers();

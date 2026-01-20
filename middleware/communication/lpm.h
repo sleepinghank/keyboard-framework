@@ -15,6 +15,7 @@
  */
 
 #pragma once
+#include <stdbool.h>
 
 #ifndef RUN_MODE_PROCESS_TIME
 #    define RUN_MODE_PROCESS_TIME 1000

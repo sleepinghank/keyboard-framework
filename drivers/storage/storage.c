@@ -160,6 +160,28 @@ bool storage_save_config(const storage_config_t *config) {
     return success;
 }
 
+// 直接保存当前配置到EEPROM
+bool storage_save(void) {
+    // 获取锁 (假设当前任务ID为1)
+    if (!storage_lock_acquire(1)) {
+        return false;  // 锁被占用
+    }
+
+    // 计算并更新CRC
+    g_storage_pool.header.crc16 = storage_calculate_crc16(&g_storage_pool.config);
+
+    // 写入EEPROM
+    bool success = storage_write_to_eeprom();
+
+    // 调用回调并释放锁
+    if (g_write_callback != NULL) {
+        g_write_callback(success);
+    }
+    storage_lock_release(1);
+
+    return success;
+}
+
 // 获取默认配置
 void storage_get_default_config(storage_config_t *config) {
     if (config != NULL) {

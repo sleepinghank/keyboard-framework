@@ -16,74 +16,192 @@
 #include "p24g_driver.h"
 #include "wireless.h"
 #include "wireless_event_type.h"
+#include "spi_master.h"
+#include "gpio.h"
+#include "timer.h"
+#include "wait.h"
+#include <string.h>
 
+/* 2.4G模块引脚定义 - 需要在product_config.h中定义 */
+#ifndef P24G_CS_PIN
+#define P24G_CS_PIN NO_PIN
+#endif
 
+#ifndef P24G_INT_PIN
+#define P24G_INT_PIN NO_PIN
+#endif
+
+#ifndef P24G_RST_PIN
+#define P24G_RST_PIN NO_PIN
+#endif
+
+/* 2.4G通信命令定义 */
+#define P24G_CMD_NOP            0x00
+#define P24G_CMD_READ_REG       0x01
+#define P24G_CMD_WRITE_REG      0x02
+#define P24G_CMD_SEND_KEYBOARD  0x10
+#define P24G_CMD_SEND_NKRO      0x11
+#define P24G_CMD_SEND_CONSUMER  0x12
+#define P24G_CMD_SEND_SYSTEM    0x13
+#define P24G_CMD_SEND_MOUSE     0x14
+#define P24G_CMD_CONNECT        0x20
+#define P24G_CMD_DISCONNECT     0x21
+#define P24G_CMD_PAIRING        0x22
+#define P24G_CMD_UPDATE_BAT     0x30
+
+/* 2.4G模块状态 */
+typedef enum {
+    P24G_STATE_IDLE = 0,
+    P24G_STATE_INITIALIZED,
+    P24G_STATE_CONNECTING,
+    P24G_STATE_CONNECTED,
+    P24G_STATE_PAIRING,
+    P24G_STATE_ERROR
+} p24g_state_t;
+
+static p24g_state_t g_p24g_state = P24G_STATE_IDLE;
+static bool g_p24g_initialized = false;
+
+/* SPI传输辅助函数 */
+static uint8_t p24g_spi_transfer(uint8_t data) {
+    spi_write(data);
+    return (uint8_t)spi_read();
+}
+
+static void p24g_send_cmd(uint8_t cmd, const uint8_t* data, uint8_t len) {
+    if (P24G_CS_PIN == NO_PIN) return;
+
+    spi_start(P24G_CS_PIN, false, 0, 8);
+    p24g_spi_transfer(cmd);
+    for (uint8_t i = 0; i < len; i++) {
+        p24g_spi_transfer(data[i]);
+    }
+    spi_stop();
+}
 
 // 2.4G驱动实现 - 生命周期管理
 void p24g_driver_init_impl(bool wakeup_from_low_power) {
-    // TODO: 实现2.4G模块初始化
-    // 1. 初始化SPI通信
-    // 2. 复位2.4G模块
-    // 3. 配置通信参数
-    // 4. 发送握手协议
+    if (g_p24g_initialized && !wakeup_from_low_power) {
+        return;
+    }
+
+    // 1. 初始化SPI
+    spi_init();
+
+    // 2. 配置控制引脚
+    if (P24G_RST_PIN != NO_PIN) {
+        gpio_set_pin_output_push_pull(P24G_RST_PIN);
+        // 复位模块
+        gpio_write_pin_low(P24G_RST_PIN);
+        wait_ms(10);
+        gpio_write_pin_high(P24G_RST_PIN);
+        wait_ms(50);
+    }
+
+    if (P24G_INT_PIN != NO_PIN) {
+        gpio_set_pin_input_high(P24G_INT_PIN);
+    }
+
+    // 3. 发送初始化命令
+    uint8_t init_data[] = {0x01};  // 初始化命令数据
+    p24g_send_cmd(P24G_CMD_NOP, init_data, sizeof(init_data));
+
+    g_p24g_state = P24G_STATE_INITIALIZED;
+    g_p24g_initialized = true;
 }
 
 void p24g_driver_task_impl(void) {
-    // TODO: 实现2.4G驱动任务循环
-    // 1. 检查接收数据
-    // 2. 处理2.4G事件
-    // 3. 更新状态
+    if (!g_p24g_initialized) return;
+
+    // 检查中断引脚，判断是否有数据需要处理
+    if (P24G_INT_PIN != NO_PIN && gpio_read_pin(P24G_INT_PIN) == 0) {
+        // 有中断信号，读取数据
+        // 具体处理依赖2.4G芯片的协议
+    }
 }
 
 // 2.4G驱动实现 - 连接管理
 void p24g_driver_connect_ex_impl(uint8_t host_idx, uint16_t timeout) {
-    // TODO: 实现2.4G连接
-    // 1. 2.4G通常点对点连接，host_idx通常为P24G_INDEX(24)
-    // 2. 发送连接命令
-    // 3. 等待连接结果
+    if (!g_p24g_initialized) return;
+
+    // 2.4G点对点连接
+    uint8_t connect_data[3] = {host_idx, (uint8_t)(timeout & 0xFF), (uint8_t)(timeout >> 8)};
+    p24g_send_cmd(P24G_CMD_CONNECT, connect_data, sizeof(connect_data));
+    g_p24g_state = P24G_STATE_CONNECTING;
 }
 
 void p24g_driver_pairing_ex_impl(uint8_t host_idx, void *param) {
-    // TODO: 实现2.4G配对
-    // 1. 设置配对参数
-    // 2. 进入配对模式
-    // 3. 等待配对完成
+    if (!g_p24g_initialized) return;
+
+    // 进入配对模式
+    uint8_t pairing_data[2] = {host_idx, 0x01};
+    if (param != NULL) {
+        p24g_pairing_param_t* p = (p24g_pairing_param_t*)param;
+        pairing_data[1] = p->pairingMode;
+    }
+    p24g_send_cmd(P24G_CMD_PAIRING, pairing_data, sizeof(pairing_data));
+    g_p24g_state = P24G_STATE_PAIRING;
 }
 
 void p24g_driver_disconnect_impl(void) {
-    // TODO: 实现2.4G断开连接
+    if (!g_p24g_initialized) return;
+
+    p24g_send_cmd(P24G_CMD_DISCONNECT, NULL, 0);
+    g_p24g_state = P24G_STATE_INITIALIZED;
 }
 
 // 2.4G驱动实现 - 数据传输
 void p24g_driver_send_keyboard_impl(uint8_t *report) {
-    // TODO: 实现键盘报告发送
-    // 1. 构建HID报告
-    // 2. 通过SPI发送到2.4G芯片
+    if (!g_p24g_initialized || g_p24g_state != P24G_STATE_CONNECTED) return;
+    if (report == NULL) return;
+
+    // 发送标准键盘报告 (8 bytes)
+    p24g_send_cmd(P24G_CMD_SEND_KEYBOARD, report, 8);
 }
 
 void p24g_driver_send_nkro_impl(uint8_t *report) {
-    // TODO: 实现NKRO报告发送
+    if (!g_p24g_initialized || g_p24g_state != P24G_STATE_CONNECTED) return;
+    if (report == NULL) return;
+
+    // 发送NKRO报告 (通常16-32 bytes)
+    p24g_send_cmd(P24G_CMD_SEND_NKRO, report, 16);
 }
 
 void p24g_driver_send_consumer_impl(uint16_t report) {
-    // TODO: 实现媒体键发送
+    if (!g_p24g_initialized || g_p24g_state != P24G_STATE_CONNECTED) return;
+
+    uint8_t data[2] = {(uint8_t)(report & 0xFF), (uint8_t)(report >> 8)};
+    p24g_send_cmd(P24G_CMD_SEND_CONSUMER, data, sizeof(data));
 }
 
 void p24g_driver_send_system_impl(uint16_t report) {
-    // TODO: 实现系统键发送
+    if (!g_p24g_initialized || g_p24g_state != P24G_STATE_CONNECTED) return;
+
+    uint8_t data[2] = {(uint8_t)(report & 0xFF), (uint8_t)(report >> 8)};
+    p24g_send_cmd(P24G_CMD_SEND_SYSTEM, data, sizeof(data));
 }
 
 void p24g_driver_send_mouse_impl(uint8_t *report) {
-    // TODO: 实现鼠标报告发送
+    if (!g_p24g_initialized || g_p24g_state != P24G_STATE_CONNECTED) return;
+    if (report == NULL) return;
+
+    // 发送鼠标报告 (通常5-8 bytes)
+    p24g_send_cmd(P24G_CMD_SEND_MOUSE, report, 5);
 }
 
 // 2.4G驱动实现 - 电池管理
 void p24g_driver_update_bat_level_impl(uint8_t bat_lvl) {
-    // TODO: 实现电池电量更新
+    if (!g_p24g_initialized) return;
+
+    uint8_t data[2] = {0x01, bat_lvl};  // 0x01=电量类型, bat_lvl=电量值
+    p24g_send_cmd(P24G_CMD_UPDATE_BAT, data, sizeof(data));
 }
 
 void p24g_driver_update_bat_state_impl(uint8_t bat_state) {
-    // TODO: 实现电池状态更新
+    if (!g_p24g_initialized) return;
+
+    uint8_t data[2] = {0x02, bat_state};  // 0x02=状态类型, bat_state=状态值
+    p24g_send_cmd(P24G_CMD_UPDATE_BAT, data, sizeof(data));
 }
 
 // 2.4G驱动实现 - 模块管理

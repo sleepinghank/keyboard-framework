@@ -547,126 +547,126 @@ bool platform_uart_is_tx_enabled(platform_uart_t uart) {
 /*==========================================
  * 中断处理函数
  *=========================================*/
-
-// /**
-//  * @brief UART0中断处理函数
-//  */
-// __INTERRUPT __HIGH_CODE void UART0_IRQHandler(void) {
-//     uint8_t tmp;
-
-//     /* 获取中断标志 */
-//     switch (UART0_GetITFlag()) {
-//         case UART_II_LINE_STAT:  /* 线路状态错误 */
-//             UART0_GetLinSTA();
-//             break;
-
-//         case UART_II_RECV_RDY:   /* 数据达到触发点 */
-//             if (uart_rx_callbacks[0] != NULL && uart_channels[0].rx_enabled) {
-//                 tmp = UART0_RecvByte();
-//                 uart_rx_callbacks[0](&tmp, 1);
-//             }
-//             break;
-
-//         case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
-//             break;
-
-//         case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
-//             break;
-
-//         case UART_II_MODEM_CHG:  /* 调制解调器状态变化（仅UART0支持，暂时未使用） */
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
-
-// /**
-//  * @brief UART1中断处理函数
-//  */
-// __INTERRUPT __HIGH_CODE void UART1_IRQHandler(void) {
-//     uint8_t tmp;
-
-//     /* 获取中断标志 */
-//     switch (UART1_GetITFlag()) {
-//         case UART_II_LINE_STAT:  /* 线路状态错误 */
-//             UART1_GetLinSTA();
-//             break;
-
-//         case UART_II_RECV_RDY:   /* 数据达到触发点 */
-//             if (uart_rx_callbacks[1] != NULL && uart_channels[1].rx_enabled) {
-//                 tmp = UART1_RecvByte();
-//                 uart_rx_callbacks[1](&tmp, 1);
-//             }
-//             break;
-
-//         case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
-//             break;
-
-//         case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
-
-// /**
-//  * @brief UART2中断处理函数
-//  */
-// __INTERRUPT __HIGH_CODE void UART2_IRQHandler(void) {
-//     uint8_t tmp;
-
-//     /* 获取中断标志 */
-//     switch (UART2_GetITFlag()) {
-//         case UART_II_LINE_STAT:  /* 线路状态错误 */
-//             UART2_GetLinSTA();
-//             break;
-
-//         case UART_II_RECV_RDY:   /* 数据达到触发点 */
-//             if (uart_rx_callbacks[2] != NULL && uart_channels[2].rx_enabled) {
-//                 tmp = UART2_RecvByte();
-//                 uart_rx_callbacks[2](&tmp, 1);
-//             }
-//             break;
-
-//         case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
-//             break;
-
-//         case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
-
-// /**
-//  * @brief UART3中断处理函数
-//  */
-// __INTERRUPT __HIGH_CODE void UART3_IRQHandler(void) {
-//     uint8_t tmp;
-
-//     /* 获取中断标志 */
-//     switch (UART3_GetITFlag()) {
-//         case UART_II_LINE_STAT:  /* 线路状态错误 */
-//             UART3_GetLinSTA();
-//             break;
-
-//         case UART_II_RECV_RDY:   /* 数据达到触发点 */
-//             if (uart_rx_callbacks[3] != NULL && uart_channels[3].rx_enabled) {
-//                 tmp = UART3_RecvByte();
-//                 uart_rx_callbacks[3](&tmp, 1);
-//             }
-//             break;
-
-//         case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
-//             break;
-
-//         case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
-//             break;
-
-//         default:
-//             break;
-//     }
-// }
+//
+///**
+// * @brief UART0中断处理函数
+// */
+//__INTERRUPT __HIGH_CODE void UART0_IRQHandler(void) {
+//    uint8_t tmp;
+//
+//    /* 获取中断标志 */
+//    switch (UART0_GetITFlag()) {
+//        case UART_II_LINE_STAT:  /* 线路状态错误 */
+//            UART0_GetLinSTA();
+//            break;
+//
+//        case UART_II_RECV_RDY:   /* 数据达到触发点 */
+//            if (uart_rx_callbacks[0] != NULL && uart_channels[0].rx_enabled) {
+//                tmp = UART0_RecvByte();
+//                uart_rx_callbacks[0](&tmp, 1);
+//            }
+//            break;
+//
+//        case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
+//            break;
+//
+//        case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
+//            break;
+//
+//        case UART_II_MODEM_CHG:  /* 调制解调器状态变化（仅UART0支持，暂时未使用） */
+//            break;
+//
+//        default:
+//            break;
+//    }
+//}
+//
+///**
+// * @brief UART1中断处理函数
+// */
+//__INTERRUPT __HIGH_CODE void UART1_IRQHandler(void) {
+//    uint8_t tmp;
+//
+//    /* 获取中断标志 */
+//    switch (UART1_GetITFlag()) {
+//        case UART_II_LINE_STAT:  /* 线路状态错误 */
+//            UART1_GetLinSTA();
+//            break;
+//
+//        case UART_II_RECV_RDY:   /* 数据达到触发点 */
+//            if (uart_rx_callbacks[1] != NULL && uart_channels[1].rx_enabled) {
+//                tmp = UART1_RecvByte();
+//                uart_rx_callbacks[1](&tmp, 1);
+//            }
+//            break;
+//
+//        case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
+//            break;
+//
+//        case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
+//            break;
+//
+//        default:
+//            break;
+//    }
+//}
+//
+///**
+// * @brief UART2中断处理函数
+// */
+//__INTERRUPT __HIGH_CODE void UART2_IRQHandler(void) {
+//    uint8_t tmp;
+//
+//    /* 获取中断标志 */
+//    switch (UART2_GetITFlag()) {
+//        case UART_II_LINE_STAT:  /* 线路状态错误 */
+//            UART2_GetLinSTA();
+//            break;
+//
+//        case UART_II_RECV_RDY:   /* 数据达到触发点 */
+//            if (uart_rx_callbacks[2] != NULL && uart_channels[2].rx_enabled) {
+//                tmp = UART2_RecvByte();
+//                uart_rx_callbacks[2](&tmp, 1);
+//            }
+//            break;
+//
+//        case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
+//            break;
+//
+//        case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
+//            break;
+//
+//        default:
+//            break;
+//    }
+//}
+//
+///**
+// * @brief UART3中断处理函数
+// */
+//__INTERRUPT __HIGH_CODE void UART3_IRQHandler(void) {
+//    uint8_t tmp;
+//
+//    /* 获取中断标志 */
+//    switch (UART3_GetITFlag()) {
+//        case UART_II_LINE_STAT:  /* 线路状态错误 */
+//            UART3_GetLinSTA();
+//            break;
+//
+//        case UART_II_RECV_RDY:   /* 数据达到触发点 */
+//            if (uart_rx_callbacks[3] != NULL && uart_channels[3].rx_enabled) {
+//                tmp = UART3_RecvByte();
+//                uart_rx_callbacks[3](&tmp, 1);
+//            }
+//            break;
+//
+//        case UART_II_RECV_TOUT:  /* 接收超时（暂时未使用） */
+//            break;
+//
+//        case UART_II_THR_EMPTY:  /* 发送缓冲区空（暂时未使用） */
+//            break;
+//
+//        default:
+//            break;
+//    }
+//}

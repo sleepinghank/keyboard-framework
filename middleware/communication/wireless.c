@@ -24,6 +24,7 @@
 #include "host_driver.h"
 #include "report.h"
 #include "product_config.h"
+#include "wait.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -185,7 +186,7 @@ void wireless_connect(void) {
     /*  Work around empty report after wakeup, which leads to reconneect/disconnected loop */
     if (battery_is_critical_low() || timer_read32() == 0) return;
 
-    if (wireless_state == WT_RECONNECTING && !indicator_is_running()) {
+    if (wireless_state == WT_RECONNECTING ) {
         indicator_set(wireless_state, host_index);
     }
     wireless_transport.connect_ex(0, 0);

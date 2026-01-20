@@ -3,6 +3,23 @@
 #include <stdint.h>
 #include "event_manager.h"
 #include "print.h"
+#include "battery.h"
+#include "indicator.h"
+#include "system_service.h"
+
+/* 低电量阈值 */
+#ifndef LOW_BATTERY_THRESHOLD
+#define LOW_BATTERY_THRESHOLD  10  /* 10% 触发低电量警告 */
+#endif
+
+#ifndef CRITICAL_BATTERY_THRESHOLD
+#define CRITICAL_BATTERY_THRESHOLD  5   /* 5% 触发关机 */
+#endif
+
+/* 电量检测周期 (ms) */
+#ifndef BATTERY_DETECT_INTERVAL
+#define BATTERY_DETECT_INTERVAL  30000  /* 30秒检测一次 */
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,23 +54,33 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理触控中断事件
     if (events & INPUT_TOUCH_INT_EVT) {
-        // PRINT("Input: Touch interrupt\r\n");
-        // TODO: 处理触控中断
-        // - 读取触摸坐标
-        // - 处理手势
-        // - 转换为按键事件
+        println("Input: Touch interrupt");
+        // TODO: 触摸板驱动实现后取消注释
         // touch_process_interrupt();
         events ^= INPUT_TOUCH_INT_EVT;
     }
 
-    // 处理电量变化事件
+    // 处理电量检测事件
     if (events & INPUT_BATTERY_DETE_EVT) {
-        // PRINT("Input: Battery level changed\r\n");
-        // TODO: 处理电量变化
-        // - 读取电池电压
-        // - 计算电量百分比
-        // - 通知系统服务低电量
-        // battery_update_level();
+        // 读取电池电量
+        uint8_t battery_level = battery_get_percentage();
+        xprintf("Input: Battery level = %d%%\r\n", battery_level);
+
+        // 更新蓝牙电池服务上报
+        bt_driver_update_bat_level(battery_level);
+
+        // 检查低电量状态
+        if (battery_level <= CRITICAL_BATTERY_THRESHOLD) {
+            // 电量极低，触发关机事件
+            println("Input: Critical battery, triggering shutdown");
+            extern uint8_t system_taskID;
+            OSAL_MsgSend(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
+        } else if (battery_level <= LOW_BATTERY_THRESHOLD) {
+            // 低电量警告，闪烁指示灯
+            println("Input: Low battery warning");
+            indicator_set(0, &IND_BLINK_FAST);
+        }
+
         events ^= INPUT_BATTERY_DETE_EVT;
     }
 
@@ -69,11 +96,10 @@ void input_service_init(void) {
     input_taskID = OSAL_ProcessEventRegister(input_process_event);
 
     // 启动矩阵扫描循环任务
-    OSAL_StartReloadTask(input_taskID, INPUT_MATRIX_SCAN_EVT, MATRIX_SCAN_TIMER);
+    // OSAL_StartReloadTask(input_taskID, INPUT_MATRIX_SCAN_EVT, MATRIX_SCAN_TIMER);
 
-    // TODO: 根据配置启动其他定时任务
-    // 例如：电量检测、触摸板扫描等
-    // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_CHANGE_EVT, 5000);
+    // // 启动电量检测定时任务
+    // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
 }
 
 #ifdef __cplusplus
