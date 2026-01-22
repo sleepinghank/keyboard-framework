@@ -44,6 +44,9 @@
 #include "adc.h"
 #include "system_hal.h"
 
+// ch584
+#include "CONFIG.h"
+#include "hal.h"
 // 系统初始化状态
 typedef enum {
     SYSTEM_INIT_STATUS_NOT_STARTED = 0,    // 未开始
@@ -69,7 +72,7 @@ void system_setup_hal(void) {
     // HAL层基础初始化
 
     // 首先初始化所有GPIO为安全状态，防止悬空漏电
-    system_hal_gpio_init_all();
+    // system_hal_gpio_init_all();
 
     // i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
 
@@ -118,6 +121,8 @@ void system_init_hal(void) {
     // i2c_init();
     // platform_uart_init(PLATFORM_UART_1, 115200, 0);
     // pwm_init();
+    platform_uart_bind_pins(NO_PIN, B13, PLATFORM_UART_1);
+    platform_uart_init(PLATFORM_UART_1, 115200, 0);
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
@@ -130,7 +135,7 @@ void system_init_drivers(void) {
     // timer_init();
 
     // 1. 存储系统初始化 (最优先)
-    storage_init();
+    // storage_init();
 
     // 2. 电池管理初始化
     // battery_init();
@@ -165,10 +170,10 @@ void system_init_middleware(void) {
 void system_init_application(void) {
     // 应用层初始化阶段
     // 初始化各应用服务
-    system_service_init();
-    input_service_init();
+    // system_service_init();
+    // input_service_init();
     output_service_init();
-    commu_service_init();
+    // commu_service_init();
 
     // 标记Application init完成
     g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;
@@ -187,14 +192,13 @@ uint32_t system_init_coordinator(void) {
     // 1. 系统硬件初始化（时钟、GPIO等）
     system_hal_init();
 
-
-    // 阶段1: _setup 阶段 (早期启动)
+    // // 阶段1: _setup 阶段 (早期启动)
     system_setup_hal();
     system_setup_drivers();
     system_setup_middleware();
     system_setup_application();
 
-    // 阶段2: _init 阶段 (主机协议初始化后)
+    // // 阶段2: _init 阶段 (主机协议初始化后)
     system_init_hal();
     system_init_drivers();
     system_init_middleware();

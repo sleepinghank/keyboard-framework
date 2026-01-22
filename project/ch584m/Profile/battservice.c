@@ -13,7 +13,6 @@
 /*********************************************************************
  * INCLUDES
  */
-#include <access.h>
 #include "CONFIG.h"
 #include "hiddev.h"
 #include "battservice.h"
@@ -307,17 +306,17 @@ bStatus_t Batt_MeasLevel(void)
 {
     uint8_t level;
 
-//    level = battMeasure();
-//
-//    // If level has gone down
-//    if(level < battLevel)
-//    {
-//        // Update level
-//        battLevel = level;
+    level = battMeasure();
+
+    // If level has gone down
+    if(level < battLevel)
+    {
+        // Update level
+        battLevel = level;
 
         // Send a notification
-    battNotifyLevel();
-//    }
+        battNotifyLevel();
+    }
 
     return SUCCESS;
 }
@@ -475,7 +474,7 @@ static void battNotifyCB(linkDBItem_t *pLinkItem)
             {
                 noti.handle = battAttrTbl[BATT_LEVEL_VALUE_IDX].handle;
                 noti.len = BATT_LEVEL_VALUE_LEN;
-                noti.pValue[0] = 80;
+                noti.pValue[0] = battLevel;
 
                 if(GATT_Notification(pLinkItem->connectionHandle, &noti, FALSE) != SUCCESS)
                 {
@@ -506,7 +505,7 @@ static uint8_t battMeasure(void)
     }
 
     // Configure ADC and perform a read
-    adc = 400;
+    adc = 300;
     // Call measurement teardown callback
     if(battServiceTeardownCB != NULL)
     {

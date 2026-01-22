@@ -62,7 +62,7 @@ error_code_t OSAL_SetDelayedEvent(uint8_t taskID, uint16_t event, uint32_t time)
  */
 error_code_t OSAL_StartReloadTask(uint8_t taskID, uint16_t event, uint32_t time)
 {
-    uint8_t err = tmos_start_task(taskID, event, time);
+    uint8_t err = tmos_start_reload_task(taskID, event, time);
     if(err == 0) return NO_ERROR;
     else if(err == 0x08)         return ERROR_NO_TIMER_AVAILABLE;//无可用定时器
     else                         return ERROR_EVENT_START_RELOAD_FAILED;//启动自动重载定时事件失败

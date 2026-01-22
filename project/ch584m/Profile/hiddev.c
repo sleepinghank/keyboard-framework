@@ -1,4 +1,4 @@
-/********************************** (C) COPYRIGHT *******************************
+﻿/********************************** (C) COPYRIGHT *******************************
  * File Name          : hiddev.c
  * Author             : WCH
  * Version            : V1.0
@@ -13,22 +13,20 @@
 /*********************************************************************
  * INCLUDES
  */
-#include "CH58x_common.h"
-#include <access.h>
+
 #include "CONFIG.h"
 #include "battservice.h"
-#include "hiddev.h"
 #include "scanparamservice.h"
 #include "devinfoservice.h"
 #include "hidkbd.h"
+#include "hiddev.h"
 
-extern uint8_t centralTaskId;
 /*********************************************************************
  * MACROS
  */
 
 // Battery measurement period in (625us)
-#define DEFAULT_BATT_PERIOD               1600*5
+#define DEFAULT_BATT_PERIOD               15000
 
 // TRUE to run scan parameters refresh notify test
 #define DEFAULT_SCAN_PARAM_NOTIFY_TEST    TRUE
@@ -49,10 +47,7 @@ extern uint8_t centralTaskId;
 // Heart Rate Task Events
 #define START_DEVICE_EVT                  0x0001
 #define BATT_PERIODIC_EVT                 0x0002
-#define START_PARAM_UPDATE_EVT            0x0004
 
-// Param update delay
-#define START_PARAM_UPDATE_EVT_DELAY         160
 /*********************************************************************
  * CONSTANTS
  */
@@ -84,7 +79,7 @@ uint8_t hidDevTaskId;
 static gapRole_States_t hidDevGapState = GAPROLE_INIT;
 
 // TRUE if connection is secure
-uint8_t hidDevConnSecure = FALSE;
+static uint8_t hidDevConnSecure = FALSE;
 
 // GAP connection handle
 static uint16_t gapConnHandle;
@@ -114,7 +109,7 @@ static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
 static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status);
 static void hidDevPasscodeCB(uint8_t *deviceAddr, uint16_t connectionHandle,
                              uint8_t uiInputs, uint8_t uiOutputs);
-void hidDevBattCB(uint8_t event);
+static void hidDevBattCB(uint8_t event);
 static void hidDevScanParamCB(uint8_t event);
 static void hidDevBattPeriodicTask(void);
 
@@ -123,9 +118,9 @@ static hidRptMap_t *hidDevRptById(uint8_t id, uint8_t type);
 static hidRptMap_t *hidDevRptByCccdHandle(uint16_t handle);
 
 static uint8_t hidDevSendReport(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData);
-//static void    hidDevHighAdvertising(void);
-//static void    hidDevLowAdvertising(void);
-//static void    hidDevInitialAdvertising(void);
+static void    hidDevHighAdvertising(void);
+static void    hidDevLowAdvertising(void);
+static void    hidDevInitialAdvertising(void);
 static uint8_t hidDevBondCount(void);
 static uint8_t HidDev_sendNoti(uint16_t handle, uint8_t len, uint8_t *pData);
 /*********************************************************************
@@ -137,7 +132,7 @@ static gapRolesCBs_t hidDev_PeripheralCBs = {
     hidDevGapStateCB, // Profile State Change Callbacks
     NULL,             // When a valid RSSI is read from controller
     hidDevParamUpdateCB
-};//蓝牙协议栈的状态回�?
+};
 
 // Bond Manager Callbacks
 static gapBondCBs_t hidDevBondCB = {
@@ -176,7 +171,7 @@ void HidDev_Init()
         // Device controller's advertising filter policy to 'process scan and
         // connection requests only from devices in the White List'.
         GAPBondMgr_SetParameter(GAPBOND_AUTO_SYNC_WL, sizeof(uint8_t), &syncWL);
-        }
+    }
 
     // Set up services
     GGS_AddService(GATT_ALL_SERVICES);         // GAP
@@ -230,23 +225,10 @@ uint16_t HidDev_ProcessEvent(uint8_t task_id, uint16_t events)
 
     if(events & START_DEVICE_EVT)
     {
-        // Start the Device 把回调函数注册到蓝牙协议�?
+        // Start the Device
         GAPRole_PeripheralStartDevice(hidDevTaskId, &hidDevBondCB, &hidDev_PeripheralCBs);
 
         return (events ^ START_DEVICE_EVT);
-    }
-
-    if(events & START_PARAM_UPDATE_EVT)
-    {
-        // Send connect param update request
-        GAPRole_PeripheralConnParamUpdateReq(hidEmuConnHandle,
-                                             DEFAULT_DESIRED_MIN_CONN_INTERVAL,
-                                             DEFAULT_DESIRED_MAX_CONN_INTERVAL,
-                                             DEFAULT_DESIRED_SLAVE_LATENCY,
-                                             DEFAULT_DESIRED_CONN_TIMEOUT,
-                                             hidDevTaskId);
-        tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*5);
-        return (events ^ START_PARAM_UPDATE_EVT);
     }
 
     if(events & BATT_PERIODIC_EVT)
@@ -270,7 +252,7 @@ uint16_t HidDev_ProcessEvent(uint8_t task_id, uint16_t events)
  *
  * @return  None.
  */
-void HidDev_Register(hidDevCfg_t *pCfg, hidDevCB_t *pCBs)//保存传递进来的回调函数指针
+void HidDev_Register(hidDevCfg_t *pCfg, hidDevCB_t *pCBs)
 {
     pHidDevCB = pCBs;
     pHidDevCfg = pCfg;
@@ -306,11 +288,6 @@ void HidDev_RegisterReports(uint8_t numReports, hidRptMap_t *pRpt)
  */
 uint8_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData)
 {
-//    for(uint8_t i=0; i<len; i++)
-//    {
-//        PRINT("%x ",pData[i] );
-//    }
-//    PRINT(" \n" );
     // if connected
     if(hidDevGapState == GAPROLE_CONNECTED)
     {
@@ -321,22 +298,22 @@ uint8_t HidDev_Report(uint8_t id, uint8_t type, uint8_t len, uint8_t *pData)
             return hidDevSendReport(id, type, len, pData);
         }
     }
-    // else if not already advertising 不开广播
-//    else if(hidDevGapState != GAPROLE_ADVERTISING)
-//    {
-//        // if bonded
-//        if(hidDevBondCount() > 0)
-//        {
-//            // start high duty cycle advertising
-//            hidDevHighAdvertising();
-//        }
-//        // else not bonded
-//        else
-//        {
-//            // start initial advertising
-//            hidDevInitialAdvertising();
-//        }
-//    }
+    // else if not already advertising
+    else if(hidDevGapState != GAPROLE_ADVERTISING)
+    {
+        // if bonded
+        if(hidDevBondCount() > 0)
+        {
+            // start high duty cycle advertising
+            hidDevHighAdvertising();
+        }
+        // else not bonded
+        else
+        {
+            // start initial advertising
+            hidDevInitialAdvertising();
+        }
+    }
     return bleNotReady;
 }
 
@@ -562,13 +539,11 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
     // Make sure it's not a blob operation (no attributes in the profile are long)
     if(offset > 0)
     {
-        PRINT("offset %x\n",offset);
         return (ATT_ERR_ATTR_NOT_LONG);
     }
 
     uuid = BUILD_UINT16(pAttr->type.uuid[0], pAttr->type.uuid[1]);
 
-    PRINT("uuid %x handle %x\n",uuid,pAttr->handle);
     if(uuid == REPORT_UUID ||
        uuid == BOOT_KEY_OUTPUT_UUID)
     {
@@ -585,7 +560,7 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
         // Validate length and value range
         if(len == 1)
         {
-            if((pValue[0] == HID_CMD_SUSPEND) || (pValue[0] == HID_CMD_EXIT_SUSPEND))
+            if(pValue[0] == HID_CMD_SUSPEND || pValue[0] == HID_CMD_EXIT_SUSPEND)
             {
                 // execute HID app event callback
                 (*pHidDevCB->evtCB)((pValue[0] == HID_CMD_SUSPEND) ? HID_DEV_SUSPEND_EVT : HID_DEV_EXIT_SUSPEND_EVT);
@@ -615,10 +590,6 @@ bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                 (*pHidDevCB->reportCB)(pRpt->id, pRpt->type, uuid,
                                        (charCfg == GATT_CLIENT_CFG_NOTIFY) ? HID_DEV_OPER_ENABLE : HID_DEV_OPER_DISABLE,
                                        &len, pValue);
-                if(charCfg == GATT_CLIENT_CFG_NOTIFY)
-                {
-                    tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*10);
-                }
             }
         }
     }
@@ -774,16 +745,15 @@ static void hidDevDisconnected(void)
     hidDevHandleConnStatusCB(gapConnHandle, LINKDB_STATUS_UPDATE_REMOVED);
 
     // Reset state variables
-    // 2023 8 31 修改，改为在应用层断开回调中恢复默认�?
-//    hidDevConnSecure = FALSE;
+    hidDevConnSecure = FALSE;
     hidProtocolMode = HID_PROTOCOL_MODE_REPORT;
 
-//    // if bonded and normally connectable start advertising
-//    if((hidDevBondCount() > 0) &&
-//       (pHidDevCfg->hidFlags & HID_FLAGS_NORMALLY_CONNECTABLE))
-//    {
-//        hidDevLowAdvertising();
-//    }
+    // if bonded and normally connectable start advertising
+    if((hidDevBondCount() > 0) &&
+       (pHidDevCfg->hidFlags & HID_FLAGS_NORMALLY_CONNECTABLE))
+    {
+        hidDevLowAdvertising();
+    }
 }
 
 /*********************************************************************
@@ -797,7 +767,6 @@ static void hidDevDisconnected(void)
  */
 static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 {
-    uint8_t param;
     // if connected
     if(newState == GAPROLE_CONNECTED)
     {
@@ -808,15 +777,6 @@ static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 
         // connection not secure yet
         hidDevConnSecure = FALSE;
-
-        // don't start advertising when connection is closed
-        param = FALSE;
-        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-
-        if((event->connInterval) > DEFAULT_DESIRED_MAX_CONN_INTERVAL)
-        {
-            tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*50);
-        }
     }
     // if disconnected
     else if(hidDevGapState == GAPROLE_CONNECTED &&
@@ -824,13 +784,13 @@ static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
     {
         hidDevDisconnected();
 
-//        if(pairingStatus == SMP_PAIRING_FAILED_CONFIRM_VALUE)
-//        {
-//            // bonding failed due to mismatched confirm values
-//            hidDevInitialAdvertising();
-//
-//            pairingStatus = SUCCESS;
-//        }
+        if(pairingStatus == SMP_PAIRING_FAILED_CONFIRM_VALUE)
+        {
+            // bonding failed due to mismatched confirm values
+            hidDevInitialAdvertising();
+
+            pairingStatus = SUCCESS;
+        }
     }
     // if started
     else if(newState == GAPROLE_STARTED)
@@ -838,7 +798,7 @@ static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
         // nothing to do for now!
     }
 
-    if(pHidDevCB && pHidDevCB->pfnStateChange)//协议栈的回调检查到状态变化，调用应用层的回调，处�?
+    if(pHidDevCB && pHidDevCB->pfnStateChange)
     {
         // execute HID app state change callback
         (*pHidDevCB->pfnStateChange)(newState, pEvent);
@@ -863,13 +823,6 @@ static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
                                 uint16_t connSlaveLatency, uint16_t connTimeout)
 {
     PRINT("Update %d - Int 0x%x - Latency %d\n", connHandle, connInterval, connSlaveLatency);
-    if( connInterval<=DEFAULT_DESIRED_MAX_CONN_INTERVAL )
-    {
-        tmos_stop_task(hidDevTaskId, START_PARAM_UPDATE_EVT);
-    }
-    else {
-        tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*4);
-    }
 }
 
 /*********************************************************************
@@ -881,13 +834,11 @@ static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
  */
 static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status)
 {
-    PRINT("Pair state %x ; led_data %x\n",state,last_led_data);
     if(state == GAPBOND_PAIRING_STATE_COMPLETE)
     {
         if(status == SUCCESS)
         {
             hidDevConnSecure = TRUE;
-            tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
         }
 
         pairingStatus = status;
@@ -896,46 +847,15 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
     {
         if(status == SUCCESS)
         {
-            // 配对连接成功
-            if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
-            {
-                tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
-                tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);
-            }
-            else if(last_led_data == 0xFF)
-            {
-                access_tran_report(REPORT_CMD_STATE, STATE_CONNECTED);
-    //            access_tran_report(REPORT_CMD_BATT_INFO, batt_val);
-            }
             hidDevConnSecure = TRUE;
+
 #if DEFAULT_SCAN_PARAM_NOTIFY_TEST == TRUE
             ScanParam_RefreshNotify(gapConnHandle);
 #endif
-            tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
         }
     }
     else if(state == GAPBOND_PAIRING_STATE_BOND_SAVED)
     {
-        // 配对连接成功
-        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
-        {
-            tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
-            tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);
-        }
-        else if(last_led_data == 0xFF)
-        {
-            access_tran_report(REPORT_CMD_STATE, STATE_CONNECTED);
-//            access_tran_report(REPORT_CMD_BATT_INFO, batt_val);
-        }
-        hidEmu_save_ble_bonded(access_state.pairing_state);
-        access_state.pairing_state = FALSE;
-        tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
-        //启动系统识别
-        if(status == SUCCESS)
-        {
-            tmos_start_task(centralTaskId, START_SVC_DISCOVERY_EVT, 1600);
-            PRINT("Bond save success\n");
-        }
     }
 }
 
@@ -978,7 +898,7 @@ static void hidDevPasscodeCB(uint8_t *deviceAddr, uint16_t connectionHandle,
  *
  * @return  none
  */
-void hidDevBattCB(uint8_t event)
+static void hidDevBattCB(uint8_t event)
 {
     if(event == BATT_LEVEL_NOTI_ENABLED)
     {
@@ -1123,11 +1043,10 @@ static uint8_t hidDevSendReport(uint8_t id, uint8_t type, uint8_t len, uint8_t *
         // if notifications are enabled
         if((pAttr = GATT_FindHandle(pRpt->cccdHandle, &retHandle)) != NULL)
         {
-            // 不够存了，直接开�?
-//            uint16_t value;
-//
-//            value = GATTServApp_ReadCharCfg(gapConnHandle, (gattCharCfg_t *)pAttr->pValue);
-//            if(value & GATT_CLIENT_CFG_NOTIFY)
+            uint16_t value;
+
+            value = GATTServApp_ReadCharCfg(gapConnHandle, (gattCharCfg_t *)pAttr->pValue);
+            if(value & GATT_CLIENT_CFG_NOTIFY)
             {
                 // Send report notification
                 state = HidDev_sendNoti(pRpt->handle, len, pData);
@@ -1164,7 +1083,6 @@ static uint8_t HidDev_sendNoti(uint16_t handle, uint8_t len, uint8_t *pData)
         status = GATT_Notification(gapConnHandle, &noti, FALSE);
         if(status != SUCCESS)
         {
-//            PRINT("Noti err %x\n",status);
             GATT_bm_free((gattMsg_t *)&noti, ATT_HANDLE_VALUE_NOTI);
         }
     }
@@ -1176,66 +1094,66 @@ static uint8_t HidDev_sendNoti(uint16_t handle, uint8_t len, uint8_t *pData)
     return status;
 }
 
-///*********************************************************************
-// * @fn      hidDevHighAdvertising
-// *
-// * @brief   Start advertising at a high duty cycle.
-//
-// * @param   None.
-// *
-// * @return  None.
-// */
-//static void hidDevHighAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_HIGH_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_HIGH_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_HIGH_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
+/*********************************************************************
+ * @fn      hidDevHighAdvertising
+ *
+ * @brief   Start advertising at a high duty cycle.
 
-///*********************************************************************
-// * @fn      hidDevLowAdvertising
-// *
-// * @brief   Start advertising at a low duty cycle.
-// *
-// * @param   None.
-// *
-// * @return  None.
-// */
-//static void hidDevLowAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_LOW_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_LOW_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_LOW_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
+ * @param   None.
+ *
+ * @return  None.
+ */
+static void hidDevHighAdvertising(void)
+{
+    uint8_t param;
 
-///*********************************************************************
-// * @fn      hidDevInitialAdvertising
-// *
-// * @brief   Start advertising for initial connection
-// *
-// * @return  None.
-// */
-//static void hidDevInitialAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_INITIAL_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_INITIAL_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_INITIAL_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_HIGH_ADV_INT_MIN);
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_HIGH_ADV_INT_MAX);
+    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_HIGH_ADV_TIMEOUT);
+
+    param = TRUE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
+}
+
+/*********************************************************************
+ * @fn      hidDevLowAdvertising
+ *
+ * @brief   Start advertising at a low duty cycle.
+ *
+ * @param   None.
+ *
+ * @return  None.
+ */
+static void hidDevLowAdvertising(void)
+{
+    uint8_t param;
+
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_LOW_ADV_INT_MIN);
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_LOW_ADV_INT_MAX);
+    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_LOW_ADV_TIMEOUT);
+
+    param = TRUE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
+}
+
+/*********************************************************************
+ * @fn      hidDevInitialAdvertising
+ *
+ * @brief   Start advertising for initial connection
+ *
+ * @return  None.
+ */
+static void hidDevInitialAdvertising(void)
+{
+    uint8_t param;
+
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_INITIAL_ADV_INT_MIN);
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_INITIAL_ADV_INT_MAX);
+    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_INITIAL_ADV_TIMEOUT);
+
+    param = TRUE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
+}
 
 /*********************************************************************
  * @fn      hidDevBondCount

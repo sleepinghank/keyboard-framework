@@ -15,6 +15,8 @@
 #include "system_init.h"
 #include "sys_config.h"
 #include "debug.h"
+
+
 /**
  * @brief 主函数 - 系统启动入口
  * @return int (通常不会返回)
@@ -29,7 +31,7 @@ int main(void)
 #endif
         return init_result;
     }
-    dprint("System initialized successfully.\r\n");
+    dprint("System initialized successfully");
     
     // 最后的时间循环器
     OSAL_SystemProcess();

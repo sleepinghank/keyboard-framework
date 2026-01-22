@@ -26,21 +26,13 @@ extern "C" {
  */
 
 // Number of HID reports defined in the service
-#define HID_NUM_REPORTS        12
+#define HID_NUM_REPORTS        7
 
 // HID Report IDs for the service
-#define HID_RPT_ID_SYS_CTL_IN           1                      // Mouse input report ID
-#define HID_RPT_ID_CLASS_KEY_IN         2                      // Keyboard input report ID
-#define HID_RPT_ID_LED_OUT              2                      // LED output report ID
-#define HID_RPT_ID_MOUSE_IN             3                      // Mouse input report ID
-
-#define HID_RPT_ID_TOUCHPAD_IN          3                      // Touchpad input report ID
-#define HID_RPT_ID_TOUCHPAD_FEATURE     7
-#define HID_RPT_ID_CONSUMER_IN          8                      // Mouse input report ID
-#define HID_RPT_ID_SMART_WHEEL_IN       9                      // Mouse input report ID
-#define HID_RPT_ID_ALL_KEY_IN           5                       // Mouse input report ID
-#define HID_RPT_ID_FEATURE              6                      // Feature report ID
-#define HID_RPT_ID_FN_IN                0x11                       // FN input report ID
+#define HID_RPT_ID_KEY_IN      0                      // Keyboard input report ID
+#define HID_RPT_ID_MOUSE_IN    1                      // Mouse input report ID
+#define HID_RPT_ID_LED_OUT     0                      // LED output report ID
+#define HID_RPT_ID_FEATURE     0                      // Feature report ID
 
 // HID feature flags
 #define HID_FEATURE_FLAGS      HID_FLAGS_REMOTE_WAKE

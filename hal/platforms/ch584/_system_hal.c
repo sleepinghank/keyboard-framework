@@ -9,11 +9,14 @@
 #include "system_hal.h"
 #include "CH58x_common.h"
 #include "_pin_defs.h"
+#include "pwm.h"
+#include "uart.h"
 
 /* 模块初始化标志 */
 static bool g_system_initialized = false;
-
-
+#define BLE_MEMHEAP_SIZE                    (1024*8)
+__attribute__((__aligned__(4))) uint32_t MEM_BUF[BLE_MEMHEAP_SIZE / 4];
+// #define BLE_SNV_ADDR                        0x77800-FLASH_ROM_MAX_SIZE
 /**
  * @brief 系统HAL层初始化
  */
@@ -41,6 +44,37 @@ system_result_t system_hal_init(void)
     R32_PB_PU |= 0xFFF7F3FF;//上拉使能，除了usb的引脚PB11,PB10,去掉PB19
 
     g_system_initialized = true;
+    // PWM 示例配置（可选）
+    // GPIOB_ModeCfg(GPIO_Pin_14, GPIO_ModeOut_PP_5mA); // PB14 - PWM10
+    // PWMX_CLKCfg(4);                                   // cycle = 4/Fsys
+    // PWMX_CycleCfg(PWMX_Cycle_64);                     // 周期 = 64*cycle
+    // PWMX_ACTOUT(CH_PWM10, 64 / 4, Low_Level, ENABLE); // 25% 占空比
+
+    // 串口示例配置
+    // GPIOPinRemap(ENABLE,RB_PIN_UART1);//串口带"_"的是映射引脚需要开启
+    // GPIOB_SetBits( GPIO_Pin_13 );
+    // GPIOB_ModeCfg( GPIO_Pin_13, GPIO_ModeOut_PP_5mA );
+    // UART1_DefInit( );
+    // UART1_BaudRateCfg( 115200 );
+    // PRINT("1");
+
+    // pwm_init();
+    // pwm_bind_pin(B14, CH_PWM_10);
+    // pwm_set_duty_cycle(CH_PWM_10, 25);  //
+    // pwm_start(CH_PWM_10);
+    
+    // 串口封装接口配置: UART1 仅发送模式，TX=PB13，波特率115200
+
+
+
+    // PRINT("System HAL Init OK!\n");
+    DelayUs(1);
+	CH58x_BLEInit();
+	HAL_Init();
+    // GAPRole_PeripheralInit();
+    // HidDev_Init();
+    // HidEmu_Init();
+    // PRINT("main-----\n");
     return SYSTEM_OK;
 }
 

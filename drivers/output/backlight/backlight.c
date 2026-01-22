@@ -22,7 +22,7 @@
 #include "backlight.h"
 #include "backlight_hal.h"
 #include "backlight_config.h"
-
+#include "string.h"
 /* ============ 预设颜色表 ============ */
 
 static const bl_rgb_t preset_colors[BL_COLOR_COUNT] = {

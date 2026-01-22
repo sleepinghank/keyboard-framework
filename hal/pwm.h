@@ -32,6 +32,14 @@ typedef enum {
     PWM_CHANNEL_ALL = 0xFF       /* 所有通道 */
 } pwm_channel_t;
 
+#define CH_PWM_4 PWM_CHANNEL_0
+#define CH_PWM_5 PWM_CHANNEL_1
+#define CH_PWM_6 PWM_CHANNEL_2
+#define CH_PWM_7 PWM_CHANNEL_3
+#define CH_PWM_8 PWM_CHANNEL_4
+#define CH_PWM_9 PWM_CHANNEL_5
+#define CH_PWM_10 PWM_CHANNEL_6
+#define CH_PWM_11 PWM_CHANNEL_7
 /* PWM操作函数 */
 
 /*********************************************************************

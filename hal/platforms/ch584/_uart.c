@@ -19,7 +19,7 @@
 #include "pin_mapper.h"
 #include <stdbool.h>
 #include <stdint.h>
-
+#include "debug.h"
 /* CH584 UART标准外设库头文件 */
 #include "CH58x_uart.h"
 
@@ -211,7 +211,7 @@ error_code_t platform_uart_init(platform_uart_t uart, uint32_t baudrate, uint8_t
             UART0_BaudRateCfg(baudrate);
             break;
         case 1:
-            UART1_DefInit( );
+            UART1_DefInit();
             UART1_BaudRateCfg(baudrate);
             break;
         case 2:
@@ -227,74 +227,74 @@ error_code_t platform_uart_init(platform_uart_t uart, uint32_t baudrate, uint8_t
     }
 
     /* 配置FIFO和中断 */
-    uint8_t fcr_value = (2 << 6) | RB_FCR_FIFO_EN;  /* 触发点4字节 */
+    // uint8_t fcr_value = (2 << 6) | RB_FCR_FIFO_EN;  /* 触发点4字节 */
 
-    /* 根据RX/TX使能情况设置FIFO */
-    if (uart_channels[uart].rx_enabled && uart_channels[uart].tx_enabled) {
-        fcr_value |= RB_FCR_TX_FIFO_CLR | RB_FCR_RX_FIFO_CLR;
-    } else if (uart_channels[uart].tx_enabled) {
-        fcr_value |= RB_FCR_TX_FIFO_CLR;
-    } else if (uart_channels[uart].rx_enabled) {
-        fcr_value |= RB_FCR_RX_FIFO_CLR;
-    }
+    // /* 根据RX/TX使能情况设置FIFO */
+    // if (uart_channels[uart].rx_enabled && uart_channels[uart].tx_enabled) {
+    //     fcr_value |= RB_FCR_TX_FIFO_CLR | RB_FCR_RX_FIFO_CLR;
+    // } else if (uart_channels[uart].tx_enabled) {
+    //     fcr_value |= RB_FCR_TX_FIFO_CLR;
+    // } else if (uart_channels[uart].rx_enabled) {
+    //     fcr_value |= RB_FCR_RX_FIFO_CLR;
+    // }
 
-    /* 配置UART寄存器（使用默认的8N1模式） */
-    switch (uart_num) {
-        case 0:
-            R8_UART0_FCR = fcr_value;
-            R8_UART0_LCR = RB_LCR_WORD_SZ;
-            R8_UART0_DIV = 1;
+    // /* 配置UART寄存器（使用默认的8N1模式） */
+    // switch (uart_num) {
+    //     case 0:
+    //         R8_UART0_FCR = fcr_value;
+    //         R8_UART0_LCR = RB_LCR_WORD_SZ;
+    //         R8_UART0_DIV = 1;
 
-            /* 配置中断 */
-            if (enable_interrupt && uart_channels[uart].rx_enabled) {
-                UART0_ByteTrigCfg(UART_1BYTE_TRIG);
-                UART0_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
-                PFIC_EnableIRQ(UART0_IRQn);
-            }
-            break;
+    //         /* 配置中断 */
+    //         if (enable_interrupt && uart_channels[uart].rx_enabled) {
+    //             UART0_ByteTrigCfg(UART_1BYTE_TRIG);
+    //             UART0_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
+    //             PFIC_EnableIRQ(UART0_IRQn);
+    //         }
+    //         break;
 
-        case 1:
-            R8_UART1_FCR = fcr_value;
-            R8_UART1_LCR = RB_LCR_WORD_SZ;
-            R8_UART1_DIV = 1;
+    //     case 1:
+    //         R8_UART1_FCR = fcr_value;
+    //         R8_UART1_LCR = RB_LCR_WORD_SZ;
+    //         R8_UART1_DIV = 1;
 
-            /* 配置中断 */
-            if (enable_interrupt && uart_channels[uart].rx_enabled) {
-                UART1_ByteTrigCfg(UART_1BYTE_TRIG);
-                UART1_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
-                PFIC_EnableIRQ(UART1_IRQn);
-            }
-            break;
+    //         /* 配置中断 */
+    //         if (enable_interrupt && uart_channels[uart].rx_enabled) {
+    //             UART1_ByteTrigCfg(UART_1BYTE_TRIG);
+    //             UART1_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
+    //             PFIC_EnableIRQ(UART1_IRQn);
+    //         }
+    //         break;
 
-        case 2:
-            R8_UART2_FCR = fcr_value;
-            R8_UART2_LCR = RB_LCR_WORD_SZ;
-            R8_UART2_DIV = 1;
+    //     case 2:
+    //         R8_UART2_FCR = fcr_value;
+    //         R8_UART2_LCR = RB_LCR_WORD_SZ;
+    //         R8_UART2_DIV = 1;
 
-            /* 配置中断 */
-            if (enable_interrupt && uart_channels[uart].rx_enabled) {
-                UART2_ByteTrigCfg(UART_1BYTE_TRIG);
-                UART2_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
-                PFIC_EnableIRQ(UART2_IRQn);
-            }
-            break;
+    //         /* 配置中断 */
+    //         if (enable_interrupt && uart_channels[uart].rx_enabled) {
+    //             UART2_ByteTrigCfg(UART_1BYTE_TRIG);
+    //             UART2_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
+    //             PFIC_EnableIRQ(UART2_IRQn);
+    //         }
+    //         break;
 
-        case 3:
-            R8_UART3_FCR = fcr_value;
-            R8_UART3_LCR = RB_LCR_WORD_SZ;
-            R8_UART3_DIV = 1;
+    //     case 3:
+    //         R8_UART3_FCR = fcr_value;
+    //         R8_UART3_LCR = RB_LCR_WORD_SZ;
+    //         R8_UART3_DIV = 1;
 
-            /* 配置中断 */
-            if (enable_interrupt && uart_channels[uart].rx_enabled) {
-                UART3_ByteTrigCfg(UART_1BYTE_TRIG);
-                UART3_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
-                PFIC_EnableIRQ(UART3_IRQn);
-            }
-            break;
+    //         /* 配置中断 */
+    //         if (enable_interrupt && uart_channels[uart].rx_enabled) {
+    //             UART3_ByteTrigCfg(UART_1BYTE_TRIG);
+    //             UART3_INTCfg(ENABLE, RB_IER_RECV_RDY | RB_IER_LINE_STAT);
+    //             PFIC_EnableIRQ(UART3_IRQn);
+    //         }
+    //         break;
 
-        default:
-            return ERROR_UART_INVALID_PORT;
-    }
+    //     default:
+    //         return ERROR_UART_INVALID_PORT;
+    // }
 
     return NO_ERROR;
 }

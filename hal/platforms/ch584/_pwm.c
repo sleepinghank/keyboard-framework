@@ -20,7 +20,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
-
+#include "debug.h"
 /* CH584 标准外设库头文件 */
 #include "CH58x_pwm.h"
 #include "CH58x_gpio.h"
@@ -40,7 +40,7 @@ typedef struct {
 static pwm_channel_state_t pwm_channels[8] = {0};
 
 /* 当前PWM配置状态 */
-static uint32_t g_pwm_frequency = 1000;  /* 默认1KHz */
+static uint32_t g_pwm_frequency = 2000;  /* 默认1KHz */
 static uint8_t g_pwm_divider = 4;        /* 默认时钟分频 */
 static PWMX_CycleTypeDef g_pwm_cycle = PWMX_Cycle_64;  /* 默认64周期 */
 
@@ -96,35 +96,35 @@ static PWMX_CycleTypeDef calculate_pwm_cycle(uint32_t frequency) {
  * @param channel PWM通道
  */
 static void update_pwm_hardware(pwm_channel_t channel) {
-    uint8_t ch584_ch = hal_to_ch584_channel(channel);
+    // uint8_t ch584_ch = hal_to_ch584_channel(channel);
 
     /* 遍历所有设置的通道 */
     for (int i = 0; i < 8; i++) {
         if (channel & (1 << i)) {
             /* 获取CH584通道对应的掩码 */
-            uint8_t ch584_bit = (1 << (i + 4));  /* PWM_CHANNEL_0对应CH_PWM4 (bit 4) */
+            // uint8_t ch584_bit = (1 << (i + 4));  /* PWM_CHANNEL_0对应CH_PWM4 (bit 4) */
 
             /* 计算占空比数据 */
             uint16_t duty_data;
-            if (g_pwm_frequency <= 10000) {  /* 对于低频，使用16位精度 */
-                /* 16位模式下的占空比计算 */
-                uint32_t period_cycles = 1;
-                switch (g_pwm_cycle) {
-                    case PWMX_Cycle_256: period_cycles = 256; break;
-                    case PWMX_Cycle_255: period_cycles = 255; break;
-                    case PWMX_Cycle_128: period_cycles = 128; break;
-                    case PWMX_Cycle_127: period_cycles = 127; break;
-                    case PWMX_Cycle_64:  period_cycles = 64; break;
-                    case PWMX_Cycle_63:  period_cycles = 63; break;
-                    default: period_cycles = 64; break;
-                }
-                duty_data = (pwm_channels[i].duty_cycle * period_cycles) / 100;
-
-                /* 使用16位输出配置 */
-                PWMX_16bit_ACTOUT(ch584_bit, duty_data,
-                                  pwm_channels[i].polarity ? Low_Level : High_Level,
-                                  pwm_channels[i].enabled ? ENABLE : DISABLE);
-            } else {  /* 对于高频，使用8位精度 */
+            // if (g_pwm_frequency <= 10000) {  /* 对于低频，使用16位精度 */
+            //     /* 16位模式下的占空比计算 */
+            //     uint32_t period_cycles = 1;
+            //     switch (g_pwm_cycle) {
+            //         case PWMX_Cycle_256: period_cycles = 256; break;
+            //         case PWMX_Cycle_255: period_cycles = 255; break;
+            //         case PWMX_Cycle_128: period_cycles = 128; break;
+            //         case PWMX_Cycle_127: period_cycles = 127; break;
+            //         case PWMX_Cycle_64:  period_cycles = 64; break;
+            //         case PWMX_Cycle_63:  period_cycles = 63; break;
+            //         default: period_cycles = 64; break;
+            //     }
+            //     duty_data = (pwm_channels[i].duty_cycle * period_cycles) / 100;
+            //     dprintf("PWM Channel %d: Setting 16-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
+            //     /* 使用16位输出配置 */
+            //     PWMX_16bit_ACTOUT(channel, duty_data,
+            //                       pwm_channels[i].polarity ? Low_Level : High_Level,
+            //                       pwm_channels[i].enabled ? ENABLE : DISABLE);
+            // } else {  /* 对于高频，使用8位精度 */
                 /* 8位模式下的占空比计算 */
                 uint32_t period_cycles = 1;
                 switch (g_pwm_cycle) {
@@ -137,12 +137,12 @@ static void update_pwm_hardware(pwm_channel_t channel) {
                     default: period_cycles = 64; break;
                 }
                 duty_data = (pwm_channels[i].duty_cycle * period_cycles) / 100;
-
+                dprintf("PWM Channel %d: Setting 8-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
                 /* 使用8位输出配置 */
-                PWMX_ACTOUT(ch584_bit, (uint8_t)duty_data,
+                PWMX_ACTOUT(channel, (uint8_t)duty_data,
                            pwm_channels[i].polarity ? Low_Level : High_Level,
                            pwm_channels[i].enabled ? ENABLE : DISABLE);
-            }
+            // }
         }
     }
 }
@@ -192,13 +192,15 @@ void pwm_init(void) {
     }
 
     /* 配置默认PWM参数 */
-    g_pwm_frequency = 1000;
+    g_pwm_frequency =2000;
     g_pwm_divider = 4;
     g_pwm_cycle = PWMX_Cycle_64;
 
     /* 配置PWM硬件 */
     PWMX_CLKCfg(g_pwm_divider);
     PWMX_CycleCfg(g_pwm_cycle);
+    dprintf("PWM initialized with frequency: %d Hz, divider: %d, cycle: %d\n",
+            g_pwm_frequency, g_pwm_divider, g_pwm_cycle);
 }
 
 void pwm_start(pwm_channel_t channel) {
@@ -419,6 +421,7 @@ bool pwm_bind_pin(pin_t pin, pwm_channel_t channel) {
     /* 查找第一个设置的通道位 */
     for (i = 0; i < 8; i++) {
         if (channel & (1 << i)) {
+            dprintf("1");
             /* 检查此引脚是否已绑定到其他通道 */
             int j;
             for (j = 0; j < 8; j++) {
@@ -429,7 +432,7 @@ bool pwm_bind_pin(pin_t pin, pwm_channel_t channel) {
 
             /* 将引脚绑定到此通道 */
             pwm_channels[i].pin = pin;
-
+            dprintf("pin:%d",pin);
             /* 配置GPIO引脚为PWM输出（推挽输出，最大5mA） */
             if (pin != NO_PIN) {
                 uint8_t port = GET_GPIO_PORT(pin);  /* 获取端口号：0=PORTA, 1=PORTB */
@@ -441,8 +444,10 @@ bool pwm_bind_pin(pin_t pin, pwm_channel_t channel) {
                 if (gpio_pin_mask != 0) {
                     /* 根据端口号配置GPIO */
                     if (port == 0) {  /* PORTA */
+                        dprintf("Configuring PORTA pin %d for PWM\n", gpio_pin_mask);
                         GPIOA_ModeCfg(gpio_pin_mask, GPIO_ModeOut_PP_5mA);
                     } else if (port == 1) {  /* PORTB */
+                        dprintf("Configuring PORTB pin %d for PWM\n", gpio_pin_mask);
                         GPIOB_ModeCfg(gpio_pin_mask, GPIO_ModeOut_PP_5mA);
                     }
                 }
