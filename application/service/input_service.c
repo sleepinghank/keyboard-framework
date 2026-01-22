@@ -6,6 +6,7 @@
 #include "battery.h"
 #include "indicator.h"
 #include "system_service.h"
+#include "hw_timer.h"
 
 /* 低电量阈值 */
 #ifndef LOW_BATTERY_THRESHOLD
@@ -26,6 +27,46 @@ extern "C" {
 #endif
 
 uint8_t input_taskID = 0;
+
+/*==========================================
+ * 矩阵扫描定时器回调
+ *=========================================*/
+
+/**
+ * @brief 硬件定时器回调函数
+ *        在定时器中断中被调用，触发 OSAL 事件
+ * @param timer_id 定时器 ID
+ */
+static void matrix_scan_timer_callback(hw_timer_id_t timer_id)
+{
+    (void)timer_id;  /* 避免未使用参数警告 */
+    /* 触发矩阵扫描事件，由 OSAL 主循环处理 */
+    OSAL_SetEvent(input_taskID, INPUT_MATRIX_SCAN_EVT);
+}
+
+/*==========================================
+ * 矩阵扫描定时器接口实现
+ *=========================================*/
+
+/**
+ * @brief 启动矩阵扫描定时器
+ * @return error_code_t 错误码
+ */
+error_code_t matrix_scan_timer_start(void)
+{
+    return hw_timer_start(MATRIX_SCAN_TIMER_ID,
+                          MATRIX_SCAN_INTERVAL_MS,
+                          matrix_scan_timer_callback);
+}
+
+/**
+ * @brief 停止矩阵扫描定时器
+ * @return error_code_t 错误码
+ */
+error_code_t matrix_scan_timer_stop(void)
+{
+    return hw_timer_stop(MATRIX_SCAN_TIMER_ID);
+}
 
 /**
  * @brief 输入服务事件处理器
@@ -74,7 +115,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
             // 电量极低，触发关机事件
             println("Input: Critical battery, triggering shutdown");
             extern uint8_t system_taskID;
-            OSAL_MsgSend(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
+            OSAL_SetEvent(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
         } else if (battery_level <= LOW_BATTERY_THRESHOLD) {
             // 低电量警告，闪烁指示灯
             println("Input: Low battery warning");
@@ -92,13 +133,13 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
  * @brief 输入服务初始化
  */
 void input_service_init(void) {
-    // 注册任务并获取任务ID
+    /* 注册任务并获取任务ID */
     input_taskID = OSAL_ProcessEventRegister(input_process_event);
 
-    // 启动矩阵扫描循环任务
-    // OSAL_StartReloadTask(input_taskID, INPUT_MATRIX_SCAN_EVT, MATRIX_SCAN_TIMER);
+    /* 启动硬件定时器驱动的矩阵扫描 */
+    matrix_scan_timer_start();
 
-    // // 启动电量检测定时任务
+    /* 启动电量检测定时任务 */
     // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
 }
 

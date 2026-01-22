@@ -21,7 +21,7 @@ uint8_t OSAL_ProcessEventRegister(osal_task_event_handler_t eventCb);
  * @param   msg_ptr - 消息指针
  * @return  NO_ERROR - 成功, 其他值 - 错误
  */
-error_code_t OSAL_MsgSend(uint8_t taskID, uint16_t event);
+error_code_t OSAL_SetEvent(uint8_t taskID, uint16_t event);
 /**
  * @brief   清除事件
  * @param   taskID - 任务ID

@@ -349,7 +349,7 @@ void HidEmu_Init()
     GATT_RegisterForInd(centralTaskId);
 
     // Setup a delayed profile startup
-    OSAL_MsgSend(hidEmuTaskId, START_DEVICE_EVT);
+    OSAL_SetEvent(hidEmuTaskId, START_DEVICE_EVT);
 }
 
 /*********************************************************************

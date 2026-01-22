@@ -40,8 +40,8 @@ uint8_t OSAL_ProcessEventRegister(osal_task_event_handler_t eventCb) {
  * @param   msg_ptr - 消息指针
  * @return  NO_ERROR - 成功, 其他值 - 错误
  */
-error_code_t OSAL_MsgSend(uint8_t taskID, uint16_t event) {
-    EVENT_MANAGER_DEBUG_PRINT("OSAL_MsgSend called with taskID = %d, event = 0x%04X", taskID, event);
+error_code_t OSAL_SetEvent(uint8_t taskID, uint16_t event) {
+    EVENT_MANAGER_DEBUG_PRINT("OSAL_SetEvent called with taskID = %d, event = 0x%04X", taskID, event);
     // 测试实现：返回成功
     return 0;
 }

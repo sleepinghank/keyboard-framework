@@ -83,7 +83,7 @@ uint16_t output_process_event(uint8_t task_id, uint16_t events) {
 
     //         // 如果发送失败且缓冲区非空，重新调度发送事件
     //         if (result != 0 && !report_buffer_is_empty()) {
-    //             OSAL_MsgSend(output_taskID, OUTPUT_SEND_HID_KEYBOARD_EVT);
+    //             OSAL_SetEvent(output_taskID, OUTPUT_SEND_HID_KEYBOARD_EVT);
     //         }
     //     }
     //     events ^= OUTPUT_SEND_HID_KEYBOARD_EVT;

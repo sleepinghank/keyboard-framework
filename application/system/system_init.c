@@ -43,6 +43,7 @@
 #include "pwm.h"
 #include "adc.h"
 #include "system_hal.h"
+#include "hw_timer.h"
 
 // ch584
 #include "CONFIG.h"
@@ -123,6 +124,10 @@ void system_init_hal(void) {
     // pwm_init();
     platform_uart_bind_pins(NO_PIN, B13, PLATFORM_UART_1);
     platform_uart_init(PLATFORM_UART_1, 115200, 0);
+
+    // 硬件定时器初始化
+    hw_timer_init();
+
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
@@ -171,7 +176,7 @@ void system_init_application(void) {
     // 应用层初始化阶段
     // 初始化各应用服务
     // system_service_init();
-    // input_service_init();
+    input_service_init();   // 启动矩阵扫描定时器
     output_service_init();
     // commu_service_init();
 

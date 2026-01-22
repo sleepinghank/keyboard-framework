@@ -17,7 +17,7 @@ uint8_t OSAL_ProcessEventRegister(osal_task_event_handler_t eventCb)
  * @param   event - 事件值
  * @return  NO_ERROR - 成功，其他值 - 错误
  */
-error_code_t OSAL_MsgSend(uint8_t taskID, uint16_t event)
+error_code_t OSAL_SetEvent(uint8_t taskID, uint16_t event)
 { 
    uint8_t err = tmos_set_event(taskID, event);
    if(err == 0) return NO_ERROR;

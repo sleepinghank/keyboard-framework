@@ -137,7 +137,7 @@ void commu_service_init(void) {
     commu_taskID = OSAL_ProcessEventRegister(commu_process_event);
 
     // 启动无线模块初始化事件
-    OSAL_MsgSend(commu_taskID, WL_INIT_EVT);
+    OSAL_SetEvent(commu_taskID, WL_INIT_EVT);
 
     // TODO: 根据配置启动相应的定时任务
     // 例如：启动广播检测、连接状态监控等
