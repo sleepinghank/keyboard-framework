@@ -1,229 +1,134 @@
-/*
- * Copyright (C) 2024 Keyboard Framework
- * SPDX-License-Identifier: GPL-3.0-or-later
- */
-
+// middleware/keyboard/keyboard.c
 #include "keyboard.h"
+#include "keymap.h"
 #include "matrix.h"
 #include "debounce.h"
-#include "action_layer.h"
-#include "action.h"
-#include "keymap_common.h"
-#include "combo.h"
-#include "custom_function.h"
-#include "timer.h"
-#include "print.h"
-#include "debug.h"
+#include "report.h"
+#include "report_buffer.h"
+#include "keycode.h"
 #include <string.h>
-#include "keymap_introspection.h"
-#include "event_manager.h"
-// Matrix state tracking
-static matrix_row_t matrix_previous[MATRIX_ROWS] = {0};
-static bool matrix_has_changed = false;
 
-/**
- * @brief Initialize keyboard system
- */
+// 按键列表（供 process_combo.c 使用）
+list_t* _key_code_list = NULL;
+list_t* _key_code_list_extend = NULL;
+
+// 上一次矩阵状态（防抖后）
+static matrix_row_t matrix_previous[MATRIX_ROWS];
+
+// 当前防抖后的矩阵状态
+static matrix_row_t matrix_debounced[MATRIX_ROWS];
+
+// 上一次更新状态
+static key_update_st_t last_update_state = NO_KEY_UPDATE;
+
+// 内部函数声明
+static key_update_st_t scan_and_debounce(void);
+static void update_key_code_list(void);
+
 void keyboard_init(void) {
-    dprintf("Keyboard: Initializing...\n");
-
-    // Initialize debounce
-    debounce_init(MATRIX_ROWS);
-
-    #ifdef COMBO_ENABLE
-    // Initialize combo system
-    combo_init();
-    #endif
-
-    // Initialize custom functions
-    #if TAP_DANCE_ENABLE
-    tap_dance_init();
-    #endif
-
-    #if LEADER_KEY_ENABLE
-    leader_init();
-    #endif
-
-    #if MACRO_ENABLE
-    macro_init();
-    #endif
-
-    // Initialize matrix (hardware-specific)
+    // 初始化矩阵
     matrix_init();
 
-    dprintf("Keyboard: Initialization complete\n");
-}
-static matrix_row_t get_real_keys(uint8_t row, matrix_row_t rowdata) {
-    matrix_row_t out = 0;
-    for (uint8_t col = 0; col < MATRIX_COLS; col++) {
-        // read each key in the row data and check if the keymap defines it as a real key
-        if (keycode_at_keymap_location(0, row, col) && (rowdata & (((matrix_row_t)1) << col))) {
-            // this creates new row data, if a key is defined in the keymap, it will be set here
-            out |= ((matrix_row_t)1) << col;
-        }
-    }
-    return out;
-}
+    // 初始化防抖
+    debounce_init(MATRIX_ROWS);
 
-static inline bool popcount_more_than_one(matrix_row_t rowdata) {
-    rowdata &= rowdata - 1; // if there are less than two bits (keys) set, rowdata will become zero
-    return rowdata;
-}
+    // 初始化层级
+    keymap_init();
 
-static inline bool has_ghost_in_row(uint8_t row, matrix_row_t rowdata) {
-    /* No ghost exists when less than 2 keys are down on the row.
-    If there are "active" blanks in the matrix, the key can't be pressed by the user,
-    there is no doubt as to which keys are really being pressed.
-    The ghosts will be ignored, they are KC_NO.   */
-    rowdata = get_real_keys(row, rowdata);
-    if ((popcount_more_than_one(rowdata)) == 0) {
-        return false;
-    }
-    /* Ghost occurs when the row shares a column line with other row,
-    and two columns are read on each row. Blanks in the matrix don't matter,
-    so they are filtered out.
-    If there are two or more real keys pressed and they match columns with
-    at least two of another row's real keys, the row will be ignored. Keep in mind,
-    we are checking one row at a time, not all of them at once.
-    */
-    for (uint8_t i = 0; i < MATRIX_ROWS; i++) {
-        if (i != row && popcount_more_than_one(get_real_keys(i, matrix_get_row(i)) & rowdata)) {
-            return true;
-        }
-    }
-    return false;
+    // 初始化链表
+    _key_code_list = make_list_proc();
+    _key_code_list_extend = make_list_proc();
+
+    // 初始化组合键
+    combo_init();
+
+    // 初始化报告
+    report_init();
+
+    // 清空矩阵状态
+    memset(matrix_previous, 0, sizeof(matrix_previous));
+    memset(matrix_debounced, 0, sizeof(matrix_debounced));
 }
 
-/**
- * @brief This task scans the keyboards matrix and processes any key presses
- * that occur.
- *
- * @return true Matrix did change
- * @return false Matrix didn't change
- */
-static bool matrix_task(void) {
-//    if (!matrix_can_read()) {
-////        generate_tick_event();
-//        return false;
-//    }
-
-    static matrix_row_t matrix_previous[MATRIX_ROWS];
-
-    matrix_scan();
-    bool matrix_changed = false;
-    for (uint8_t row = 0; row < MATRIX_ROWS && !matrix_changed; row++) {
-        matrix_changed |= matrix_previous[row] ^ matrix_get_row(row);
-    }
-
-//    matrix_scan_perf_task();
-
-    // Short-circuit the complete matrix processing if it is not necessary
-    if (!matrix_changed) {
-//        generate_tick_event();
-        return matrix_changed;
-    }
-
-    if (debug_config.matrix) {
-        matrix_print();
-    }
-
-
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        const matrix_row_t current_row = matrix_get_row(row);
-        const matrix_row_t row_changes = current_row ^ matrix_previous[row];
-
-        if (!row_changes || has_ghost_in_row(row, current_row)) {
-            continue;
-        }
-
-        matrix_row_t col_mask = 1;
-        for (uint8_t col = 0; col < MATRIX_COLS; col++, col_mask <<= 1) {
-            if (row_changes & col_mask) {
-                const bool key_pressed = current_row & col_mask;
-
-                action_exec(MAKE_KEYEVENT(row, col, key_pressed));
-
-//                switch_events(row, col, key_pressed);
-            }
-        }
-
-        matrix_previous[row] = current_row;
-    }
-
-    return matrix_changed;
-}
-
-/**
- * @brief Main keyboard task loop
- */
 void keyboard_task(void) {
-    __attribute__((unused)) bool activity_has_occurred = false;
-    if (matrix_task()) {
-//        last_matrix_activity_trigger();
-        activity_has_occurred = true;
-    }
-    #ifdef COMBO_ENABLE
-    // Process combos
-    combo_task();
-    #endif
-    // Process custom functions
-    #if TAP_DANCE_ENABLE
-    tap_dance_task();
-    #endif
+    // 1. 矩阵扫描 + 驱动层防抖
+    key_update_st_t key_st = scan_and_debounce();
+    last_update_state = key_st;
 
-    #if LEADER_KEY_ENABLE
-    leader_task();
-    #endif
-
-    #if MACRO_ENABLE
-    macro_task();
-    #endif
-
-    // Run housekeeping tasks
-    housekeeping_task();
-}
-
-/**
- * @brief Process a key event from the matrix
- *
- * @param row Row of the key
- * @param col Column of the key
- * @param pressed true if key is pressed, false if released
- */
-void keyboard_process_key(uint8_t row, uint8_t col, bool pressed) {
-    if (row >= MATRIX_ROWS || col >= MATRIX_COLS) {
-        dprintf("Keyboard: ERROR - Invalid key position (%d, %d)\n", row, col);
+    // 2. 幽灵键直接返回
+    if (key_st == GHOST_KEY) {
         return;
     }
 
-    keypos_t key = MAKE_KEYPOS(row, col);
-    keyevent_t event = {
-        .key = key,
-        .time = timer_read(),
-        .type = KEY_EVENT,
-        .pressed = pressed
-    };
+    // 3. 更新按键列表（基于防抖后的矩阵变化）
+    if (key_st == KEY_UPDATE) {
+        update_key_code_list();
+    }
 
-    dprintf("Keyboard: Key event at (%d, %d) - %s\n", row, col, pressed ? "pressed" : "released");
+    // 4. 组合键处理
+    combo_task(key_st);
 
-    #ifdef COMBO_ENABLE
-    // Process combo events
-    // process_combo(event);
+    // 5. 生成并发送 HID 报告
+    report_update_proc(key_st);
 
-    #endif
-    // Process action
-    action_exec(event);
+    // 6. 清空扩展键列表
+    del_all_child(_key_code_list_extend);
 }
 
-/**
- * @brief Housekeeping task
- *
- * Background tasks and maintenance
- */
-void housekeeping_task(void) {
-    // This can be extended with additional background tasks
-    // such as LED updates, display updates, etc.
+key_update_st_t keyboard_get_last_update_state(void) {
+    return last_update_state;
 }
 
+// 矩阵扫描 + 驱动层防抖处理
+static key_update_st_t scan_and_debounce(void) {
+    // 调用驱动层矩阵扫描
+    bool raw_changed = matrix_scan();
 
+    // 获取原始矩阵数据
+    static matrix_row_t raw_matrix[MATRIX_ROWS];
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        raw_matrix[row] = matrix_get_row(row);
+    }
 
+    // 调用驱动层防抖处理
+    bool debounced_changed = debounce(raw_matrix, matrix_debounced, MATRIX_ROWS, raw_changed);
+
+    if (!debounced_changed) {
+        return NO_KEY_UPDATE;
+    }
+
+    // TODO: 可选的幽灵键检测
+    // if (detect_ghost_key(matrix_debounced)) {
+    //     return GHOST_KEY;
+    // }
+
+    return KEY_UPDATE;
+}
+
+// 更新按键列表（基于防抖后的矩阵变化）
+static void update_key_code_list(void) {
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        matrix_row_t current = matrix_debounced[row];
+        matrix_row_t changes = current ^ matrix_previous[row];
+
+        for (uint8_t col = 0; col < MATRIX_COLS; col++) {
+            if (!(changes & ((matrix_row_t)1 << col))) continue;
+
+            uint16_t keycode = keymap_get_keycode(row, col);
+            if (keycode == KC_NO) continue;
+
+            bool pressed = current & ((matrix_row_t)1 << col);
+
+            if (pressed) {
+                // 按键按下：添加到列表
+                if (!find_key(_key_code_list, keycode)) {
+                    add(keycode, _key_code_list);
+                }
+            } else {
+                // 按键释放：从列表移除
+                del(keycode, _key_code_list);
+            }
+        }
+        matrix_previous[row] = current;
+    }
+}
