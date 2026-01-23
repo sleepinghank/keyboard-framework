@@ -107,17 +107,10 @@ set(SOURCES
     ./middleware/communication/transport.c
     ./middleware/communication/wireless.c
 
-    # Middleware - Keyboard
-    ./middleware/keyboard/action.c
-    ./middleware/keyboard/action_layer.c
-    ./middleware/keyboard/action_util.c
-    ./middleware/keyboard/combo.c
-    ./middleware/keyboard/custom_function.c
+    # Middleware - Keyboard (精简版)
     ./middleware/keyboard/keyboard.c
-    ./middleware/keyboard/keycode_config.c
     ./middleware/keyboard/keymap.c
-    ./middleware/keyboard/keymap_common.c
-    ./middleware/keyboard/keymap_introspection.c
+    ./middleware/keyboard/keycode_config.c
     ./middleware/keyboard/report.c
 
     # Middleware - Keyboard - Combo (新增精简模块)
