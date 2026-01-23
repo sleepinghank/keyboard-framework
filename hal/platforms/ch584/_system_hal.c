@@ -71,9 +71,9 @@ system_result_t system_hal_init(void)
     DelayUs(1);
 	CH58x_BLEInit();
 	HAL_Init();
-    // GAPRole_PeripheralInit();
-    // HidDev_Init();
-    // HidEmu_Init();
+    GAPRole_PeripheralInit();
+    HidDev_Init();
+    HidEmu_Init();
     // PRINT("main-----\n");
     return SYSTEM_OK;
 }

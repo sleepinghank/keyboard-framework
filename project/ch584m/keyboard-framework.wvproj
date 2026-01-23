@@ -214,7 +214,8 @@
 							"CLK_OSC32K=1",
 							"DCDC_ENABLE=1",
 							"DEBUG=1",
-							"HAL_SLEEP=1"
+							"HAL_SLEEP=1",
+							"FREQ_SYS=78000000"
 						],
 						"undefined_symbols": []
 					},
