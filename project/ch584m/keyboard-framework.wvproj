@@ -63,11 +63,6 @@
 				"name": "product_config_examples.h"
 			},
 			{
-				"parentLogicPath": "",
-				"type": "folder",
-				"name": "Profile"
-			},
-			{
 				"parentLogicPath": "hal/platforms",
 				"type": "folder",
 				"name": "test"
@@ -83,9 +78,9 @@
 				"name": "nrf52"
 			},
 			{
-				"name": "pixart2860",
 				"parentLogicPath": "drivers/communication/usb/platforms",
-				"type": "folder"
+				"type": "folder",
+				"name": "pixart2860"
 			}
 		],
 		"projectName": "keyboard-framework",
@@ -136,7 +131,11 @@
 					"${project}/platform/platform_spi.c",
 					"${project}/platform/platform_spi.h",
 					"${project}/port/ch584m/port_spi.c",
-					"${project}/port/ch584m/port_spi.h"
+					"${project}/port/ch584m/port_spi.h",
+					"${project}/drivers/communication/bluetooth/ch584/_bt_driver.c",
+					"${project}/drivers/communication/bluetooth/ch584/_bt_driver.h",
+					"${project}/drivers/communication/bluetooth/ch584/hidkbd.c",
+					"${project}/drivers/communication/bluetooth/ch584/hidkbd.h"
 				],
 				"optimization": {
 					"level": "size",
@@ -211,7 +210,12 @@
 					"preprocessor": {
 						"do_not_search_system_directories": false,
 						"preprocess_only": false,
-						"defined_symbols": [],
+						"defined_symbols": [
+							"CLK_OSC32K=1",
+							"DCDC_ENABLE=1",
+							"DEBUG=1",
+							"HAL_SLEEP=1"
+						],
 						"undefined_symbols": []
 					},
 					"includes": {
@@ -250,7 +254,11 @@
 							"${project}/middleware/keyboard/keymap_extras",
 							"${project}/drivers/communication/bluetooth",
 							"${project}/drivers/communication/p2p4g",
-							"${project}/StdPeriphDriver"
+							"${project}/StdPeriphDriver",
+							"D:\\Code\\C_Project\\keyboard-framework\\application\\include",
+							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile\\include",
+							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile",
+							"${project}/Profile"
 						],
 						"include_system_paths": [],
 						"include_files": []

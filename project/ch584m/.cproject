@@ -112,7 +112,12 @@
               <tool id="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.c.compiler.1731377187" name="GNU RISC-V Cross C Compiler" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.tool.c.compiler">
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.nostdinc.1633344562" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.nostdinc" useByScannerDiscovery="true" value="false" valueType="boolean"/>
                 <option id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.preprocessonly.208069239" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.preprocessonly" useByScannerDiscovery="false" value="false" valueType="boolean"/>
-                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.defs.177116515" name="Defined symbols (-D)" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols"/>
+                <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.defs.177116515" name="Defined symbols (-D)" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.defs" useByScannerDiscovery="true" valueType="definedSymbols">
+                  <listOptionValue builtIn="false" value="CLK_OSC32K=1"/>
+                  <listOptionValue builtIn="false" value="DCDC_ENABLE=1"/>
+                  <listOptionValue builtIn="false" value="DEBUG=1"/>
+                  <listOptionValue builtIn="false" value="HAL_SLEEP=1"/>
+                </option>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.undef.1820512625" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.undef" useByScannerDiscovery="true" valueType="undefDefinedSymbols"/>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.paths.1567947810" name="Include paths (-I)" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.paths" useByScannerDiscovery="true" valueType="includePath">
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Startup}&quot;"/>
@@ -150,6 +155,10 @@
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/drivers/communication/bluetooth}&quot;"/>
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/drivers/communication/p2p4g}&quot;"/>
                   <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/StdPeriphDriver}&quot;"/>
+                  <listOptionValue builtIn="false" value="D:\Code\C_Project\keyboard-framework\application\include"/>
+                  <listOptionValue builtIn="false" value="D:\Code\C_Project\keyboard-framework\project\ch584m\Profile\include"/>
+                  <listOptionValue builtIn="false" value="D:\Code\C_Project\keyboard-framework\project\ch584m\Profile"/>
+                  <listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Profile}&quot;"/>
                 </option>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.systempaths.2011720354" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.systempaths" useByScannerDiscovery="true" valueType="includePath"/>
                 <option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.files.542153928" superClass="ilg.gnumcueclipse.managedbuild.cross.riscv.option.c.compiler.include.files" useByScannerDiscovery="true" valueType="includeFiles"/>
@@ -303,7 +312,7 @@
             </toolChain>
           </folderInfo>
           <sourceEntries>
-            <entry excluding="CH584M|新建文件夹|Ld|RVMSIS|StdPeriphDriver/CH59x_usbhostClass.c|StdPeriphDriver/CH59x_usbhostBase.c|StdPeriphDriver/CH59x_uart3.c|StdPeriphDriver/CH59x_uart2.c|StdPeriphDriver/CH59x_timer3.c|StdPeriphDriver/CH59x_timer2.c|StdPeriphDriver/CH59x_timer1.c|StdPeriphDriver/CH59x_timer0.c|StdPeriphDriver/CH59x_spi0.c|StdPeriphDriver/CH59x_pwm.c|StdPeriphDriver/CH59x_adc.c|platform/event_manager/event_manager_par2860.c|core/protocol/tag_manage.c|core/protocol/tag_manage.h|core/protocol/ProtocolCodec.h|core/protocol/ProtocolCodec.c|core/protocol/ota_manage.h|core/protocol/ota_manage.c|core/protocol/Inateck_ProductCatalog.h|business/keyboard/keycode.c|drivers/led_matrix/led_matrix_example.c|platform/platform_spi.c|platform/platform_spi.h|port/ch584m/port_spi.c|port/ch584m/port_spi.h" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+            <entry excluding="CH584M|新建文件夹|Ld|RVMSIS|StdPeriphDriver/CH59x_usbhostClass.c|StdPeriphDriver/CH59x_usbhostBase.c|StdPeriphDriver/CH59x_uart3.c|StdPeriphDriver/CH59x_uart2.c|StdPeriphDriver/CH59x_timer3.c|StdPeriphDriver/CH59x_timer2.c|StdPeriphDriver/CH59x_timer1.c|StdPeriphDriver/CH59x_timer0.c|StdPeriphDriver/CH59x_spi0.c|StdPeriphDriver/CH59x_pwm.c|StdPeriphDriver/CH59x_adc.c|platform/event_manager/event_manager_par2860.c|core/protocol/tag_manage.c|core/protocol/tag_manage.h|core/protocol/ProtocolCodec.h|core/protocol/ProtocolCodec.c|core/protocol/ota_manage.h|core/protocol/ota_manage.c|core/protocol/Inateck_ProductCatalog.h|business/keyboard/keycode.c|drivers/led_matrix/led_matrix_example.c|platform/platform_spi.c|platform/platform_spi.h|port/ch584m/port_spi.c|port/ch584m/port_spi.h|drivers/communication/bluetooth/ch584/_bt_driver.c|drivers/communication/bluetooth/ch584/_bt_driver.h|drivers/communication/bluetooth/ch584/hidkbd.c|drivers/communication/bluetooth/ch584/hidkbd.h" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
           </sourceEntries>
         </configuration>
       </storageModule>

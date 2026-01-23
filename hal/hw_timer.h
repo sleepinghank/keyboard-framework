@@ -1,13 +1,14 @@
 /**
  * @file hw_timer.h
- * @brief 通用硬件定时器 HAL 接口
- * @version 1.0.0
+ * @brief 通用硬件定时器 HAL 接口 (简化版)
+ * @version 2.0.0
  *
  * 设计说明:
  * - 提供跨平台的硬件定时器抽象接口
  * - 支持 CH584、PAR2860、nRF52 等平台
  * - 时间单位为毫秒 (ms)
- * - 默认周期模式，支持单次模式
+ * - 仅支持周期模式，长时间定时请使用 OSAL 软件定时器
+ * - 硬件限制: 最大定时周期约 860ms (78MHz 时钟)
  */
 
 #pragma once
@@ -30,6 +31,10 @@ extern "C" {
 // 无效定时器 ID
 #define HW_TIMER_INVALID_ID     0xFF
 
+// 硬件定时器最大定时周期 (毫秒)
+// 78MHz 时钟，26位计数器: 67108864 / 78000 ≈ 860ms
+#define HW_TIMER_MAX_MS         860
+
 /*==========================================
  * 类型定义
  *=========================================*/
@@ -42,20 +47,13 @@ typedef enum {
     HW_TIMER_MAX
 } hw_timer_id_t;
 
-// 定时器模式枚举
-typedef enum {
-    HW_TIMER_MODE_ONESHOT  = 0,  // 单次模式：触发一次后自动停止
-    HW_TIMER_MODE_PERIODIC = 1   // 周期模式：重复触发直到手动停止 (默认)
-} hw_timer_mode_t;
-
 // 定时器回调函数类型
-typedef void (*hw_timer_callback_t)(hw_timer_id_t timer_id);
+typedef void (*hw_timer_callback_t)(void);
 
 // 定时器状态枚举
 typedef enum {
     HW_TIMER_STATE_IDLE    = 0,  // 空闲/未初始化
-    HW_TIMER_STATE_RUNNING = 1,  // 运行中
-    HW_TIMER_STATE_PAUSED  = 2   // 已暂停
+    HW_TIMER_STATE_RUNNING = 1   // 运行中
 } hw_timer_state_t;
 
 /*==========================================
@@ -79,22 +77,14 @@ error_code_t hw_timer_deinit(void);
  *=========================================*/
 
 /**
- * @brief 启动定时器 (周期模式)
+ * @brief 启动周期定时器
  * @param timer_id 定时器 ID
- * @param interval_ms 定时间隔 (毫秒)
+ * @param interval_ms 定时间隔 (毫秒, 最大 860ms)
  * @param callback 回调函数
  * @return error_code_t 错误码
+ * @note 超过 860ms 的定时请使用 OSAL 软件定时器
  */
 error_code_t hw_timer_start(hw_timer_id_t timer_id, uint32_t interval_ms, hw_timer_callback_t callback);
-
-/**
- * @brief 启动单次定时器
- * @param timer_id 定时器 ID
- * @param delay_ms 延时时间 (毫秒)
- * @param callback 回调函数
- * @return error_code_t 错误码
- */
-error_code_t hw_timer_start_oneshot(hw_timer_id_t timer_id, uint32_t delay_ms, hw_timer_callback_t callback);
 
 /**
  * @brief 停止定时器
@@ -103,20 +93,6 @@ error_code_t hw_timer_start_oneshot(hw_timer_id_t timer_id, uint32_t delay_ms, h
  */
 error_code_t hw_timer_stop(hw_timer_id_t timer_id);
 
-/**
- * @brief 暂停定时器
- * @param timer_id 定时器 ID
- * @return error_code_t 错误码
- */
-error_code_t hw_timer_pause(hw_timer_id_t timer_id);
-
-/**
- * @brief 恢复定时器
- * @param timer_id 定时器 ID
- * @return error_code_t 错误码
- */
-error_code_t hw_timer_resume(hw_timer_id_t timer_id);
-
 /*==========================================
  * 动态配置接口
  *=========================================*/
@@ -124,7 +100,7 @@ error_code_t hw_timer_resume(hw_timer_id_t timer_id);
 /**
  * @brief 修改定时间隔
  * @param timer_id 定时器 ID
- * @param interval_ms 定时间隔 (毫秒)
+ * @param interval_ms 定时间隔 (毫秒, 最大 860ms)
  * @return error_code_t 错误码
  */
 error_code_t hw_timer_set_interval(hw_timer_id_t timer_id, uint32_t interval_ms);
@@ -154,13 +130,6 @@ hw_timer_state_t hw_timer_get_state(hw_timer_id_t timer_id);
  * @return true 正在运行, false 未运行
  */
 bool hw_timer_is_running(hw_timer_id_t timer_id);
-
-/**
- * @brief 获取剩余时间
- * @param timer_id 定时器 ID
- * @return 距下次触发的剩余时间 (毫秒)
- */
-uint32_t hw_timer_get_remaining(hw_timer_id_t timer_id);
 
 #ifdef __cplusplus
 }

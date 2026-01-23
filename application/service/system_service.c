@@ -26,8 +26,6 @@ uint8_t system_taskID = 0;
  * @return 未处理的事件标志
  */
 uint16_t system_process_event(uint8_t task_id, uint16_t events) {
-    
-    uint16_t unhandled = 0;
 
     // 处理低电关机事件
     if (events & SYSTEM_LOW_BATTERY_SHUTDOWN_EVT) {
@@ -41,7 +39,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         wireless_disconnect();
         // 4. 进入关机模式
         enter_power_mode(PM_SHUTDOWN);
-        events ^= SYSTEM_LOW_BATTERY_SHUTDOWN_EVT;
+        return (events ^ SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
     }
 
     // 处理系统空闲事件
@@ -52,7 +50,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         indicator_off_all();
         // 2. 进入轻度睡眠模式
         enter_power_mode(PM_SLEEP);
-        events ^= SYSTEM_IDLE_EVT;
+        return (events ^ SYSTEM_IDLE_EVT);
     }
 
     // 处理系统关机事件
@@ -67,7 +65,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         wireless_disconnect();
         // 4. 执行关机
         enter_power_mode(PM_SHUTDOWN);
-        events ^= SYSTEM_SHUTDOWN_EVT;
+        return (events ^ SYSTEM_SHUTDOWN_EVT);
     }
 
     // 处理深度睡眠事件
@@ -80,7 +78,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         indicator_off_all();
         // 3. 进入深度睡眠（保留RAM）
         enter_power_mode(PM_STANDBY_WITH_RAM);
-        events ^= SYSTEM_DEEP_SLEEP_EVT;
+        return (events ^ SYSTEM_DEEP_SLEEP_EVT);
     }
 
     // 处理系统存储事件
@@ -88,7 +86,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         println("System: Storage operation");
         // 执行存储保存
         storage_save();
-        events ^= SYSTEM_STORAGE_EVT;
+        return (events ^ SYSTEM_STORAGE_EVT);
     }
 
     // 处理系统唤醒事件
@@ -103,7 +101,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         if (get_transport() == TRANSPORT_BLUETOOTH) {
             wireless_connect();
         }
-        events ^= SYSTEM_WAKEUP_EVT;
+        return (events ^ SYSTEM_WAKEUP_EVT);
     }
 
     // 处理恢复出厂设置事件
@@ -116,7 +114,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         storage_factory_reset();
         // 3. 执行系统复位
         system_hal_reset();
-        events ^= SYSTEM_FACTORY_RESET_EVT;
+        return (events ^ SYSTEM_FACTORY_RESET_EVT);
     }
 
     // 处理OTA升级事件
@@ -127,11 +125,10 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         wireless_disconnect();
         // 2. 进入OTA模式（具体实现依赖平台）
         // 注意：OTA模式通常需要跳转到bootloader
-        events ^= SYSTEM_OTA_EVT;
+        return (events ^ SYSTEM_OTA_EVT);
     }
 
-    // 返回未处理的事件
-    return events;
+    return 0;
 }
 
 /**

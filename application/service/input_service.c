@@ -2,7 +2,7 @@
 #include "keyboard.h"
 #include <stdint.h>
 #include "event_manager.h"
-#include "print.h"
+#include "debug.h"
 #include "battery.h"
 #include "indicator.h"
 #include "system_service.h"
@@ -35,11 +35,9 @@ uint8_t input_taskID = 0;
 /**
  * @brief 硬件定时器回调函数
  *        在定时器中断中被调用，触发 OSAL 事件
- * @param timer_id 定时器 ID
  */
-static void matrix_scan_timer_callback(hw_timer_id_t timer_id)
+static void matrix_scan_timer_callback(void)
 {
-    (void)timer_id;  /* 避免未使用参数警告 */
     /* 触发矩阵扫描事件，由 OSAL 主循环处理 */
     OSAL_SetEvent(input_taskID, INPUT_MATRIX_SCAN_EVT);
 }
@@ -75,30 +73,20 @@ error_code_t matrix_scan_timer_stop(void)
  * @return 未处理的事件标志
  */
 uint16_t input_process_event(uint8_t task_id, uint16_t events) {
-    uint16_t unhandled = 0;
 
     // 处理矩阵扫描事件
     if (events & INPUT_MATRIX_SCAN_EVT) {
-        keyboard_task();
-        events ^= INPUT_MATRIX_SCAN_EVT;
+        // keyboard_task();
+        dprintln("*");
+        return (events ^ INPUT_MATRIX_SCAN_EVT);
     }
-
-    // // 处理矩阵数据变化事件
-    // if (events & INPUT_MATRIX_DATA_CHANGED_EVT) {
-    //     PRINT("Input: Matrix data changed\r\n");
-    //     // TODO: 处理矩阵数据变化
-    //     // - 检测按键按下/释放
-    //     // - 处理组合键
-    //     // - 发送事件到其他服务
-    //     events ^= INPUT_MATRIX_DATA_CHANGED_EVT;
-    // }
 
     // 处理触控中断事件
     if (events & INPUT_TOUCH_INT_EVT) {
         println("Input: Touch interrupt");
         // TODO: 触摸板驱动实现后取消注释
         // touch_process_interrupt();
-        events ^= INPUT_TOUCH_INT_EVT;
+        return (events ^ INPUT_TOUCH_INT_EVT);
     }
 
     // 处理电量检测事件
@@ -122,11 +110,10 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
             indicator_set(0, &IND_BLINK_FAST);
         }
 
-        events ^= INPUT_BATTERY_DETE_EVT;
+        return (events ^ INPUT_BATTERY_DETE_EVT);
     }
 
-    // 返回未处理的事件
-    return events;
+    return 0;
 }
 
 /**
@@ -135,7 +122,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
 void input_service_init(void) {
     /* 注册任务并获取任务ID */
     input_taskID = OSAL_ProcessEventRegister(input_process_event);
-
+    dprintf("Input: Service initialized with task ID %d\r\n", input_taskID);
     /* 启动硬件定时器驱动的矩阵扫描 */
     matrix_scan_timer_start();
 

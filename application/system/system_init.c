@@ -125,9 +125,10 @@ void system_init_hal(void) {
     platform_uart_bind_pins(NO_PIN, B13, PLATFORM_UART_1);
     platform_uart_init(PLATFORM_UART_1, 115200, 0);
 
+    setPinOutput(B14);
+    writePinHigh(B14);
     // 硬件定时器初始化
     hw_timer_init();
-
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
