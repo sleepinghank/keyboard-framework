@@ -41,6 +41,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/combo
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/keymap_extras
         ${CMAKE_CURRENT_SOURCE_DIR}/application
         ${CMAKE_CURRENT_SOURCE_DIR}/application/system
@@ -114,14 +115,25 @@ set(SOURCES
     ./middleware/keyboard/custom_function.c
     ./middleware/keyboard/keyboard.c
     ./middleware/keyboard/keycode_config.c
+    ./middleware/keyboard/keymap.c
     ./middleware/keyboard/keymap_common.c
     ./middleware/keyboard/keymap_introspection.c
     ./middleware/keyboard/report.c
+
+    # Middleware - Keyboard - Combo (新增精简模块)
+    ./middleware/keyboard/combo/process_combo.c
+    ./middleware/keyboard/combo/FN_Combo.c
+    ./middleware/keyboard/combo/Special_Combo.c
+    ./middleware/keyboard/combo/media_combo.c
+
+    # Keyboards - Keymap
+    ./keyboards/default_keymap.c
 
     # Utils
     ./utils/AES128.c
     ./utils/bitwise.c
     ./utils/crc16.c
+    ./utils/linkedlist.c
 
     # Component - Touchpad
     # ./component/bayes_filtering.c
