@@ -1,6 +1,9 @@
 # IDE
 .idea/
 
+# Git worktrees
+.worktrees/
+
 # Build directories
 cmake-build-debug/
 cmake-build-release/
