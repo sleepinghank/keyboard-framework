@@ -27,12 +27,12 @@
 
 static const bl_rgb_t preset_colors[BL_COLOR_COUNT] = {
     [BL_COLOR_RED]     = {100,   0,   0},
-    [BL_COLOR_GREEN]   = {  0, 100,   0},
-    [BL_COLOR_BLUE]    = {  0,   0, 100},
     [BL_COLOR_YELLOW]  = {100, 100,   0},
     [BL_COLOR_CYAN]    = {  0, 100, 100},
-    [BL_COLOR_MAGENTA] = {100,   0, 100},
+    [BL_COLOR_BLUE]    = {  0,   0, 100},
+    [BL_COLOR_GREEN]   = {  0, 100,   0},
     [BL_COLOR_WHITE]   = {100, 100, 100},
+    [BL_COLOR_MAGENTA] = {100,   0, 100},
 };
 
 /* ============ 预设亮度表 ============ */

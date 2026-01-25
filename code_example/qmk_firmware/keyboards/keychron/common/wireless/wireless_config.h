@@ -27,5 +27,5 @@
 
 //  Uint: Second, the timer restarts on key activities.
 #ifndef CONNECTED_IDLE_TIME
-#    define CONNECTED_IDLE_TIME 7200
+#    define CONNECTED_IDLE_TIME 600
 #endif
