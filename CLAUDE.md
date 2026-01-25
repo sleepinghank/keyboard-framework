@@ -334,6 +334,10 @@ WT_RESET → WT_INITIALIZED → WT_DISCONNECTED ⇄ WT_PARING
 - `middleware/communication/lpm.c` - 功耗控制
 - `drivers/storage/storage.c` - 存储管理
 
+
+### Tools
+Always use Context7 MCP when I need library/API documentation, code generation, setup or configuration steps without me having to explicitly ask.
+
 ### 模块生命周期规范
 
 ```c
@@ -348,3 +352,5 @@ _task(void);
 /* task 之后执行 */
 _post_task();
 ```
+
+
