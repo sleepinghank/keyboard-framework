@@ -7,6 +7,11 @@
 #include "indicator.h"
 #include "system_service.h"
 #include "hw_timer.h"
+#include "product_config.h"
+
+#ifdef TOUCH_EN
+#include "touchpad_service.h"
+#endif
 
 /* 低电量阈值 */
 #ifndef LOW_BATTERY_THRESHOLD
@@ -20,6 +25,11 @@
 /* 电量检测周期 (ms) */
 #ifndef BATTERY_DETECT_INTERVAL
 #define BATTERY_DETECT_INTERVAL  30000  /* 30秒检测一次 */
+#endif
+
+/* 触控板看门狗检查周期 (ms) */
+#ifndef TOUCH_WATCHDOG_INTERVAL
+#define TOUCH_WATCHDOG_INTERVAL  2000   /* 2秒检测一次 */
 #endif
 
 #ifdef __cplusplus
@@ -78,16 +88,30 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
     if (events & INPUT_MATRIX_SCAN_EVT) {
         // keyboard_task();
         dprintln("*");
+#ifdef TOUCH_EN
+        // 检查触摸板状态，如有触摸中断则设置事件
+        if (touch_timer_task() > 0) {
+            OSAL_SetEvent(task_id, INPUT_TOUCH_INT_EVT);
+        }
+#endif
         return (events ^ INPUT_MATRIX_SCAN_EVT);
     }
 
     // 处理触控中断事件
     if (events & INPUT_TOUCH_INT_EVT) {
-        println("Input: Touch interrupt");
-        // TODO: 触摸板驱动实现后取消注释
-        // touch_process_interrupt();
+#ifdef TOUCH_EN
+        touch_evt_task();
+#endif
         return (events ^ INPUT_TOUCH_INT_EVT);
     }
+
+    // 处理触控板看门狗检查事件
+#ifdef TOUCH_EN
+    if (events & INPUT_TOUCH_WATCHDOG_EVT) {
+        touch_watchdog_check();
+        return (events ^ INPUT_TOUCH_WATCHDOG_EVT);
+    }
+#endif
 
     // 处理电量检测事件
     if (events & INPUT_BATTERY_DETE_EVT) {
@@ -128,6 +152,14 @@ void input_service_init(void) {
 
     /* 启动电量检测定时任务 */
     // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
+
+#ifdef TOUCH_EN
+    /* 初始化触控板 */
+    touch_power_on();
+    dprintf("Input: Touchpad initialized\r\n");
+    /* 启动触控板看门狗定时检查 */
+    OSAL_StartReloadTask(input_taskID, INPUT_TOUCH_WATCHDOG_EVT, TOUCH_WATCHDOG_INTERVAL);
+#endif
 }
 
 #ifdef __cplusplus
