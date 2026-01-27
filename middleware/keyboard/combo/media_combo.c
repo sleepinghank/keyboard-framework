@@ -31,21 +31,21 @@ uint8_t number_of_combos = COMBOS_END;
 const uint16_t PROGMEM FN_DOWN_combo[] = { S_FN_KEY, COMBO_END };
 const uint16_t PROGMEM FN_UP_combo[]   = { S_FN_KEY, COMBO_END };
 
-const uint16_t PROGMEM FN_F1_combo[]  = { KB_F1,  COMBO_END };
-const uint16_t PROGMEM FN_F2_combo[]  = { KB_F2,  COMBO_END };
-const uint16_t PROGMEM FN_F3_combo[]  = { KB_F3,  COMBO_END };
-const uint16_t PROGMEM FN_F4_combo[]  = { KB_F4,  COMBO_END };
-const uint16_t PROGMEM FN_F5_combo[]  = { KB_F5,  COMBO_END };
-const uint16_t PROGMEM FN_F6_combo[]  = { KB_F6,  COMBO_END };
-const uint16_t PROGMEM FN_F7_combo[]  = { KB_F7,  COMBO_END };
-const uint16_t PROGMEM FN_F8_combo[]  = { KB_F8,  COMBO_END };
-const uint16_t PROGMEM FN_F9_combo[]  = { KB_F9,  COMBO_END };
-const uint16_t PROGMEM FN_F10_combo[] = { KB_F10, COMBO_END };
-const uint16_t PROGMEM FN_F11_combo[] = { KB_F11, COMBO_END };
-const uint16_t PROGMEM FN_F12_combo[] = { KB_F12, COMBO_END };
+const uint16_t PROGMEM FN_F1_combo[]  = { KC_F1,  COMBO_END };
+const uint16_t PROGMEM FN_F2_combo[]  = { KC_F2,  COMBO_END };
+const uint16_t PROGMEM FN_F3_combo[]  = { KC_F3,  COMBO_END };
+const uint16_t PROGMEM FN_F4_combo[]  = { KC_F4,  COMBO_END };
+const uint16_t PROGMEM FN_F5_combo[]  = { KC_F5,  COMBO_END };
+const uint16_t PROGMEM FN_F6_combo[]  = { KC_F6,  COMBO_END };
+const uint16_t PROGMEM FN_F7_combo[]  = { KC_F7,  COMBO_END };
+const uint16_t PROGMEM FN_F8_combo[]  = { KC_F8,  COMBO_END };
+const uint16_t PROGMEM FN_F9_combo[]  = { KC_F9,  COMBO_END };
+const uint16_t PROGMEM FN_F10_combo[] = { KC_F10, COMBO_END };
+const uint16_t PROGMEM FN_F11_combo[] = { KC_F11, COMBO_END };
+const uint16_t PROGMEM FN_F12_combo[] = { KC_F12, COMBO_END };
 
-const uint16_t PROGMEM FN_DEL_combo[]       = { S_FN_KEY, KB_DELETE_FORWARD, COMBO_END };
-const uint16_t PROGMEM Reset_factory_combo[] = { KB_ESCAPE, KB_EQUAL_N_PLUS, COMBO_END };
+const uint16_t PROGMEM FN_DEL_combo[]       = { S_FN_KEY, KC_DELETE, COMBO_END };
+const uint16_t PROGMEM Reset_factory_combo[] = { KC_ESCAPE, KC_EQUAL, COMBO_END };
 
 // 组合键数组
 combo_t key_combos[] = {

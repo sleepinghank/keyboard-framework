@@ -15,11 +15,26 @@
  */
 
 #include "report.h"
-#include "action_util.h"
 #include "keycode_config.h"
 #include "debug.h"
 #include "util.h"
 #include <string.h>
+
+// 外部变量
+extern uint8_t keyboard_protocol;
+
+// 全局键盘报告缓冲区
+static report_keyboard_t _keyboard_report_data;
+static report_nkro_t _nkro_report_data;
+report_keyboard_t* keyboard_report = &_keyboard_report_data;
+report_nkro_t* nkro_report = &_nkro_report_data;
+
+// NKRO/6KRO 自适应模式计数器
+#ifdef APDAPTIVE_NKRO_ENABLE
+static uint8_t kb_keys_count = 0;
+static uint8_t nkro_bit_count = 0;
+uint8_t kb_report_changed = 0;
+#endif
 
 #ifdef RING_BUFFERED_6KRO_REPORT_ENABLE
 #    define RO_ADD(a, b) ((a + b) % KEYBOARD_REPORT_KEYS)
@@ -392,13 +407,13 @@ static void classify_and_add_keycode(uint16_t keycode,
     }
 
     // 修饰键 (0xE0-0xE7)
-    if (keycode >= KC_LCTRL && keycode <= KC_RGUI) {
-        kb_report->mods |= (1 << (keycode - KC_LCTRL));
+    if (keycode >= KC_LCTL && keycode <= KC_RWIN) {
+        kb_report->mods |= (1 << (keycode - KC_LCTL));
         return;
     }
 
     // 普通键 (0x04-0xDF)
-    if (keycode >= KC_A && keycode < KC_LCTRL) {
+    if (keycode >= KC_A && keycode < KC_LCTL) {
         if (*key_idx < KEYBOARD_REPORT_KEYS) {
             kb_report->keys[(*key_idx)++] = (uint8_t)keycode;
         }

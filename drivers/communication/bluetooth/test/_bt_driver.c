@@ -178,6 +178,24 @@ void bt_driver_update_bat_level(uint8_t bat_lvl) {
     printf("[BT_TEST] Battery level updated (mock)\n");
 }
 
+/**
+ * @brief 发送PTP触控板报告（测试模拟）
+ *
+ * @param report PTP报告数据
+ * @param len 报告数据长度
+ * @return uint8_t 发送状态（0:成功）
+ */
+uint8_t bt_driver_send_ptp(uint8_t *report, uint8_t len) {
+    printf("[BT_TEST] bt_driver_send_ptp() called\n");
+    if (report != NULL) {
+        print_buffer("[BT_TEST]   PTP Report", report, len);
+    } else {
+        printf("[BT_TEST]   report: NULL\n");
+    }
+    printf("[BT_TEST] PTP report sent (mock)\n");
+    return 0; // 成功
+}
+
 /*********************************************************************
  * 辅助函数实现
  *********************************************************************/

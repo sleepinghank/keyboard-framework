@@ -49,7 +49,10 @@
       "Bash(ldd:*)",
       "Bash(xargs cat:*)",
       "Bash(test:*)",
-      "Bash(dir /s /b \"D:\\\\Code\\\\C_Project\\\\keyboard-framework\\\\.claude*\")"
+      "Bash(dir /s /b \"D:\\\\Code\\\\C_Project\\\\keyboard-framework\\\\.claude*\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push)"
     ],
     "deny": [],
     "ask": []

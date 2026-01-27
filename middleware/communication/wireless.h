@@ -18,7 +18,6 @@
 
 #include "product_config.h"
 #include "wireless_event_type.h"
-#include "action.h"
 #include "bt_driver.h"
 #ifdef P2P4G_ENABLE_FLAG
 #include "p24g_driver.h"
@@ -122,7 +121,7 @@ wt_func_t* wireless_get_current_driver(void);
 
 void wireless_low_battery_shutdown(void);
 
-bool process_record_wireless(uint16_t keycode, keyrecord_t *record);
+bool process_record_wireless(uint16_t keycode);
 
 void wireless_raw_hid_rx(uint8_t *data, uint8_t length);
 

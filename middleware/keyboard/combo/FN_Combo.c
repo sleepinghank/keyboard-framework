@@ -25,7 +25,7 @@ uint8_t FN_UP_KEY(uint16_t* add_keys) {
 uint8_t Bringhness_Down(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F1;
+        add_keys[idx++] = KC_F1;
     } else {
         add_keys[idx++] = M_BACKLIGHT_DOWN;
     }
@@ -36,7 +36,7 @@ uint8_t Bringhness_Down(uint16_t* add_keys) {
 uint8_t Bringhness_Up(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F2;
+        add_keys[idx++] = KC_F2;
     } else {
         add_keys[idx++] = M_BACKLIGHT_UP;
     }
@@ -47,7 +47,7 @@ uint8_t Bringhness_Up(uint16_t* add_keys) {
 uint8_t Volume_Down(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F10;
+        add_keys[idx++] = KC_F10;
     } else {
         add_keys[idx++] = M_VOLUME_DOWN;
     }
@@ -58,7 +58,7 @@ uint8_t Volume_Down(uint16_t* add_keys) {
 uint8_t Volume_Up(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F11;
+        add_keys[idx++] = KC_F11;
     } else {
         add_keys[idx++] = M_VOLUME_UP;
     }
@@ -69,7 +69,7 @@ uint8_t Volume_Up(uint16_t* add_keys) {
 uint8_t Volume_Mute(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F9;
+        add_keys[idx++] = KC_F9;
     } else {
         add_keys[idx++] = M_MUTE;
     }
@@ -80,7 +80,7 @@ uint8_t Volume_Mute(uint16_t* add_keys) {
 uint8_t Media_Previous(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F6;
+        add_keys[idx++] = KC_F6;
     } else {
         add_keys[idx++] = M_SCAN_PREVIOUS_TRACK;
     }
@@ -91,7 +91,7 @@ uint8_t Media_Previous(uint16_t* add_keys) {
 uint8_t Media_Play_Pause(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F7;
+        add_keys[idx++] = KC_F7;
     } else {
         add_keys[idx++] = M_PLAY_N_PAUSE;
     }
@@ -102,7 +102,7 @@ uint8_t Media_Play_Pause(uint16_t* add_keys) {
 uint8_t Media_Next(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F8;
+        add_keys[idx++] = KC_F8;
     } else {
         add_keys[idx++] = M_SCAN_NEXT_TRACK;
     }
@@ -113,12 +113,12 @@ uint8_t Media_Next(uint16_t* add_keys) {
 uint8_t Print_Screen(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F4;
+        add_keys[idx++] = KC_F4;
     } else {
         // Windows: Win+Shift+S
-        add_keys[idx++] = KB_L_GUI;
-        add_keys[idx++] = KB_L_SHIFT;
-        add_keys[idx++] = KB_S;
+        add_keys[idx++] = KC_LEFT_GUI;
+        add_keys[idx++] = KC_LEFT_SHIFT;
+        add_keys[idx++] = KC_S;
     }
     return idx;
 }
@@ -127,11 +127,11 @@ uint8_t Print_Screen(uint16_t* add_keys) {
 uint8_t Lock_Screen(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F12;
+        add_keys[idx++] = KC_F12;
     } else {
         // Windows: Win+L
-        add_keys[idx++] = KB_L_GUI;
-        add_keys[idx++] = KB_L;
+        add_keys[idx++] = KC_LEFT_GUI;
+        add_keys[idx++] = KC_L;
     }
     return idx;
 }
@@ -140,7 +140,7 @@ uint8_t Lock_Screen(uint16_t* add_keys) {
 uint8_t Search(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F3;
+        add_keys[idx++] = KC_F3;
     } else {
         add_keys[idx++] = M_WWW_SEARCH;
     }
@@ -151,8 +151,8 @@ uint8_t Search(uint16_t* add_keys) {
 uint8_t Multi_Task(uint16_t* add_keys) {
     uint8_t idx = 0;
     // Windows: Win+Tab
-    add_keys[idx++] = KB_L_GUI;
-    add_keys[idx++] = KB_TAB;
+    add_keys[idx++] = KC_LEFT_GUI;
+    add_keys[idx++] = KC_TAB;
     return idx;
 }
 
@@ -160,7 +160,7 @@ uint8_t Multi_Task(uint16_t* add_keys) {
 uint8_t Earth(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
-        add_keys[idx++] = KB_F5;
+        add_keys[idx++] = KC_F5;
     } else {
         add_keys[idx++] = M_EARTH;
     }
@@ -170,6 +170,6 @@ uint8_t Earth(uint16_t* add_keys) {
 // Fn+Esc
 uint8_t FN_ESC_button(uint16_t* add_keys) {
     uint8_t idx = 0;
-    add_keys[idx++] = KB_ESCAPE;
+    add_keys[idx++] = KC_ESCAPE;
     return idx;
 }

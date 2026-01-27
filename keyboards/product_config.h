@@ -98,6 +98,11 @@
 
 #define COMBO_ENABLE
 
+// 层切换键物理位置（Fn 键）
+// 优先检查此位置，解决层切换键与功能键同时按下的时序问题
+#define FN_KEY_ROW  6
+#define FN_KEY_COL  10
+
 //****touch *****/
 #define SDA_PIN A3
 #define SCL_PIN A2
@@ -119,6 +124,18 @@
 /*touch */
 
 #define TOUCH_EN
+
+// 触摸板引脚定义
+#define TOUCH_INT  A12
+#define TOUCH_SDA  A3
+#define TOUCH_SCL  A2
+
+// 触摸板尺寸配置 (根据 PCT1336 触控板实际尺寸)
+#define TOUCHPAD_MAX_X  2048
+#define TOUCHPAD_MAX_Y  1024
+
+// 键盘报告大小
+#define KEYBOARD_REPORT_SZ  8
 
 #define LK_WIRELESS_ENABLE
 //#define RGB_MATRIX_ENABLE

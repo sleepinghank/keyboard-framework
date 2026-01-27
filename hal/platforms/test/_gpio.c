@@ -88,13 +88,21 @@
  }
  
  void gpio_toggle_pin(pin_t pin) {
-     DEBUG_PRINT("gpio_toggle_pin(pin: 0x%02X, port: %d, num: %d)", 
+     DEBUG_PRINT("gpio_toggle_pin(pin: 0x%02X, port: %d, num: %d)",
                  pin, PIN_PORT(pin), PIN_NUM(pin));
      // 模拟切换引脚状态
      uint8_t current = gpio_read_pin(pin);
      gpio_write_pin(pin, !current);
  }
- 
- 
- 
- 
+
+ void gpio_enable_interrupt(pin_t pin, gpio_int_trigger_t trigger, gpio_int_callback_t callback) {
+     DEBUG_PRINT("gpio_enable_interrupt(pin: 0x%02X, trigger: %d, callback: %p)",
+                 pin, trigger, (void*)callback);
+     // 测试平台空实现
+     (void)callback;
+ }
+
+ void gpio_disable_interrupt(pin_t pin) {
+     DEBUG_PRINT("gpio_disable_interrupt(pin: 0x%02X)", pin);
+     // 测试平台空实现
+ }

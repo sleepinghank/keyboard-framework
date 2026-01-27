@@ -1,6 +1,6 @@
 // middleware/keyboard/combo/Special_Combo.c
 #include "Special_Combo.h"
-#include "osal.h"
+#include "event_manager.h"
 
 // 组合键触发标志位
 uint8_t combinations_flag = 1;
@@ -37,45 +37,45 @@ uint8_t combinations_flag = 1;
 // Fn 锁定
 uint8_t Set_FN_Lock(uint16_t* add_keys) {
     // TODO: 实现 Fn 锁定逻辑
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
     return 0;
 }
 
 // 切换背光颜色
 uint8_t Backlight_Color(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_COLOR);
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_COLOR);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
     return 0;
 }
 
 // 切换背光亮度
 uint8_t Backlight_Light(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_BRIGHT);
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_BRIGHT);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
     return 0;
 }
 
 // 触摸板锁定
 uint8_t Touch_Locked(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_TOUCH_TOGGLE);
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_TOUCH_TOGGLE);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
     return 0;
 }
 
 // 恢复出厂设置
 uint8_t Factory_Reset(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_FACTORY_RESET);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_FACTORY_RESET);
     return 0;
 }
 
 // 电池检测
 uint8_t Bat_Check(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BATTERY_CHECK);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BATTERY_CHECK);
     return 0;
 }
 
 // 配对按钮
 uint8_t Pair_button(uint16_t* add_keys) {
-    osal_set_event(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BLE_PAIRING);
+    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BLE_PAIRING);
     return 0;
 }

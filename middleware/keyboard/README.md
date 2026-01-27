@@ -1,425 +1,399 @@
-# 跨芯片键盘中间件框架
+# Keyboard 中间件模块
 
-## 概述
+按键处理中间件，负责从矩阵扫描到 HID 报告生成的完整按键处理流程。
 
-这是一个高内聚、低耦合的跨芯片平台键盘中间件框架，支持多模无线键盘和触控板产品开发。框架参考QMK固件的处理流程，专为快速产品迭代与高效开发而设计。
-
-### 支持的平台
-
-- **原相 PAN32860** - 高性能低功耗无线键盘芯片
-- **沁恒 CH584** - 国产RISC-V无线键盘芯片
-- **Nordic nRF52/nRF53** - BLE/2.4G无线键盘芯片
-- **STM32系列** - 通用ARM Cortex-M键盘控制
-
-### 主要特性
-
-✅ **模块化设计** - 高度解耦的模块化架构
-✅ **跨平台支持** - 统一的API，适配多种芯片
-✅ **低延迟处理** - 优化的按键处理流程
-✅ **功能丰富** - 消抖、层切换、组合键、自定义功能
-✅ **易于扩展** - 清晰的接口和回调钩子
-✅ **开发友好** - 详细的调试信息和示例
-
-## 架构设计
-
-### 模块结构
+## 目录结构
 
 ```
 middleware/keyboard/
-├── keyboard_framework.h       # 主框架接口
-├── keyboard_framework.c       # 框架实现
-├── keyboard_core.h/.c         # 核心键盘处理
-├── keycode.h                  # 键码定义
-├── layer.h/.c                 # 层管理
-├── debounce.h/.c              # 消抖处理
-├── action.h/.c                # 动作处理
-├── combo.h/.c                 # 组合键
-├── custom_function.h/.c       # 自定义功能
-├── platform_*.h               # 平台特定头文件
-├── example_usage.c            # 使用示例
-└── README.md                  # 本文档
+├── keyboard.h/c          # 主协调模块（入口）
+├── keymap.h/c            # 层级管理
+├── report.h/c            # HID 报告生成
+├── keycode.h             # 键码定义（含媒体键）
+├── keycodes.h            # QMK 标准键码
+├── modifiers.h           # 修饰键定义
+├── keycode_config.h/c    # 键码配置
+├── combo/                # 组合键子模块
+│   ├── process_combo.h/c # 组合键状态机
+│   ├── FN_Combo.h/c      # Fn 组合键定义
+│   ├── Special_Combo.h/c # 特殊组合键
+│   └── media_combo.c     # 媒体组合键
+└── keymap_extras/        # 多语言键位映射
 ```
 
-### 数据流程
+## 按键处理流程
 
 ```
-矩阵扫描 → 原始矩阵 → 消抖 → 键事件 → 动作查找 → 执行动作
-    ↓           ↓         ↓       ↓         ↓
-  GPIO读取   硬件滤波   状态过滤  事件触发   按键/层/宏
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         keyboard_task() 主循环                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  1. scan_and_debounce()                                                 │
+│     ├── matrix_scan()          驱动层矩阵扫描                            │
+│     └── debounce()             驱动层防抖处理                            │
+│                                                                         │
+│  2. process_layer_switch_key() 优先处理层切换键 ★                        │
+│     ├── 检查 FN_KEY_ROW/COL    固定位置，零遍历开销                      │
+│     ├── IS_QK_MOMENTARY()      判断是否为 MO 键                          │
+│     └── layer_on/off()         更新层状态                                │
+│                                                                         │
+│  3. update_key_code_list()     更新按键链表                              │
+│     ├── 检测矩阵变化           current ^ previous                        │
+│     ├── keymap_get_keycode()   获取当前层键码（层状态已正确）             │
+│     └── 维护 _key_code_list    按下添加 / 释放移除                       │
+│                                                                         │
+│  4. combo_task()               组合键处理                                │
+│     ├── apply_combo()          检测组合键触发                            │
+│     ├── button_ticks()         状态机更新                                │
+│     └── 回调执行               触发事件回调                              │
+│                                                                         │
+│  5. report_update_proc()       生成 HID 报告                             │
+│     ├── 遍历 _key_code_list    收集活跃键                                │
+│     ├── classify_and_add()     键码分类                                  │
+│     └── report_buffer_enqueue  入队发送                                  │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 核心模块
+> **设计说明**：步骤 2 通过宏定义 `FN_KEY_ROW/FN_KEY_COL` 指定层切换键位置，
+> 在遍历矩阵前优先处理，解决"Fn + 功能键同时按下"时的层状态时序问题。
 
-#### 1. 消抖模块 (debounce.h/c)
-提供多种消抖算法，滤除按键抖动：
-- **对称延迟消抖** (DEBOUNCE_SYM_DEFER_PK) - 最通用，平衡响应和稳定性
-- **对称急动消抖** (DEBOUNCE_SYM_EAGER_PK) - 游戏优化，按键立即响应
-- **非对称消抖** (DEBOUNCE_ASYM_EAGER_DEFER_PK) - 按键快释放慢
+## 核心模块详解
 
-#### 2. 层管理模块 (layer.h/c)
-基于层的键码映射系统：
-- 支持最多8/16/32层（可配置）
-- 透明键传递
-- 三层互斥层支持
-- 层状态调试
+### 1. keyboard.c - 主协调模块
 
-#### 3. 组合键模块 (combo.h/c)
-组合键检测和处理：
-- 最多4键组合
-- 可配置超时时间
-- 修饰键扩展支持
-- 防误触优化
+**职责**：协调整个按键处理流程
 
-#### 4. 动作模块 (action.h/c)
-统一的动作执行系统：
-- 常规按键动作
-- 修饰键管理
-- 层切换动作
-- Mod-Tap/Layer-Tap支持
-
-#### 5. 自定义功能模块 (custom_function.h/c)
-高级键盘功能：
-- **Tap Dance** - 快速连击触发不同动作
-- **Leader Key** - 序列按键触发功能
-- **宏录制** - 按键序列录制和回放
-
-## 快速开始
-
-### 1. 基础使用
-
+**核心数据结构**：
 ```c
-#include "keyboard_framework.h"
+// 按键列表（链表实现）
+list_t* _key_code_list;         // 当前按下的键
+list_t* _key_code_list_extend;  // 组合键扩展输出
 
-int main(void) {
-    // 初始化框架
-    KEYBOARD_FRAMEWORK_INIT();
+// 矩阵状态
+static matrix_row_t matrix_previous[MATRIX_ROWS];   // 上一次状态
+static matrix_row_t matrix_debounced[MATRIX_ROWS];  // 防抖后状态
+```
 
-    // 设置默认层
-    default_layer_set(LAYER_BIT(0));
+**主要函数**：
+```c
+void keyboard_init(void);                      // 初始化所有子模块
+void keyboard_task(void);                      // 主循环任务
+key_update_st_t keyboard_get_last_update_state(void);  // 获取更新状态
+```
 
-    while (1) {
-        // 主循环调用
-        KEYBOARD_FRAMEWORK_TASK();
+**按键更新状态**：
+```c
+typedef enum {
+    NO_KEY_UPDATE = 0,  // 无变化
+    KEY_UPDATE,         // 有按键变化
+    GHOST_KEY           // 检测到幽灵键
+} key_update_st_t;
+```
 
-        wait_ms(1);
+### 2. keymap.c - 层级管理
+
+**层级定义**：
+```c
+typedef enum {
+    LAYER_BASE = 0,     // 基础层
+    LAYER_FN,           // 功能层
+    LAYER_MACOS,        // macOS 层
+    LAYER_WINDOWS,      // Windows 层
+    LAYER_CUSTOM_1,     // 自定义层 1
+    LAYER_CUSTOM_2,     // 自定义层 2
+    LAYER_MAX
+} layer_id_t;
+```
+
+**层状态管理**：
+```c
+typedef struct {
+    layer_id_t current_layer;   // 当前激活层
+    layer_id_t base_layer;      // 基础层（TG 切换目标）
+    layer_id_t mo_stack[4];     // MO 临时层栈
+    uint8_t    mo_stack_top;    // 栈顶索引
+} layer_state_t;
+```
+
+**层切换 API**：
+```c
+void layer_set(layer_id_t layer);     // TG: 切换基础层
+void layer_on(layer_id_t layer);      // MO: 临时激活层（压栈）
+void layer_off(layer_id_t layer);     // MO: 取消临时层（出栈）
+layer_id_t layer_get_current(void);   // 获取当前层
+
+// 键码获取（支持透明键回退）
+uint16_t keymap_get_keycode(uint8_t row, uint8_t col);
+```
+
+**透明键处理**：
+- 当前层键码为 `KC_TRANSPARENT` 时，自动回退到基础层
+
+### 3. combo/process_combo.c - 组合键状态机
+
+**组合键对象**：
+```c
+typedef struct combo_t {
+    const uint16_t *keys;           // 组合键列表（以 COMBO_END 结尾）
+    bool  disabled;                 // 是否禁用
+    uint16_t ticks;                 // 计时器
+    uint8_t  repeat : 4;            // 重复次数
+    uint8_t  event : 4;             // 当前事件
+    uint8_t  state : 5;             // 状态机状态
+    uint8_t  fn_combo : 1;          // 是否为 Fn 组合键
+    uint8_t  active_status : 1;     // 是否激活
+    uint8_t  button_level : 1;      // 当前电平
+    uint16_t long_press_ticks;      // 长按阈值
+    BtnCallback cb[number_of_event]; // 事件回调数组
+} combo_t;
+```
+
+**支持的事件类型**：
+```c
+typedef enum {
+    PRESS_DOWN = 0,      // 按下
+    PRESS_UP,            // 释放
+    PRESS_REPEAT,        // 重复
+    SINGLE_CLICK,        // 单击
+    DOUBLE_CLICK,        // 双击
+    LONG_PRESS_START,    // 长按开始
+    LONG_PRESS_HOLD,     // 长按保持
+    NONE_PRESS           // 无事件
+} PressEvent;
+```
+
+**状态机流程**：
+```
+        ┌───────────────────────────────────────────────────┐
+        │                                                   │
+        ▼                                                   │
+    ┌───────┐   按下    ┌───────┐   释放    ┌───────┐      │
+    │ STATE │ ────────► │ STATE │ ────────► │ STATE │      │
+    │   0   │           │   1   │           │   2   │      │
+    │ 空闲  │           │等待释放│           │等待重按│      │
+    └───────┘           └───────┘           └───────┘      │
+                             │                   │          │
+                             │ 超时              │ 超时      │
+                             ▼                   ▼          │
+                        ┌───────┐          单击/双击        │
+                        │ STATE │ ─────────────────────────┘
+                        │   5   │
+                        │ 长按  │
+                        └───────┘
+```
+
+**组合键定义宏**：
+```c
+// 单事件组合键
+COMBO(keys, event_idx, callback)
+
+// 双事件组合键
+COMBO2(keys, event1, cb1, event2, cb2)
+
+// 带自定义长按阈值
+COMBO_LONG_TICKS(keys, long_tick_ms, event_idx, callback)
+```
+
+### 4. report.c - HID 报告生成
+
+**键盘报告结构**：
+```c
+typedef struct {
+    uint8_t mods;                       // 修饰键位图
+    uint8_t reserved;                   // 保留字节
+    uint8_t keys[KEYBOARD_REPORT_KEYS]; // 普通键（6KRO）
+} report_keyboard_t;
+```
+
+**键码分类逻辑**：
+```c
+static void classify_and_add_keycode(uint16_t keycode, ...) {
+    // 1. 跳过层切换键
+    if (IS_QK_MOMENTARY(keycode) || IS_QK_TOGGLE_LAYER(keycode)) return;
+
+    // 2. 修饰键 (0xE0-0xE7)
+    if (keycode >= KC_LCTRL && keycode <= KC_RGUI) {
+        kb_report->mods |= (1 << (keycode - KC_LCTRL));
+        return;
+    }
+
+    // 3. 普通键 (0x04-0xDF)
+    if (keycode >= KC_A && keycode < KC_LCTRL) {
+        kb_report->keys[key_idx++] = (uint8_t)keycode;
+        return;
+    }
+
+    // 4. 媒体键（M_KEY_TYPE 标记）
+    if ((keycode & M_KEY_TYPE) == M_KEY_TYPE) {
+        *consumer_report = keycode ^ M_KEY_TYPE;
+        return;
     }
 }
 ```
 
-### 2. 定义键位映射
+**报告发送流程**：
+1. 遍历 `_key_code_list` 和 `_key_code_list_extend`
+2. 仅处理 `is_report == 1` 的节点
+3. 与上一次报告比较，有变化才发送
+4. 通过 `report_buffer_enqueue()` 入队
 
+### 5. linkedlist - 按键链表
+
+**节点数据结构**：
 ```c
-const uint16_t keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    // Layer 0 - 基础层
-    [0] = {
-        {KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5},
-        {KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T},
-        {KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G},
-        {KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B},
-        {KC_LCTL, KC_LALT, KC_LGUI, KC_SPACE,KC_RGUI, KC_RCTL}
-    },
-    // Layer 1 - 功能层
-    [1] = {
-        {KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5},
-        {KC_TRNS, KC_TRNS, KC_UP,   KC_TRNS, KC_TRNS, KC_F6},
-        {KC_TRNS, KC_LEFT, KC_DOWN, KC_RIGHT,KC_TRNS, KC_F7},
-        {KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_F8},
-        {KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS}
-    }
-};
-
-const uint8_t num_keymaps = 2;
+typedef struct {
+    uint16_t key_code;      // 键值
+    uint8_t cycle;          // 按下时长
+    uint8_t is_report;      // 是否上报（0=禁用, 1=启用）
+    report_t report_type;   // 报告类型
+} bouncing_data_t;
 ```
 
-### 3. 配置层切换
-
+**核心操作**：
 ```c
-// 在键位映射中直接使用
-[0] = {
-    {KC_ESC,  KC_1,   KC_2,   KC_3},
-    {KC_TAB,  KC_Q,   KC_W,   MO(1)},   // 按住时激活层1
-    ...
-}
-
-// 或在代码中控制
-layer_on(1);      // 激活层1
-layer_off(1);     // 关闭层1
-layer_invert(1);  // 切换层1
+add(keycode, list)          // 添加按键（按下时）
+del(keycode, list)          // 删除按键（释放时）
+deactivate(keycode, list)   // 禁用上报（组合键触发时）
+find_key(list, keycode)     // 查找按键
+find_activate_key(list, keycode)  // 查找活跃按键
 ```
 
-### 4. 配置组合键
+## 键码范围
 
-```c
-#ifdef COMBO_ENABLE
-const combo_t COMBO[] = {
-    {
-        .key = {{0, 0}, {1, 0}},  // Ctrl位置和C位置
-        .keycode = KC_C,
-        .count = 2
-    },
-    {
-        .key = {{0, 0}, {1, 2}},  // Ctrl位置和V位置
-        .keycode = KC_V,
-        .count = 2
-    }
-};
-
-const uint16_t COMBO_COUNT = sizeof(COMBO) / sizeof(COMBO[0]);
-#endif
-```
-
-### 5. 自定义键码处理
-
-```c
-bool process_record_user(action_record_t* record, uint16_t keycode) {
-    switch (keycode) {
-        case KC_CAPS:
-            if (record->event.pressed) {
-                // 自定义Caps Lock处理
-                led_toggle_caps_lock();
-            }
-            break;
-
-        case KC_LGUI:
-            // 自定义GUI键处理
-            break;
-
-        default:
-            break;
-    }
-    return true;
-}
-```
-
-### 6. 平台特定实现
-
-```c
-#ifdef PLATFORM_CHIPSTM32
-void matrix_init(void) {
-    // STM32 GPIO配置
-    RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
-
-    GPIO_InitTypeDef GPIO_InitStruct = {
-        .GPIO_Pin = GPIO_Pin_All,
-        .GPIO_Mode = GPIO_Mode_IPU,
-        .GPIO_Speed = GPIO_Speed_50MHz
-    };
-    GPIO_Init(GPIOA, &GPIO_InitStruct);
-}
-
-void matrix_scan(void) {
-    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
-        // 读取GPIO并更新matrix[row]
-    }
-}
-#endif
-```
+| 范围 | 类型 | 说明 |
+|------|------|------|
+| 0x00-0x00 | KC_NO | 无键 |
+| 0x01 | KC_TRANSPARENT | 透明键 |
+| 0x04-0xDF | 普通键 | 标准 HID 键码 |
+| 0xE0-0xE7 | 修饰键 | LCtrl~RGui |
+| 0x1000+ | 媒体键 | M_KEY_TYPE 标记 |
+| 0x5220-0x523F | MO(n) | 临时层切换 |
+| 0x5260-0x527F | TG(n) | 切换层 |
 
 ## 配置选项
 
 在 `keyboards/product_config.h` 中配置：
 
 ```c
-// 消抖配置
-#define DEBOUNCE_ALGORITHM DEBOUNCE_SYM_DEFER_PK
-#define DEBOUNCE_DELAY 5
+// 矩阵配置
+#define MATRIX_ROWS 6
+#define MATRIX_COLS 13
+#define MATRIX_ROW_PINS { 0, 1, 2, 3, 4, 5 }
+#define MATRIX_COL_PINS { 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }
+#define DIODE_DIRECTION COL2ROW
 
-// 层配置
-#define LAYER_STATE_16BIT
-#define MAX_LAYER_COUNT 16
+// 防抖配置
+#define DEBOUNCE 5  // ms
 
-// 组合键配置
-#define COMBO_ENABLE 1
-#define COMBO_TERM 200
-#define COMBO_MOD_TERM 200
-
-// 自定义功能
-#define TAP_DANCE_ENABLE 1
-#define LEADER_KEY_ENABLE 0
-#define MACRO_ENABLE 1
-
-// 调试选项
-#define KEYBOARD_DEBUG 1
+// 层切换键物理位置（Fn 键）
+// 解决 Fn + 功能键同时按下时的层状态时序问题
+#define FN_KEY_ROW  6   // Fn 键所在行
+#define FN_KEY_COL  10  // Fn 键所在列
 ```
 
-## API参考
-
-### 核心API
-
+组合键时间参数（`process_combo.h`）：
 ```c
-// 初始化
-int keyboard_framework_init(void);
-
-// 主循环
-void keyboard_framework_task(void);
-
-// 层操作
-void layer_on(uint8_t layer);
-void layer_off(uint8_t layer);
-void layer_invert(uint8_t layer);
-layer_state_t layer_state_get(void);
-
-// 修饰键
-void register_mods(uint8_t mods);
-void unregister_mods(uint8_t mods);
-uint8_t get_mods(void);
-
-// 按键操作
-void register_code(uint8_t code);
-void unregister_code(uint8_t code);
-void tap_code(uint8_t code);
-
-// 调试
-void matrix_print(void);
-void layer_debug(void);
+#define TICKS_INTERVAL    5      // 扫描间隔 ms
+#define DEBOUNCE_TICKS    3      // 防抖周期数
+#define SHORT_TICKS       60     // 短按阈值（300ms / 5ms）
+#define LONG_TICKS        500    // 长按阈值（2500ms / 5ms）
 ```
 
-### 高级API
+## 使用示例
+
+### 初始化
 
 ```c
-// 组合键
-bool combo_event(keyevent_t event);
-void combo_task(void);
+void main(void) {
+    keyboard_init();
 
-// Tap Dance
-#if TAP_DANCE_ENABLE
-void tap_dance_init(void);
-void tap_dance_task(void);
-#endif
-
-// Leader Key
-#if LEADER_KEY_ENABLE
-void leader_init(void);
-void leader_task(void);
-#endif
-
-// 宏
-#if MACRO_ENABLE
-void macro_init(void);
-void macro_play(uint8_t macro_id);
-void macro_task(void);
-#endif
-```
-
-## 性能优化
-
-### 1. 消抖算法选择
-
-- **游戏场景**: 使用 `DEBOUNCE_SYM_EAGER_PK` 获得最快响应
-- **办公场景**: 使用 `DEBOUNCE_SYM_DEFER_PK` 保证稳定性
-- **特殊需求**: 使用 `DEBOUNCE_ASYM_EAGER_DEFER_PK`
-
-### 2. 矩阵扫描优化
-
-- 合理设置扫描频率（一般5-10ms）
-- 使用硬件中断检测按键变化
-- 优化GPIO读取速度
-
-### 3. 内存优化
-
-```c
-// 根据需要调整层数
-#define MAX_LAYER_COUNT 4  // 默认16，可减少节省内存
-
-// 调整组合键数量
-#define MAX_COMBOS 16  // 默认32，可减少节省内存
-
-// 关闭不需要的功能
-#define COMBO_ENABLE 0
-#define TAP_DANCE_ENABLE 0
-```
-
-## 调试指南
-
-### 1. 启用调试
-
-```c
-#define KEYBOARD_DEBUG 1
-```
-
-### 2. 调试输出
-
-```c
-// 在代码中添加调试信息
-dprintf("Keyboard: Key pressed at (%d, %d)\n", row, col);
-
-// 查看层状态
-layer_debug();
-
-// 查看矩阵状态
-matrix_print();
-```
-
-### 3. 常见问题
-
-**Q: 按键不响应**
-A: 检查矩阵定义、GPIO配置、消抖设置
-
-**Q: 组合键不生效**
-A: 检查COMBO_ENABLE是否启用、组合键定义是否正确
-
-**Q: 层切换无效**
-A: 确认键位映射中使用了正确的层切换键码
-
-**Q: 响应延迟高**
-A: 调整消抖算法、增加扫描频率、优化中断处理
-
-## 扩展开发
-
-### 添加新的消抖算法
-
-```c
-// 在debounce.c中添加新的算法函数
-static bool debounce_custom_algorithm(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool changed) {
-    // 实现自定义消抖逻辑
-    return true;
+    while (1) {
+        keyboard_task();
+        // 其他任务...
+        wait_ms(TICKS_INTERVAL);
+    }
 }
-
-// 在debounce.h中定义常量
-#define DEBOUNCE_CUSTOM_ALGO 4
-
-// 在keyboard_framework.h中选择算法
-#define DEBOUNCE_ALGORITHM DEBOUNCE_CUSTOM_ALGO
 ```
 
-### 添加新的自定义功能
+### 定义键位映射
 
 ```c
-// 在custom_function.h中定义
-typedef void (*custom_fn_t)(void);
-extern custom_fn_t custom_functions[];
-
-// 在custom_function.c中实现
-void custom_function_0(void) {
-    dprintf("Executing custom function 0\n");
-    // 执行自定义功能
-}
-
-custom_fn_t custom_functions[] = {
-    custom_function_0,
-    // 更多自定义功能
+// keyboards/product_keymap.c
+const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
+    [LAYER_BASE] = {
+        { KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5 },
+        { KC_TAB,  KC_Q,    KC_W,    KC_E,    KC_R,    KC_T },
+        { KC_CAPS, KC_A,    KC_S,    KC_D,    KC_F,    KC_G },
+        { KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B },
+        { KC_LCTL, KC_LALT, KC_LGUI, KC_SPC,  MO(1),   KC_RCTL }
+    },
+    [LAYER_FN] = {
+        { KC_GRV,  KC_F1,   KC_F2,   KC_F3,   KC_F4,   KC_F5 },
+        { KC_TRNS, KC_TRNS, KC_UP,   KC_TRNS, KC_TRNS, KC_F6 },
+        { KC_TRNS, KC_LEFT, KC_DOWN, KC_RGHT, KC_TRNS, KC_F7 },
+        { KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_F8 },
+        { KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS, KC_TRNS }
+    },
 };
 ```
 
-### 适配新平台
+### 定义组合键
 
-1. 在 `platform_<platform>.h` 中定义平台特定函数
-2. 在 `keyboard_framework.c` 中检测平台
-3. 实现对应的GPIO、计时器、矩阵扫描函数
+```c
+// 组合键按键列表
+const uint16_t combo_esc_reset[] = { KC_ESC, KC_LCTL, COMBO_END };
+const uint16_t combo_fn_f1[] = { S_FN_KEY, KC_F1, COMBO_END };
 
-## 许可证
+// 回调函数
+uint8_t on_esc_reset(uint16_t* add_keys) {
+    // 执行复位操作
+    return 0;
+}
 
-本项目采用 GPL-3.0 许可证发布。
+uint8_t on_fn_f1(uint16_t* add_keys) {
+    add_keys[0] = M_BACKLIGHT_UP;
+    return 1;
+}
 
-## 贡献
+// 组合键数组
+combo_t key_combos[] = {
+    COMBO(combo_esc_reset, LONG_PRESS_START, on_esc_reset),
+    COMBO(combo_fn_f1, PRESS_DOWN, on_fn_f1),
+};
+uint8_t number_of_combos = sizeof(key_combos) / sizeof(combo_t);
+```
 
-欢迎提交Issue和Pull Request来改进这个框架。
+## 依赖关系
 
-## 联系方式
+```
+keyboard.c
+├── drivers/input/keyboard/matrix.h    矩阵扫描
+├── drivers/input/keyboard/debounce.h  防抖处理
+├── utils/linkedlist.h                 链表工具
+├── middleware/communication/report_buffer.h  报告队列
+└── combo/process_combo.h              组合键处理
+```
 
-如有问题或建议，请提交到项目Issues页面。
+## 调试
 
----
+启用调试输出（`application/sys_config.h`）：
+```c
+#define PRINTF_LEVEL PRINTF_LEVEL_DEBUG
+```
 
-**版本**: 1.0.0
-**更新日期**: 2024-12-06
+调试函数：
+```c
+// 打印矩阵状态
+matrix_print();
+
+// 打印链表内容
+display(_key_code_list);
+```
+
+## 注意事项
+
+1. **6KRO 限制**：标准 HID 报告仅支持同时 6 个普通键，修饰键不计入
+2. **组合键优先级**：组合键触发时会调用 `deactivate()` 禁用成员键的上报
+3. **层切换键**：MO/TG 键不会出现在 HID 报告中
+4. **媒体键**：使用 Consumer 报告发送，与键盘报告分开

@@ -259,7 +259,8 @@
 							"D:\\Code\\C_Project\\keyboard-framework\\application\\include",
 							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile\\include",
 							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile",
-							"${project}/Profile"
+							"${project}/Profile",
+							"${project}/middleware/keyboard/combo"
 						],
 						"include_system_paths": [],
 						"include_files": []

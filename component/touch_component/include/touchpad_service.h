@@ -18,7 +18,7 @@
  * INCLUDES 头文件
  */
 #include "pct1336_driver.h"
-#include "config.h"
+#include "product_config.h"
 #ifdef MCS_GESTURE
 #include "mcs_gesture.h"
 #endif
@@ -34,7 +34,10 @@ typedef enum
 	TOUCH_MODE_PTP = 3,
 } touch_mode_t;
 
-#define U_TIMER_TOUCH_ID  U_TIMER0
+// 触控板防误触防抖周期
+#ifndef BAYES_DEBOUNCE_CYCLE
+#define BAYES_DEBOUNCE_CYCLE  3
+#endif
 /*********************************************************************
  * TYPEDEFS 数据结构
  */

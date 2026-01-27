@@ -12,16 +12,18 @@
 /*********************************************************************
  * INCLUDES 头文件
  */
+#include <stdint.h>
 #include <string.h>
+
 /*********************************************************************
  * CONSTANTS 常量
  */
-typedef enum{
-    TOUCH_INIT_EVENT    =    (1<<0)  
-    TOUCH_INI_EVT    =       (1<<1) 
-    TOUCH_REG_INIT_EVT   =   (1<<2)
-    TOUCH_POWER_OFF_EVENT   = (1<<3)
-}   touch_evt_t
+typedef enum {
+    TOUCH_INIT_EVENT      = (1 << 0),
+    TOUCH_INI_EVT         = (1 << 1),
+    TOUCH_REG_INIT_EVT    = (1 << 2),
+    TOUCH_POWER_OFF_EVENT = (1 << 3)
+} touch_evt_t;
 
 
 #pragma pack(1)

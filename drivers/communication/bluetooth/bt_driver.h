@@ -156,3 +156,15 @@ uint8_t bt_driver_send_mouse(uint8_t *report);
  */
 void bt_driver_update_bat_level(uint8_t bat_lvl);
 
+/*********************************************************************
+ * @fn      bt_driver_send_ptp
+ *
+ * @brief   发送 PTP (Precision Touchpad) 报告
+ *          传输精确触控板 HID 报告
+ *
+ * @param   report - PTP 报告数据
+ * @param   len - 报告数据长度
+ *
+ * @return  uint8_t - 发送状态（0:成功, 非0:失败）
+ */
+uint8_t bt_driver_send_ptp(uint8_t *report, uint8_t len);

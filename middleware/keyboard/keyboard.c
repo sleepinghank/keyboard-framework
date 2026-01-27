@@ -23,6 +23,7 @@ static key_update_st_t last_update_state = NO_KEY_UPDATE;
 
 // 内部函数声明
 static key_update_st_t scan_and_debounce(void);
+static void process_layer_switch_key(void);
 static void update_key_code_list(void);
 
 void keyboard_init(void) {
@@ -60,18 +61,23 @@ void keyboard_task(void) {
         return;
     }
 
-    // 3. 更新按键列表（基于防抖后的矩阵变化）
+    // 3. 优先处理层切换键（解决同时按下时序问题）
+    if (key_st == KEY_UPDATE) {
+        process_layer_switch_key();
+    }
+
+    // 4. 更新按键列表（基于防抖后的矩阵变化）
     if (key_st == KEY_UPDATE) {
         update_key_code_list();
     }
 
-    // 4. 组合键处理
+    // 5. 组合键处理
     combo_task(key_st);
 
-    // 5. 生成并发送 HID 报告
+    // 6. 生成并发送 HID 报告
     report_update_proc(key_st);
 
-    // 6. 清空扩展键列表
+    // 7. 清空扩展键列表
     del_all_child(_key_code_list_extend);
 }
 
@@ -103,6 +109,36 @@ static key_update_st_t scan_and_debounce(void) {
     // }
 
     return KEY_UPDATE;
+}
+
+// 优先处理层切换键（Fn 键）
+// 在其他键码解析前执行，确保层状态正确
+static void process_layer_switch_key(void) {
+#if defined(FN_KEY_ROW) && defined(FN_KEY_COL)
+    matrix_row_t current = matrix_debounced[FN_KEY_ROW];
+    matrix_row_t previous = matrix_previous[FN_KEY_ROW];
+    matrix_row_t fn_mask = (matrix_row_t)1 << FN_KEY_COL;
+
+    // 检查 Fn 键位置是否有变化
+    if (!((current ^ previous) & fn_mask)) {
+        return;
+    }
+
+    // 获取当前层在该位置的键码
+    uint16_t keycode = keymap_get_keycode(FN_KEY_ROW, FN_KEY_COL);
+
+    // 检查是否为 MO() 层切换键
+    if (IS_QK_MOMENTARY(keycode)) {
+        uint8_t target_layer = keycode & 0x1F;
+        bool pressed = current & fn_mask;
+
+        if (pressed) {
+            layer_on(target_layer);
+        } else {
+            layer_off(target_layer);
+        }
+    }
+#endif
 }
 
 // 更新按键列表（基于防抖后的矩阵变化）

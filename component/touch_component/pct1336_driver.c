@@ -8,25 +8,27 @@
 
 
 /*********************************************************************
- * INCLUDES 头文件 
+ * INCLUDES 头文件
  */
 #include "pct1336_driver.h"
-#include "debug_log.h"
 #include "i2c_master.h"
-#include "timer.h"
-#include "pxi_par2860_ble_lib.h"
+#include "wait.h"
+#include "event_manager.h"
+#include "debug.h"
 /*********************************************************************
  * MACROS 宏定义
  */
 // 调试打印宏
 #if 1
-#define PCT1336_log(...) DEBUG_log(__VA_ARGS__)
+#define PCT1336_log(...) dprintf(__VA_ARGS__)
 #else
 #define PCT1336_log(...)
 #endif
 
+#define TOUCH_SLAVE_ID                              0x33 // 触摸板从机地址
 
-#define TOUCH_SLAVE_ID 								0x33 // 触摸板从机地址
+/* OSAL 事件定义 */
+#define PCT1336_REG_POLL_EVT                        (1 << 0)
 
 #define EVENT_TOUCH 0x02
 #define EVENT_GEST 0x08
@@ -62,8 +64,11 @@
 static pct1336_params_t* init_params = NULL;
 static uint8_t init_params_len = 0;
 
-static uint8_t retry_cnt=0;
-static uint8_t state=0;
+static uint8_t retry_cnt = 0;
+static uint8_t state = 0;
+
+/* OSAL 任务 ID */
+static uint8_t pct1336_taskID = 0;
 
 /*********************************************************************
  * LOCAL FUNCTIONS 本地函数
@@ -104,13 +109,13 @@ static uint8_t pct1336_PTP_read_reg(uint16_t addr, uint8_t * p_val, uint8_t sz)
 int8_t pct1336_write_user_reg(uint8_t bank, uint16_t addr, uint8_t val)
 {
 	pct1336_write_reg(0x7f,0x06);
-    pxi_delay_us(500);
+    wait_us(500);
 	pct1336_write_reg(0x73,bank);
-	pxi_delay_us(500);
+	wait_us(500);
 	pct1336_write_reg(0x74,addr);
-	pxi_delay_us(500);
+	wait_us(500);
 	pct1336_write_reg(0x75,val);
-	pxi_delay_us(500);
+	wait_us(500);
 	return 1;
 }
 /// @brief 触摸板读取用户寄存器数据
@@ -121,13 +126,13 @@ int8_t pct1336_write_user_reg(uint8_t bank, uint16_t addr, uint8_t val)
 int8_t pct1336_read_user_reg(uint8_t bank, uint16_t addr, uint8_t * p_val)
 {
 	pct1336_write_reg(0x7f,0x06);
-    pxi_delay_us(500);
+    wait_us(500);
 	pct1336_write_reg(0x73,bank);
-	pxi_delay_us(500);
+	wait_us(500);
 	pct1336_write_reg(0x74,addr);
-	pxi_delay_us(500);
+	wait_us(500);
 	pct1336_read_reg(0x75, p_val);	
-	pxi_delay_us(500);
+	wait_us(500);
 	return 1;
 }
 
@@ -150,7 +155,7 @@ int8_t pct1336_read_user_reg(uint8_t bank, uint16_t addr, uint8_t * p_val)
 //                 return 1; // 初始化成功
 //             }
 //         }
-//         pxi_delay_ms(1); // 间隔1ms
+//         wait_ms(1); // 间隔1ms
 //     }
 //     DEBUG_log("touch init fail, INT_LEVEL_CTRL: 0x%02X\r\n", state);
 //     touch_en = 0;
@@ -174,15 +179,9 @@ int8_t pct1336_register_end(void){
 }
 
 /// @brief 注册触控板参数并启动
-/// @return 1：重启成功，0：未就绪 
+/// @return 1：重启成功，0：未就绪
 int8_t pct1336_register_params(pct1336_params_t *params, uint8_t len)
 {
-    // 参数有效性检查
-    // if (params == NULL && len != 0)
-    // {
-    //     return 0;
-    // }
-    
     // 读取状态寄存器，检查BIT0是否为1，最多重试5次
     uint8_t state;
     pct1336_read_reg(0x70, &state);
@@ -191,17 +190,16 @@ int8_t pct1336_register_params(pct1336_params_t *params, uint8_t len)
         retry_cnt++;
         if (retry_cnt >= 50) {
             PCT1336_log("Touch resume timeout after 50 attempts (500ms)\r\n");
-            u_timer_disable(U_TIMER0);
+            OSAL_StopTask(pct1336_taskID, PCT1336_REG_POLL_EVT);
             return 0;
         }
         return 0;
     }
-    u_timer_disable(U_TIMER0);
+    OSAL_StopTask(pct1336_taskID, PCT1336_REG_POLL_EVT);
 
     if (len > 0) {
         uint8_t u8tmp = 0;
         for(u8tmp = 0; u8tmp < len; u8tmp++){
-            // PCT1336_log("<< touch_Init params:%x\r\n", params[u8tmp].params.data);
             pct1336_write_user_reg(params[u8tmp].params.bank, params[u8tmp].params.address, params[u8tmp].params.data);
         }
     }
@@ -254,15 +252,22 @@ int8_t pct1336_reset(void)
 }
 
 
-void pct1336_register_cb(void)
-{
-	pct1336_register_params(init_params, init_params_len);
-}
-
 /*********************************************************************
- * PROFILE CALLBACKS    公开回调
+ * OSAL 事件处理函数
  */
 
+/// @brief PCT1336 OSAL 事件处理函数
+/// @param task_id 任务ID
+/// @param events 事件标志
+/// @return 未处理的事件
+static uint16_t pct1336_process_event(uint8_t task_id, uint16_t events)
+{
+    if (events & PCT1336_REG_POLL_EVT) {
+        pct1336_register_params(init_params, init_params_len);
+        return (events ^ PCT1336_REG_POLL_EVT);
+    }
+    return 0;
+}
 
 /*********************************************************************
  * PUBLIC FUNCTIONS 公开的函数
@@ -295,7 +300,7 @@ int8_t pct1336_init()
             }
             
             retry_cnt++;
-            pxi_delay_ms(1); // 间隔1ms
+            wait_ms(1); // 间隔1ms
         } while (retry_cnt < 3);
         
         retry_cnt = 0;
@@ -313,7 +318,7 @@ int8_t pct1336_init()
 
         //     retry_cnt++;
 
-        //     pxi_delay_us(50);	
+        //     wait_us(50);	
         //     if(retry_cnt >= 3)
         //     {
         //         //DBGPRINTF((">> touch_Init fail\r\n"));
@@ -321,13 +326,13 @@ int8_t pct1336_init()
         //     }
         // }
 
-        // pxi_delay_us(200);	
+        // wait_us(200);	
         // pct1336_write_reg(0x7b, 0x01);
-        // pxi_delay_us(200);	
+        // wait_us(200);	
         // pct1336_write_reg(0x7a, 0xaa);
-        // pxi_delay_us(200);	
+        // wait_us(200);	
         // pct1336_write_reg(0x7a, 0xbb);//reset
-        // pxi_delay_ms(70);
+        // wait_ms(70);
         while(1)
         {
             if(pct1336_write_reg(0x7f, 0x06) == 1)
@@ -335,7 +340,7 @@ int8_t pct1336_init()
 
             retry_cnt++;
 
-            pxi_delay_us(50);	
+            wait_us(50);	
             if(retry_cnt >= 3)
             {
                 //DBGPRINTF((">> touch_Init fail\r\n"));
@@ -343,17 +348,20 @@ int8_t pct1336_init()
             }
         }
 
-        pxi_delay_us(200);	
+        wait_us(200);
         pct1336_write_reg(0x7b, 0x01);
-        pxi_delay_us(200);	
+        wait_us(200);
         pct1336_write_reg(0x7a, 0xaa);
-        pxi_delay_us(200);	
-        pct1336_write_reg(0x7a, 0xbb);//reset
-        // pxi_delay_ms(70);
-        retry_cnt =0;
+        wait_us(200);
+        pct1336_write_reg(0x7a, 0xbb); // reset
+        retry_cnt = 0;
         state = 0;
-        // PCT1336_log("pct1336_init: start u_timer_enable\r\n");
-        u_timer_enable(U_TIMER0, pct1336_register_cb, 10, 1);
+
+        // 注册 OSAL 任务并启动轮询定时器
+        if (pct1336_taskID == 0) {
+            pct1336_taskID = OSAL_ProcessEventRegister(pct1336_process_event);
+        }
+        OSAL_StartReloadTask(pct1336_taskID, PCT1336_REG_POLL_EVT, 10);
         return 1;
     }
 }
