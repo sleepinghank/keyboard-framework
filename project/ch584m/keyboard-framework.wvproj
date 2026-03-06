@@ -81,6 +81,31 @@
 				"parentLogicPath": "drivers/communication/usb/platforms",
 				"type": "folder",
 				"name": "pixart2860"
+			},
+			{
+				"parentLogicPath": "drivers/communication/bluetooth",
+				"type": "folder",
+				"name": "test"
+			},
+			{
+				"parentLogicPath": "application",
+				"type": "file",
+				"name": "hidkbd.c"
+			},
+			{
+				"parentLogicPath": "application/include",
+				"type": "file",
+				"name": "hidkbd.h"
+			},
+			{
+				"parentLogicPath": "application",
+				"type": "folder",
+				"name": "include"
+			},
+			{
+				"parentLogicPath": "drivers/storage",
+				"type": "folder",
+				"name": "test"
 			}
 		],
 		"projectName": "keyboard-framework",
@@ -104,8 +129,7 @@
 				"post_script_description": "",
 				"excludeResources": [
 					"${project}/CH584M",
-					"${project}/新建文件夹",
-					"${project}/Ld",
+					"${project}/閺傛澘缂撻弬鍥︽婢剁畬Ld",
 					"${project}/RVMSIS",
 					"${project}/StdPeriphDriver/CH59x_usbhostClass.c",
 					"${project}/StdPeriphDriver/CH59x_usbhostBase.c",
@@ -132,10 +156,8 @@
 					"${project}/platform/platform_spi.h",
 					"${project}/port/ch584m/port_spi.c",
 					"${project}/port/ch584m/port_spi.h",
-					"${project}/drivers/communication/bluetooth/ch584/_bt_driver.c",
-					"${project}/drivers/communication/bluetooth/ch584/_bt_driver.h",
-					"${project}/drivers/communication/bluetooth/ch584/hidkbd.c",
-					"${project}/drivers/communication/bluetooth/ch584/hidkbd.h"
+					"${project}/drivers/communication/bluetooth/test",
+					"${project}/application/hidkbd.c"
 				],
 				"optimization": {
 					"level": "size",
@@ -259,7 +281,10 @@
 							"D:\\Code\\C_Project\\keyboard-framework\\application\\include",
 							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile\\include",
 							"D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\Profile",
-							"${project}/Profile"
+							"${project}/Profile",
+							"${project}",
+							"${project}/drivers/communication/bluetooth/ch584",
+							"${project}/drivers/storage/ch584"
 						],
 						"include_system_paths": [],
 						"include_files": []
@@ -475,8 +500,7 @@
 				"post_script_description": "",
 				"excludeResources": [
 					"${project}/CH584M",
-					"${project}/新建文件夹",
-					"${project}/Ld",
+					"${project}/閺傛澘缂撻弬鍥︽婢剁畬Ld",
 					"${project}/RVMSIS",
 					"${project}/StdPeriphDriver/CH59x_usbhostClass.c",
 					"${project}/StdPeriphDriver/CH59x_usbhostBase.c",
@@ -488,7 +512,9 @@
 					"${project}/StdPeriphDriver/CH59x_timer0.c",
 					"${project}/StdPeriphDriver/CH59x_spi0.c",
 					"${project}/StdPeriphDriver/CH59x_pwm.c",
-					"${project}/StdPeriphDriver/CH59x_adc.c"
+					"${project}/StdPeriphDriver/CH59x_adc.c",
+					"${project}/drivers/communication/bluetooth/test",
+					"${project}/application/hidkbd.c"
 				],
 				"optimization": {
 					"level": "size",

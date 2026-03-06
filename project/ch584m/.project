@@ -117,5 +117,45 @@
         <arguments>1.0-name-matches-false-false-pixart2860</arguments>
       </matcher>
     </filter>
+    <filter>
+      <name>drivers/communication/bluetooth</name>
+      <type>10</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-test</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>application</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-hidkbd.c</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>application/include</name>
+      <type>6</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-hidkbd.h</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>application</name>
+      <type>10</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-include</arguments>
+      </matcher>
+    </filter>
+    <filter>
+      <name>drivers/storage</name>
+      <type>10</type>
+      <matcher>
+        <id>org.eclipse.ui.ide.multiFilter</id>
+        <arguments>1.0-name-matches-false-false-test</arguments>
+      </matcher>
+    </filter>
   </filteredResources>
 </projectDescription>
