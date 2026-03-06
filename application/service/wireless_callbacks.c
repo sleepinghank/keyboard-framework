@@ -18,6 +18,10 @@
 #include "indicator.h"
 #include "battery.h"
 #include "print.h"
+#include "storage.h"
+#include "system_hal.h"
+#include "bt_driver.h"
+#include "../../drivers/communication/bluetooth/ch584/hidkbd.h"
 
 #ifdef RGB_MATRIX_ENABLE
 #    include "rgb_matrix.h"
@@ -26,6 +30,13 @@
 #ifdef LED_MATRIX_ENABLE
 #    include "led_matrix.h"
 #endif
+
+static uint8_t wireless_cb_indicator_led(uint8_t host_idx) {
+    if (host_idx >= 1 && host_idx <= 3) {
+        return (uint8_t)(host_idx - 1);
+    }
+    return 0;
+}
 
 /*********************************************************************
  * @fn      wireless_enter_reset_kb
@@ -53,7 +64,7 @@ __attribute__((weak)) void wireless_enter_reset_kb(uint8_t reason) {
 __attribute__((weak)) void wireless_enter_discoverable_kb(uint8_t host_idx) {
     println("Wireless: Entering discoverable mode");
     // 设置指示灯为配对状态
-    indicator_set(WT_PARING, host_idx);
+    indicator_set(wireless_cb_indicator_led(host_idx), &IND_BLINK_SLOW);
 }
 
 /*********************************************************************
@@ -68,7 +79,7 @@ __attribute__((weak)) void wireless_enter_discoverable_kb(uint8_t host_idx) {
 __attribute__((weak)) void wireless_enter_reconnecting_kb(uint8_t host_idx) {
     println("Wireless: Entering reconnecting mode");
     // 设置指示灯为重连状态
-    indicator_set(WT_RECONNECTING, host_idx);
+    indicator_set(wireless_cb_indicator_led(host_idx), &IND_BLINK_FAST);
 }
 
 /*********************************************************************
@@ -95,7 +106,7 @@ __attribute__((weak)) void wireless_enter_connected_kb(uint8_t host_idx) {
     // wireless_update_battery_level(battery_get_percentage());
 
     // 设置指示灯为连接状态
-    indicator_set(WT_CONNECTED, host_idx);
+    indicator_set(wireless_cb_indicator_led(host_idx), &IND_ON);
 }
 
 /*********************************************************************
@@ -112,7 +123,7 @@ __attribute__((weak)) void wireless_enter_disconnected_kb(uint8_t host_idx, uint
     println("Wireless: Disconnected from host");
 
     // 设置指示灯为断开状态
-    indicator_set(WT_DISCONNECTED, host_idx);
+    indicator_set(wireless_cb_indicator_led(host_idx), &IND_OFF);
 }
 
 /*********************************************************************
@@ -136,4 +147,23 @@ __attribute__((weak)) void wireless_enter_sleep_kb(void) {
     // rgb_matrix_disable_noeeprom();
 #    endif
 #endif
+}
+
+void access_ble_enter_idel_sleep(void) {
+    if (!access_state.deep_sleep_flag) {
+        return;
+    }
+
+    println("Wireless: ADV timeout, enter deep sleep");
+
+    if (storage_is_initialized()) {
+        storage_save();
+    }
+    indicator_off_all();
+
+    system_hal_enter_sleep(SYSTEM_POWER_MODE_DEEP_SLEEP,
+                           SYSTEM_WAKEUP_GPIO | SYSTEM_WAKEUP_KEYBOARD | SYSTEM_WAKEUP_BLE);
+
+    println("Wireless: Wakeup from deep sleep, reconnect");
+    bt_driver_connect_ex(0, 0);
 }

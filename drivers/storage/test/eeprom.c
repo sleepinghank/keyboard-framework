@@ -16,7 +16,9 @@
 
 #include "eeprom.h"
 
+#ifndef TOTAL_EEPROM_BYTE_COUNT
 #define TOTAL_EEPROM_BYTE_COUNT 512
+#endif
 
 static uint8_t buffer[TOTAL_EEPROM_BYTE_COUNT];
 

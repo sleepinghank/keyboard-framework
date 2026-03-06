@@ -19,9 +19,11 @@
 #include "timer.h"
 #include "matrix.h"
 #include "storage.h"
+#include "eeprom.h"
 #include "battery.h"
 #include "indicator.h"
 #include "event_manager.h"
+#include "bt_driver.h"
 
 // middleware
 #include "report_buffer.h"
@@ -127,6 +129,10 @@ void system_init_hal(void) {
 
     setPinOutput(B14);
     writePinHigh(B14);
+
+    setPinOutput(B19);
+    writePinHigh(B19);
+    PRINT("B19 HAL initialized\r\n");
     // 硬件定时器初始化
     hw_timer_init();
     // 标记HAL init完成
@@ -141,13 +147,16 @@ void system_init_drivers(void) {
     // timer_init();
 
     // 1. 存储系统初始化 (最优先)
-    // storage_init();
+    storage_init();
 
     // 2. 电池管理初始化
     // battery_init();
 
     // 3. 指示灯初始化
     // indicator_init();
+
+    // Bluetooth stack and role init should be owned by driver layer.
+    bt_driver_init(false);
 
     // 标记Driver init完成
     g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_INIT;

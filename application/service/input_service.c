@@ -6,6 +6,7 @@
 #include "battery.h"
 #include "indicator.h"
 #include "system_service.h"
+#include "bt_driver.h"
 #include "hw_timer.h"
 
 /* 低电量阈值 */
@@ -76,8 +77,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理矩阵扫描事件
     if (events & INPUT_MATRIX_SCAN_EVT) {
-        // keyboard_task();
-        dprintln("*");
+        keyboard_task();
         return (events ^ INPUT_MATRIX_SCAN_EVT);
     }
 

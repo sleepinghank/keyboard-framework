@@ -23,7 +23,13 @@
 #include "HAL.h"
 #include "hidkbd.h"
 #include "event_manager.h"
+#include "debug.h"
 #include <string.h>
+
+#ifdef dprint
+#undef dprint
+#endif
+#define dprint(...) dprintf(__VA_ARGS__)
 //系统状态变量
 uint8_t sys_state = 0;
 //系统类型枚举
@@ -254,6 +260,17 @@ static void    hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent);
 
 uint8_t HCI_MB_DisconnectCmd( uint16_t connHandle, uint8_t reason );
 extern uint8_t LL_SetDataRelatedAddressChanges( uint8_t Advertising_Handle, uint8_t Change_Reasons ) ;
+extern void access_ble_enter_idel_sleep(void);
+
+__attribute__((weak)) void access_ctl_process(uint8_t ble_idx)
+{
+    (void)ble_idx;
+}
+
+__attribute__((weak)) void hidDevBattCB(uint8_t evt)
+{
+    (void)evt;
+}
 //void hidEmu_NEXT_BUF(void);
 
 /*********************************************************************
@@ -293,6 +310,20 @@ void HidEmu_Init()
     //注册中心设备任务
     centralTaskId = OSAL_ProcessEventRegister(Central_ProcessEvent);
     dprint("hidEmuTaskId:%x,centralTaskId:%x\n",hidEmuTaskId,centralTaskId);
+
+    {
+        storage_config_t *cfg = storage_get_config_ptr();
+        access_state.pairing_state = FALSE;
+        access_state.deep_sleep_flag = FALSE;
+        access_state.idel_sleep_flag = FALSE;
+        access_state.ble_idx = BLE_INDEX_1;
+        if((cfg != NULL) && (cfg->ble_idx > BLE_INDEX_IDEL) && (cfg->ble_idx < BLE_INDEX_MAX))
+        {
+            access_state.ble_idx = cfg->ble_idx;
+        }
+        con_work_mode = access_state.ble_idx;
+    }
+
     // Setup the GAP Peripheral Role Profile
     {
         uint8_t initial_advertising_enable = TRUE;//使能广播
@@ -365,6 +396,7 @@ void HidEmu_Init()
  *
  * @return  events not processed
  */
+#if 0
 uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
 {
     if(events & SYS_EVENT_MSG)////消息处理，连接断开，连接成功等  系统消息处理，事件处理，系统预定义的，不能被修改
@@ -427,6 +459,7 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
 
     if(events & SEND_DISCONNECT_EVT)//发送断开连接，连接后发送数据
     {
+    {
         dprint("SEND_DISCONNECT_EVT\n");
         uint8_t ble_state;
 //        dprint("SD\n");
@@ -443,7 +476,26 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
         return (events ^ SEND_DISCONNECT_EVT);
     }
 
+    if(events & ADV_TIMEOUT_SLEEP_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if((ble_state != GAPROLE_CONNECTED) && (!access_state.pairing_state))
+        {
+            dprint("ADV timeout -> request deep sleep\n");
+            access_state.deep_sleep_flag = TRUE;
+            hidEmu_adv_enable(DISABLE);
+            access_ble_enter_idel_sleep();
+        }
+        else
+        {
+            dprint("ADV timeout ignored, state:%x pairing:%x\n", ble_state, access_state.pairing_state);
+        }
+        return (events ^ ADV_TIMEOUT_SLEEP_EVT);
+    }
+
     if(events & SEND_PACKET_EVT)//发送hid数据包
+    {
     {
         uint8_t ble_state;
         GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
@@ -575,6 +627,124 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
     }
     return 0;
 }
+#endif
+
+uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
+{
+    (void)task_id;
+
+    if(events & SYS_EVENT_MSG)
+    {
+        uint8_t *pMsg;
+        if((pMsg = OSAL_MsgReceive(hidEmuTaskId)) != NULL)
+        {
+            hidEmu_ProcessTMOSMsg((tmos_event_hdr_t *)pMsg);
+            OSAL_MsgDeallocate(pMsg);
+        }
+        return (events ^ SYS_EVENT_MSG);
+    }
+
+    if(events & START_DEVICE_EVT)
+    {
+        return (events ^ START_DEVICE_EVT);
+    }
+
+    if(events & START_PHY_UPDATE_EVT)
+    {
+        dprint("Send Phy Update %x...\n", GAPRole_UpdatePHY(hidEmuConnHandle, 0,
+                                                            GAP_PHY_BIT_LE_2M, GAP_PHY_BIT_LE_2M, 0));
+        return (events ^ START_PHY_UPDATE_EVT);
+    }
+
+    if(events & PERI_SECURITY_REQ_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if(ble_state == GAPROLE_CONNECTED)
+        {
+            dprint("Send Security Req ...\n");
+            if(GAPBondMgr_PeriSecurityReq(hidEmuConnHandle))
+            {
+                OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);
+            }
+        }
+        return (events ^ PERI_SECURITY_REQ_EVT);
+    }
+
+    if(events & WAIT_TERMINATE_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if(ble_state == GAPROLE_CONNECTED)
+        {
+            HCI_MB_DisconnectCmd(hidEmuConnHandle, 0x16);
+        }
+        return (events ^ WAIT_TERMINATE_EVT);
+    }
+
+    if(events & SEND_DISCONNECT_EVT)
+    {
+        uint8_t ble_state;
+        dprint("SEND_DISCONNECT_EVT\n");
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if(ble_state != GAPROLE_CONNECTED)
+        {
+            BLE_buf_out_idx = 0;
+            BLE_buf_data_num = 0;
+            BLE_buf_resend_num = 0;
+        }
+        return (events ^ SEND_DISCONNECT_EVT);
+    }
+
+    if(events & ADV_TIMEOUT_SLEEP_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if((ble_state != GAPROLE_CONNECTED) && (!access_state.pairing_state))
+        {
+            dprint("ADV timeout -> request deep sleep\n");
+            access_state.deep_sleep_flag = TRUE;
+            hidEmu_adv_enable(DISABLE);
+            access_ble_enter_idel_sleep();
+        }
+        else
+        {
+            dprint("ADV timeout ignored, state:%x pairing:%x\n", ble_state, access_state.pairing_state);
+        }
+        return (events ^ ADV_TIMEOUT_SLEEP_EVT);
+    }
+
+    if(events & SEND_PACKET_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if(ble_state == GAPROLE_CONNECTED)
+        {
+            /* Reserved: send logic is currently disabled in this branch. */
+        }
+        return (events ^ SEND_PACKET_EVT);
+    }
+
+    if(events & DELETE_PACKET_EVT)
+    {
+        return (events ^ DELETE_PACKET_EVT);
+    }
+
+    if(events & BLE_CLEAR_BUF_EVT)
+    {
+        uint8_t ble_state;
+        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        if(ble_state != GAPROLE_CONNECTED)
+        {
+            BLE_buf_out_idx = 0;
+            BLE_buf_data_num = 0;
+            BLE_buf_resend_num = 0;
+        }
+        return (events ^ BLE_CLEAR_BUF_EVT);
+    }
+
+    return 0;
+}
 
 /*********************************************************************
  * @fn      hidEmu_ProcessTMOSMsg
@@ -622,23 +792,33 @@ void hidEmu_disconnect()
  */
 void hidEmu_delete_ble_bonded()
 {
-    // switch(con_work_mode)
-    // {
-    //     case BLE_INDEX_1:
-    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_1;
-    //         break;
-    //     case BLE_INDEX_2:
-    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_2;
-    //         break;
-    //     case BLE_INDEX_3:
-    //         storage_get_config_ptr()->ble_bond_flag &= ~BLE_BOND_FLAG_3;
-    //         break;
-    //     default:
-    //         dprint("work mode err %x\n",con_work_mode);
-    //         return;
-    //         break;
-    // }
-    // nvs_flash_store();
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t bond_flag = 0;
+
+    if(cfg == NULL)
+    {
+        return;
+    }
+
+    switch(con_work_mode)
+    {
+        case BLE_INDEX_1:
+            bond_flag = BLE_BOND_FLAG_1;
+            break;
+        case BLE_INDEX_2:
+            bond_flag = BLE_BOND_FLAG_2;
+            break;
+        case BLE_INDEX_3:
+            bond_flag = BLE_BOND_FLAG_3;
+            break;
+        default:
+            dprint("work mode err %x\n",con_work_mode);
+            return;
+    }
+
+    cfg->ble_bond_flag &= (uint8_t)(~bond_flag);
+    cfg->ble_mac_flag &= (uint8_t)(~bond_flag);
+    storage_save();
 }
 
 /*********************************************************************
@@ -650,35 +830,39 @@ void hidEmu_delete_ble_bonded()
  */
 void hidEmu_save_ble_bonded(uint8_t is_pairing)
 {
-    // switch(con_work_mode)
-    // {
-    //     case BLE_INDEX_1:
-    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_1;
-    //         if(is_pairing)
-    //         {
-    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_1;
-    //         }
-    //         break;
-    //     case BLE_INDEX_2:
-    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_2;
-    //         if(is_pairing)
-    //         {
-    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_2;
-    //         }
-    //         break;
-    //     case BLE_INDEX_3:
-    //         storage_get_config_ptr()->ble_bond_flag |= BLE_BOND_FLAG_3;
-    //         if(is_pairing)
-    //         {
-    //             storage_get_config_ptr()->ble_mac_flag ^= BLE_BOND_FLAG_3;
-    //         }
-    //         break;
-    //     default:
-    //         dprint("work mode err %x\n",con_work_mode);
-    //         return;
-    //         break;
-    // }
-    // nvs_flash_store();
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t bond_flag = 0;
+
+    if(cfg == NULL)
+    {
+        dprint("[BOND] save failed: cfg=NULL\n");
+        return;
+    }
+
+    switch(con_work_mode)
+    {
+        case BLE_INDEX_1:
+            bond_flag = BLE_BOND_FLAG_1;
+            break;
+        case BLE_INDEX_2:
+            bond_flag = BLE_BOND_FLAG_2;
+            break;
+        case BLE_INDEX_3:
+            bond_flag = BLE_BOND_FLAG_3;
+            break;
+        default:
+            dprint("[BOND] save failed: con_work_mode=%x invalid\n", con_work_mode);
+            return;
+    }
+    dprint("[BOND] save: mode=%x is_pairing=%x flag=%x before=%x\n",
+           con_work_mode, is_pairing, bond_flag, cfg->ble_bond_flag);
+    cfg->ble_bond_flag |= bond_flag;
+    dprint("[BOND] save: after=%x\n", cfg->ble_bond_flag);
+    if(is_pairing)
+    {
+        cfg->ble_mac_flag ^= bond_flag;
+    }
+    storage_save();
 }
 
 /*********************************************************************
@@ -690,22 +874,31 @@ void hidEmu_save_ble_bonded(uint8_t is_pairing)
  */
 uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
 {
-    // switch(ble_idx)
-    // {
-    //     case BLE_INDEX_1:
-    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_1;
-    //         break;
-    //     case BLE_INDEX_2:
-    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_2;
-    //         break;
-    //     case BLE_INDEX_3:
-    //         return storage_get_config_ptr()->ble_mac_flag & BLE_BOND_FLAG_3;
-    //         break;
-    //     default:
-    //         dprint("work mode err %x\n",ble_idx);
-    //         return 0;
-    //         break;
-    // }
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t bond_flag = 0;
+
+    if(cfg == NULL)
+    {
+        return 0;
+    }
+
+    switch(ble_idx)
+    {
+        case BLE_INDEX_1:
+            bond_flag = BLE_BOND_FLAG_1;
+            break;
+        case BLE_INDEX_2:
+            bond_flag = BLE_BOND_FLAG_2;
+            break;
+        case BLE_INDEX_3:
+            bond_flag = BLE_BOND_FLAG_3;
+            break;
+        default:
+            dprint("work mode err %x\n",ble_idx);
+            return 0;
+    }
+
+    return ((cfg->ble_mac_flag & bond_flag) != 0) ? TRUE : FALSE;
 }
 
 /*********************************************************************
@@ -717,23 +910,33 @@ uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx )
  */
 uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx )
 {
-    // dprint("是否绑定 %x 通道 %x\n",storage_get_config_ptr()->ble_bond_flag,ble_idx);
-    // switch(ble_idx)
-    // {
-    //     case BLE_INDEX_1:
-    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_1;
-    //         break;
-    //     case BLE_INDEX_2:
-    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_2;
-    //         break;
-    //     case BLE_INDEX_3:
-    //         return storage_get_config_ptr()->ble_bond_flag & BLE_BOND_FLAG_3;
-    //         break;
-    //     default:
-    //         dprint("no bond mode %x\n",ble_idx);
-    //         return 0;
-    //         break;
-    // }
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t bond_flag = 0;
+
+    if(cfg == NULL)
+    {
+        return 0;
+    }
+
+    switch(ble_idx)
+    {
+        case BLE_INDEX_1:
+            bond_flag = BLE_BOND_FLAG_1;
+            break;
+        case BLE_INDEX_2:
+            bond_flag = BLE_BOND_FLAG_2;
+            break;
+        case BLE_INDEX_3:
+            bond_flag = BLE_BOND_FLAG_3;
+            break;
+        default:
+            dprint("[BOND] check failed: ble_idx=%x invalid\n", ble_idx);
+            return 0;
+    }
+    uint8_t result = ((cfg->ble_bond_flag & bond_flag) != 0) ? TRUE : FALSE;
+    dprint("[BOND] check: idx=%x flag=%x bond_flag=%x result=%x\n",
+           ble_idx, bond_flag, cfg->ble_bond_flag, result);
+    return result;
 }
 
 /*********************************************************************
@@ -809,12 +1012,14 @@ void hidEmu_adv_enable(uint8_t enable)
         // memcpy(&advertData[13-2-4], scanRspData, storage_get_config_ptr()->ble_name_len+2);
         // GAPRole_SetParameter(GAPROLE_ADVERT_DATA, storage_get_config_ptr()->ble_name_len+2+13-2-4, advertData);//唤醒之后恢复广播导致广播包截断
     }
-    if(initial_advertising_enable && hidEmu_is_ble_bonded(access_state.ble_idx) && (!access_state.pairing_state))
+    uint8_t bonded = hidEmu_is_ble_bonded(access_state.ble_idx);
+    dprint("[ADV] enable=%x pairing=%x bonded=%x idx=%x\n",
+           initial_advertising_enable, access_state.pairing_state, bonded, access_state.ble_idx);
+    if(initial_advertising_enable && bonded && (!access_state.pairing_state))
     {
-//        uint8_t filter_policy = GAP_FILTER_POLICY_WHITE;
-        uint8_t filter_policy = GAP_FILTER_POLICY_ALL;//使用普通模式不使用白名单
-        //dprint("WHITE\n");
+        uint8_t filter_policy = GAP_FILTER_POLICY_WHITE;
         GAPRole_SetParameter(GAPROLE_ADV_FILTER_POLICY, sizeof(uint8_t), &filter_policy);
+        dprint("[ADV] WHITE LIST mode (reconnect)\n");
         // GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(reconAdvertData), reconAdvertData);
         // GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(reconAdvertData), reconAdvertData);锟睫凤拷锟斤拷锟斤拷锟斤拷注锟斤拷使锟斤拷锟斤拷通锟姐播
         GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
@@ -823,10 +1028,22 @@ void hidEmu_adv_enable(uint8_t enable)
     }
     else
     {
-        dprint("disable adv\n");
         uint8_t filter_policy = GAP_FILTER_POLICY_ALL;
         GAPRole_SetParameter(GAPROLE_ADV_FILTER_POLICY, sizeof(uint8_t), &filter_policy);
+        dprint("[ADV] GENERAL mode (pairing or not bonded)\n");
     }
+
+    if(OSAL_GetTaskTimer(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT))
+    {
+        OSAL_StopTask(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT);
+    }
+    if(initial_advertising_enable && (!access_state.pairing_state))
+    {
+        access_state.deep_sleep_flag = FALSE;
+        OSAL_SetDelayedEvent(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT, ADV_TIMEOUT_SLEEP_EVT_TIMEOUT);
+        dprint("ADV timeout timer start %d\n", ADV_TIMEOUT_SLEEP_EVT_TIMEOUT);
+    }
+
     GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
 }
 
@@ -1059,6 +1276,11 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 
                 // get connection handle
                 hidEmuConnHandle = event->connectionHandle;
+                access_state.deep_sleep_flag = FALSE;
+                if(OSAL_GetTaskTimer(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT))
+                {
+                    OSAL_StopTask(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT);
+                }
                 centralConnHandle = event->connectionHandle;//锟斤拷锟斤拷锟斤拷锟接撅拷锟? 系统识锟斤拷使锟斤拷
 
                 OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
@@ -1113,6 +1335,11 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 // 2、还是当前模式没变，只是limit广播自动停止，则继续广播(注意是否是OTA模式)
                 // 3、切换到另外的蓝牙模式，命令停止的广播，则修改mac地址，判断是否已经绑定过，是则开启广播，并开启过滤，否则不开启广播，等待配对命令。
                 dprint("con_mode %x\n",con_work_mode);
+                if(access_state.deep_sleep_flag)
+                {
+                    dprint("Waiting for deep sleep, stop restart advertising\n");
+                    break;
+                }
                 if((con_work_mode == access_state.ble_idx))
                 {
                     if( access_state.ble_idx == BLE_INDEX_MAX)
@@ -1153,6 +1380,7 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
             }
             else if(pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT)
             {
+                dprint("GAP_LINK_TERMINATED_EVENT..\n");
                 if(OSAL_GetTaskTimer(hidEmuTaskId, WAIT_TERMINATE_EVT))
                 {
                     OSAL_StopTask(hidEmuTaskId, WAIT_TERMINATE_EVT);
@@ -1211,13 +1439,12 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                                 {
                                     //同通道超时断开，不广播，进入睡眠  改为广播5秒后睡眠
                                     // 恢复没有发出去的包；
-                                    dprint("res_num %d\n",BLE_buf_resend_num);
+                                    dprint("[DISC] res_num %d\n", BLE_buf_resend_num);
                                     hidEmu_resend_BUF();
                                     hidEmu_adv_enable(ENABLE);
-                                    if( hidDevConnSecure )
-                                    {
-                                        OSAL_SetDelayedEvent(hidEmuTaskId, SEND_DISCONNECT_EVT, DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT);
-                                    }
+                                    dprint("[DISC] save_bond(FALSE) from disconnect handler\n");
+                                    hidEmu_save_ble_bonded(FALSE);
+                                    OSAL_SetDelayedEvent(hidEmuTaskId, SEND_DISCONNECT_EVT, DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT);
 //                                    if(OSAL_GetTaskTimer(access_taskId, ACCESS_IDEL_SLEEP_EVT)<IDEL_SLEEP_EVT_TIMEOUT+160)
 //                                    {
 //                                        access_update_idel_sleep_timeout(IDEL_SLEEP_EVT_TIMEOUT+160);
@@ -1264,7 +1491,6 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 //                // 记下当前模式  深度睡眠后模式改为idel，所以这里不能同步模式
 //                con_work_mode = access_state.ble_idx;
                 // 20230831修改 蓝牙模式串口没有上报蓝牙连接断开指令
-                hidDevConnSecure = FALSE;
                 dprint("Disconnected.. Reason:%x\n", pEvent->linkTerminate.reason);
             }
             else if(pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT)

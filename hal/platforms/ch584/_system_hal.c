@@ -68,12 +68,7 @@ system_result_t system_hal_init(void)
 
 
     // PRINT("System HAL Init OK!\n");
-    DelayUs(1);
-	CH58x_BLEInit();
-	HAL_Init();
-    GAPRole_PeripheralInit();
-    HidDev_Init();
-    HidEmu_Init();
+    
     // PRINT("main-----\n");
     return SYSTEM_OK;
 }
@@ -214,3 +209,5 @@ void system_hal_restore_irq(uint32_t state)
 {
     SYS_RecoverIrq(state);
 }
+
+

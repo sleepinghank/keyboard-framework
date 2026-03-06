@@ -112,9 +112,23 @@
 #define ADC_PIN B1
 #define ADC_CHANNEL 1
 
+#define CHIP_TYPE_CH584
 
+/* EEPROM 配置 */
 #define EEPROM_CUSTOM
-#define EEPROM_SIZE 32
+
+#ifdef CHIP_TYPE_CH584
+    // CH584 平台配置
+    #define EEPROM_SIZE              512        // 分配 2 页 (2 × 256)
+    #define EEPROM_PAGE_SIZE         256        // CH584 页大小
+    #ifndef FLASH_ROM_MAX_SIZE
+        #define FLASH_ROM_MAX_SIZE   0x070000  // Flash-ROM 最大程序大小, 448KB
+    #endif
+    #define EEPROM_BASE_ADDR         (0x77000 - FLASH_ROM_MAX_SIZE)  // Data-Flash 起始地址
+#else
+    // Test 平台配置
+    #define EEPROM_SIZE 32
+#endif
 
 /*touch */
 

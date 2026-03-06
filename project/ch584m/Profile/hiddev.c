@@ -79,7 +79,7 @@ uint8_t hidDevTaskId;
 static gapRole_States_t hidDevGapState = GAPROLE_INIT;
 
 // TRUE if connection is secure
-static uint8_t hidDevConnSecure = FALSE;
+uint8_t hidDevConnSecure = FALSE;
 
 // GAP connection handle
 static uint16_t gapConnHandle;
@@ -834,6 +834,7 @@ static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
  */
 static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status)
 {
+    PRINT("Pair state %x ; status %x\n",state,status);
     if(state == GAPBOND_PAIRING_STATE_COMPLETE)
     {
         if(status == SUCCESS)
@@ -856,6 +857,12 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
     }
     else if(state == GAPBOND_PAIRING_STATE_BOND_SAVED)
     {
+        PRINT("BOND_SAVED: pairing_state=%x, ble_idx=%x\n",
+              access_state.pairing_state, access_state.ble_idx);
+        // 配对绑定信息保存完成后，设置应用层绑定标志
+        // 参数传入 pairing_state 用于判断是否为新配对（需要更换 MAC 地址）
+        hidEmu_save_ble_bonded(access_state.pairing_state);
+        access_state.pairing_state = FALSE;
     }
 }
 

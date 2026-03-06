@@ -17,3 +17,8 @@ typedef enum {
     OUTPUT_SEND_MOUSE_REPORT_EVT    = 1 << 4,  /**< 发送鼠标报文事件 */
     OUTPUT_SEND_TOUCH_REPORT_EVT    = 1 << 5,  /**< 发送触控板报文事件 */
 } output_task_event_t;
+
+#include <stdint.h>
+
+uint16_t output_process_event(uint8_t task_id, uint16_t events);
+void output_service_init(void);

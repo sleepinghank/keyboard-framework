@@ -164,7 +164,7 @@ uint16_t battery_calculate_voltage_from_adc(uint16_t adc_value) {
     // LED/RGB亮度补偿 - 背光和指示灯开启时会消耗电流，导致电压下降
     // 需要根据LED亮度补偿电压
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
-    if (indicator_is_enabled()) {
+    if (indicator_any_active()) {
         uint32_t total_pwm = 0;
         uint8_t led_count = 0;
 
@@ -202,7 +202,7 @@ uint16_t battery_calculate_voltage_from_adc(uint16_t adc_value) {
     uint16_t estimated_current_ma = 0;
 
     // 估算当前电流 (mA) - 根据系统状态
-    if (indicator_is_enabled()) {
+    if (indicator_any_active()) {
         estimated_current_ma += 50;  // LED背光约50mA
     }
 
@@ -346,7 +346,7 @@ void battery_task(void) {
 
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
     // 如果背光开启，使用较短的测量间隔
-    if (indicator_is_enabled()) {
+    if (indicator_any_active()) {
         measure_interval = BACKLIGHT_OFF_VOLTAGE_MEASURE_INTERVAL;
     }
 #endif
