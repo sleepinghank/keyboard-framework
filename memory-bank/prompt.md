@@ -25,3 +25,4 @@
   
   通过读取特定芯片api（c\timer_task\hal\timer.c）。发现硬件定时器存在timer_get_tick方法可以获取定时器计数。这样获取就不需要通过main_loop_cnt校准，请使用timer_get_tick优化，请先阐述思路确认后再更改代码。
 
+请分析`middleware\keyboard`路径下有关按键实现流程，并总结一份完整文档放置在`middleware\keyboard`下。（更新或者删除这个目录下的README.md）

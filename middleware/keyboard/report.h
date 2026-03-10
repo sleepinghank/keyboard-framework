@@ -345,6 +345,15 @@ void clear_keys_from_report(void);
 bool has_mouse_report_changed(report_mouse_t* new_report, report_mouse_t* old_report);
 #endif
 
+// 新增：简化键盘报告接口
+#include "combo/process_combo.h"
+
+// 初始化报告模块
+void report_init(void);
+
+// 更新并发送报告
+void report_update_proc(key_update_st_t key_st);
+
 #ifdef __cplusplus
 }
 #endif

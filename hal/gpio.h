@@ -158,5 +158,44 @@ void gpio_toggle_pin(pin_t pin);
 
 #define readPin(pin)                 gpio_read_pin(pin)
 
-#define togglePin(pin)               gpio_toggle_pin(pin) 
+#define togglePin(pin)               gpio_toggle_pin(pin)
+
+/*********************************************************************
+ * GPIO 中断接口
+ *********************************************************************/
+
+/* GPIO 中断触发类型 */
+typedef enum {
+    GPIO_INT_FALLING = 0,   /**< 下降沿触发 */
+    GPIO_INT_RISING,        /**< 上升沿触发 */
+    GPIO_INT_LOW_LEVEL,     /**< 低电平触发 */
+    GPIO_INT_HIGH_LEVEL     /**< 高电平触发 */
+} gpio_int_trigger_t;
+
+/* GPIO 中断回调类型 */
+typedef void (*gpio_int_callback_t)(void);
+
+/*********************************************************************
+ * @fn      gpio_enable_interrupt
+ *
+ * @brief   启用 GPIO 中断
+ *
+ * @param   pin 引脚编号
+ * @param   trigger 触发类型
+ * @param   callback 中断回调函数
+ *
+ * @return  none
+ */
+void gpio_enable_interrupt(pin_t pin, gpio_int_trigger_t trigger, gpio_int_callback_t callback);
+
+/*********************************************************************
+ * @fn      gpio_disable_interrupt
+ *
+ * @brief   禁用 GPIO 中断
+ *
+ * @param   pin 引脚编号
+ *
+ * @return  none
+ */
+void gpio_disable_interrupt(pin_t pin);
 

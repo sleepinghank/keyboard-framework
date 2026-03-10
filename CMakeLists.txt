@@ -41,12 +41,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard
+        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/combo
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/keymap_extras
         ${CMAKE_CURRENT_SOURCE_DIR}/application
         ${CMAKE_CURRENT_SOURCE_DIR}/application/system
         ${CMAKE_CURRENT_SOURCE_DIR}/utils
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/logging
-        # ${CMAKE_CURRENT_SOURCE_DIR}/component/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/component/touch_component/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/application/service
 )
 
 # 添加所有源文件 (Test Platform Only - 本机编译仅使用test平台实现)
@@ -69,7 +71,7 @@ set(SOURCES
 
     # Drivers - Output
     ./drivers/output/backlight/backlight.c
-    ./drivers/output/backlight/backlight_pwm.c
+    ./drivers/output/backlight/backlight_hal.c
     ./drivers/output/indicators/indicator.c
     ./drivers/output/indicators/indicator_hal.c
     ./drivers/output/logging/debug.c
@@ -106,28 +108,32 @@ set(SOURCES
     ./middleware/communication/transport.c
     ./middleware/communication/wireless.c
 
-    # Middleware - Keyboard
-    ./middleware/keyboard/action.c
-    ./middleware/keyboard/action_layer.c
-    ./middleware/keyboard/action_util.c
-    ./middleware/keyboard/combo.c
-    ./middleware/keyboard/custom_function.c
+    # Middleware - Keyboard (精简版)
     ./middleware/keyboard/keyboard.c
+    ./middleware/keyboard/keymap.c
     ./middleware/keyboard/keycode_config.c
-    ./middleware/keyboard/keymap_common.c
-    ./middleware/keyboard/keymap_introspection.c
     ./middleware/keyboard/report.c
+
+    # Middleware - Keyboard - Combo (新增精简模块)
+    ./middleware/keyboard/combo/process_combo.c
+    ./middleware/keyboard/combo/FN_Combo.c
+    ./middleware/keyboard/combo/Special_Combo.c
+    ./middleware/keyboard/combo/media_combo.c
+
+    # Keyboards - Keymap
+    ./keyboards/default_keymap.c
 
     # Utils
     ./utils/AES128.c
     ./utils/bitwise.c
     ./utils/crc16.c
+    ./utils/linkedlist.c
 
     # Component - Touchpad
-    # ./component/bayes_filtering.c
-    # ./component/mcs_gesture.c
-    # ./component/pct1336_driver.c
-    # ./component/touchpad_service.c
+    ./component/touch_component/pct1336_driver.c
+    ./component/touch_component/touchpad_service.c
+    # ./component/touch_component/bayes_filtering.c   # 可选：贝叶斯防误触过滤
+    # ./component/touch_component/mcs_gesture.c       # 可选：手势识别
 )
 
 # 将源文件添加到可执行目标

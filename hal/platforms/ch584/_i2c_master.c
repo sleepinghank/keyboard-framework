@@ -35,8 +35,6 @@
 
 /* I2C缓冲区长度（完全参照官方例程app_i2c.c） */
 #define I2C_BUFFER_LENGTH   32
-#define I2C_READ      1
-#define I2C_WRITE     0
 
 /* I2C状态定义（完全参照官方例程app_i2c.h） */
 typedef enum {

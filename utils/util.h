@@ -51,6 +51,13 @@
 #    define PACKED __attribute__((__packed__))
 #endif
 
+#if !defined(BIT)
+/**
+ * @brief 生成指定位位置的掩码
+ */
+#    define BIT(n) (1U << (n))
+#endif
+
 #if __has_include("_util.h")
 #    include "_util.h" /* Include the platform's _util.h */
 #endif

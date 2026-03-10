@@ -25,6 +25,7 @@
 #include "report.h"
 #include "product_config.h"
 #include "wait.h"
+#include "string.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -90,7 +91,7 @@ void    wireless_send_keyboard(report_keyboard_t *report);
 void    wireless_send_nkro(report_nkro_t *report);
 void    wireless_send_mouse(report_mouse_t *report);
 void    wireless_send_extra(report_extra_t *report);
-bool    process_record_wireless(uint16_t keycode, keyrecord_t *record);
+bool    process_record_wireless(uint16_t keycode);
 
 /* host struct */
 host_driver_t wireless_driver = {wreless_keyboard_leds, wireless_send_keyboard, wireless_send_nkro, wireless_send_mouse, wireless_send_extra};
@@ -586,11 +587,11 @@ wt_state_t wireless_get_state(void) {
     return wireless_state;
 };
 
-bool process_record_wireless(uint16_t keycode, keyrecord_t *record) {
+bool process_record_wireless(uint16_t keycode) {
     if (get_transport() & TRANSPORT_WIRELESS) {
         lpm_timer_reset();
 
-        if (battery_is_empty() && wireless_get_state() == WT_CONNECTED && record->event.pressed) {
+        if (battery_is_empty() && wireless_get_state() == WT_CONNECTED ) {
             indicator_battery_low_enable(true);
         }
     }
