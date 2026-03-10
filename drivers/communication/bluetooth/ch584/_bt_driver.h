@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 typedef struct {
     uint8_t     hostIndex;
     uint16_t    timeout;     /* Pairing timeout, valid value range from 30 to 3600 seconds, 0 for default */
@@ -8,6 +10,16 @@ typedef struct {
     uint8_t     txPower;     /* Only available for BLE module */
     // const char* leName;      /* Only available for BLE module */
 } pairing_param_t;
+
+/*********************************************************************
+ * @fn      bt_driver_dump_state
+ *
+ * @brief   打印 BLE 底层状态快照，用于调试状态机转换
+ *          输出：GAP 状态、当前工作主机、绑定信息
+ *
+ * @return  none
+ */
+void bt_driver_dump_state(void);
 
 
 

@@ -23,6 +23,21 @@
 #include "system_hal.h"
 #include "bt_driver.h"
 #include "../../drivers/communication/bluetooth/ch584/hidkbd.h"
+#include "../../drivers/communication/bluetooth/ch584/_bt_driver.h"
+
+/* 无线状态名称（用于日志）*/
+static const char *wt_state_name(wt_state_t s) {
+    switch (s) {
+        case WT_RESET:        return "WT_RESET";
+        case WT_INITIALIZED:  return "WT_INITIALIZED";
+        case WT_DISCONNECTED: return "WT_DISCONNECTED";
+        case WT_CONNECTED:    return "WT_CONNECTED";
+        case WT_PARING:       return "WT_PARING";
+        case WT_RECONNECTING: return "WT_RECONNECTING";
+        case WT_SUSPEND:      return "WT_SUSPEND";
+        default:              return "WT_UNKNOWN";
+    }
+}
 
 #ifdef RGB_MATRIX_ENABLE
 #    include "rgb_matrix.h"
@@ -151,36 +166,45 @@ __attribute__((weak)) void wireless_enter_sleep_kb(void) {
 }
 
 void access_ble_notify_advertising(uint8_t pairing_state, uint8_t host_idx) {
-    dprintf("[WT_SYNC] adv pairing=%d host=%d\r\n", pairing_state, host_idx);
+    wt_state_t cur = wireless_get_state();
+    bt_driver_dump_state();
     if (pairing_state) {
+        dprintf("[WT] %s -> WT_PARING  host=%d\r\n", wt_state_name(cur), host_idx);
         wireless_state_set_pairing(host_idx);
     } else {
+        dprintf("[WT] %s -> WT_RECONNECTING  host=%d\r\n", wt_state_name(cur), host_idx);
         wireless_state_set_reconnecting(host_idx);
     }
 }
 
 void access_ble_notify_connected(uint8_t host_idx) {
-    dprintf("[WT_SYNC] connected host=%d\r\n", host_idx);
+    wt_state_t cur = wireless_get_state();
+    bt_driver_dump_state();
+    dprintf("[WT] %s -> WT_CONNECTED  host=%d\r\n", wt_state_name(cur), host_idx);
     wireless_state_set_connected(host_idx);
 }
 
 void access_ble_notify_disconnected(uint8_t host_idx, uint8_t reason) {
-    dprintf("[WT_SYNC] disconnected host=%d reason=%d\r\n", host_idx, reason);
+    wt_state_t cur = wireless_get_state();
+    bt_driver_dump_state();
+    dprintf("[WT] %s -> DISCONNECTED  host=%d reason=0x%02x\r\n", wt_state_name(cur), host_idx, reason);
     wireless_state_set_disconnected(host_idx, reason);
 }
 
 void access_ble_enter_idel_sleep(void) {
-    if (wireless_get_state() != WT_CONNECTED) {
-        dprintf("[WT_SLEEP] ignore state=%d deep=%d\r\n", wireless_get_state(), access_state.deep_sleep_flag);
+    wt_state_t cur = wireless_get_state();
+    if (cur != WT_CONNECTED) {
+        dprintf("[WT] %s -> sleep ignored (deep=%d)\r\n", wt_state_name(cur), access_state.deep_sleep_flag);
         return;
     }
 
     if (!access_state.deep_sleep_flag) {
-        println("[WT_SLEEP] skip deep_sleep_flag=0");
+        dprintf("[WT] %s -> sleep skipped (deep_sleep_flag=0)\r\n", wt_state_name(cur));
         return;
     }
 
-    println("Wireless: ADV timeout, enter deep sleep");
+    bt_driver_dump_state();
+    dprintf("[WT] %s -> WT_SUSPEND  (idle timeout)\r\n", wt_state_name(cur));
     wireless_state_set_sleep();
 
     if (storage_is_initialized()) {
