@@ -340,6 +340,7 @@ bool del_key_bit(report_nkro_t* nkro_report, uint8_t code);
 void add_key_to_report(uint8_t key);
 void del_key_from_report(uint8_t key);
 void clear_keys_from_report(void);
+void clear_keyboard(void);
 
 #ifdef MOUSE_ENABLE
 bool has_mouse_report_changed(report_mouse_t* new_report, report_mouse_t* old_report);

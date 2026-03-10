@@ -18,6 +18,7 @@
 #include "indicator.h"
 #include "battery.h"
 #include "print.h"
+#include "debug.h"
 #include "storage.h"
 #include "system_hal.h"
 #include "bt_driver.h"

@@ -181,3 +181,23 @@ Wireless: ADV timeout, enter deep sleep
 继续实现n0046-branch5-backlight-system-requirements.md。但是该文档需要变更，请根据下面的需求描述重新修改该文件修改完成后再实施。
 1. 不直接调用方法，而是通过事件或状态机来控制灯效的变化。状态机在output_process_event。
 2. 所有的背光事件，都发送状态机，
+
+
+[需求描述]：
+我现在需要基于ch584平台实现所有蓝牙驱动功能，驱动接口地址为drivers\communication\bluetooth\bt_driver.h。
+[具体细节]：
+1、蓝牙驱动目录在drivers\communication\bluetooth\ch584中，是从现有方案中直接挪过来的，已经包含了基本的蓝牙功能实现。（现有方案地址：D:\Code\CLionProjects\kb04122-13a-wch）
+2、官方的蓝牙demo 地址为（D:\Code\CLionProjects\kb04122-13a-wch）
+3、官方开发手册地址为（.\docs\marker-output\沁恒低功耗蓝牙软件开发参考手册-rdqj\沁恒低功耗蓝牙软件开发参考手册-rdqj.md）
+6、可以运用一切你认为有用的资源，包括但不限于现有代码库、官方文档、或者让我验证功能等。
+7、完整的实现一个功能后，就需要编译烧录进去测试，可以使用串口查看输出日志。
+[要求]：
+1、代码必须遵循现有架构，
+2、不能随意修改其他模块的代码。
+3、理论上遵循最小改动原则。
+4、先分析需求，列出不清晰的地方，主动询问澄清，直到完全理解需求。
+5、必须理清现有代码结构，明确需要修改的文件和新增的文件，做好代码规划。
+
+
+1、同步
+2、远程调试

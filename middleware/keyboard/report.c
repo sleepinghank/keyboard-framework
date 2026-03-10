@@ -354,6 +354,16 @@ void clear_keys_from_report(void) {
     memset(keyboard_report->keys, 0, sizeof(keyboard_report->keys));
 }
 
+/** \brief clear all keys from keyboard report
+ *
+ * 清除键盘报告中所有按键，包括修饰键
+ */
+void clear_keyboard(void) {
+    clear_keys_from_report();
+    // 清除修饰键
+    keyboard_report->mods = 0;
+}
+
 #ifdef MOUSE_ENABLE
 /**
  * @brief Compares 2 mouse reports for difference and returns result. Empty

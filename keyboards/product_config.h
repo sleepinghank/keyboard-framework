@@ -137,7 +137,7 @@
 
 /*touch */
 
-#define TOUCH_EN
+// #define TOUCH_EN  /* 触摸板功能暂未集成 */
 
 // 触摸板引脚定义
 #define TOUCH_INT  A12
