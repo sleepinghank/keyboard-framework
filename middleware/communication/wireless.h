@@ -118,6 +118,13 @@ void wireless_post_task(void);
 void send_string_task(void);
 
 wt_state_t wireless_get_state(void);
+
+/* State synchronization APIs for transport drivers */
+void wireless_state_set_pairing(uint8_t host_idx);
+void wireless_state_set_reconnecting(uint8_t host_idx);
+void wireless_state_set_connected(uint8_t host_idx);
+void wireless_state_set_disconnected(uint8_t host_idx, uint8_t reason);
+void wireless_state_set_sleep(void);
 wt_func_t* wireless_get_current_driver(void);
 
 void wireless_low_battery_shutdown(void);

@@ -37,6 +37,10 @@ extern report_buffer_t kb_rpt;
 extern uint32_t        retry_time_buffer;
 extern uint8_t         retry;
 
+__attribute__((weak)) void indicator_battery_low_enable(bool enable) {
+    (void)enable;
+}
+
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 
@@ -552,6 +556,32 @@ void send_string_task(void) {
 #endif
     }
 }
+
+void wireless_state_set_pairing(uint8_t host_idx) {
+    kc_printf("[WT_STATE] -> WT_PARING host=%d\n", host_idx);
+    wireless_enter_discoverable(host_idx);
+}
+
+void wireless_state_set_reconnecting(uint8_t host_idx) {
+    kc_printf("[WT_STATE] -> WT_RECONNECTING host=%d\n", host_idx);
+    wireless_enter_reconnecting(host_idx);
+}
+
+void wireless_state_set_connected(uint8_t host_idx) {
+    kc_printf("[WT_STATE] -> WT_CONNECTED host=%d\n", host_idx);
+    wireless_enter_connected(host_idx);
+}
+
+void wireless_state_set_disconnected(uint8_t host_idx, uint8_t reason) {
+    kc_printf("[WT_STATE] -> WT_DISCONNECTED host=%d reason=%d\n", host_idx, reason);
+    wireless_enter_disconnected(host_idx, reason);
+}
+
+void wireless_state_set_sleep(void) {
+    kc_printf("[WT_STATE] -> WT_SUSPEND\n");
+    wireless_enter_sleep();
+}
+
 wt_state_t wireless_get_state(void) {
     return wireless_state;
 };

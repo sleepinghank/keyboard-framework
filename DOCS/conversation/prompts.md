@@ -126,38 +126,44 @@
 本项目的硬件原理图我已经导出网格文件，文件路径为：docs\knowledge\KB04122-13A硬件原理图.tel。请解析这个网格文件，结合本项目的功能需求，输出一个详细的功能清单，列出每个功能点对应的硬件接口和GPIO配置。请将这个功能清单输出到`docs\N0046_原理图.md`文件中，并确保格式清晰易读。
 
 
-我现在正在测试蓝牙功能，上电后可以发起蓝牙广播，但是在主机断连后并未进入广播回连，而是重新开始广播，请帮我梳理一代码流程，以方便我调试代码，以下是串口输出的日志：
-[Rx][13:34:01.624] B19 HAL initialized
-[Rx][13:34:01.624] HW Timer: Initialized successfully
-[Rx][13:34:01.639] hidEmuTaskId:d,centralTaskId:e
-[Rx][13:34:01.639] Input: Service initialized with task ID 15
-[Rx][13:34:01.655] HW Timer: Starting timer 0, interval=5ms, ticks=390000
-[Rx][13:34:01.655] HW Timer: Starting TMR0 with 390000 ticks
-[Rx][13:34:01.655] Output service init start
-[Rx][13:34:01.655] Task registered, ID=16
-
-[Rx][13:34:01.670] Output service init done
-[Rx][13:34:01.670] System initialized successfullyInitialized..
-[Rx][13:34:01.701] Advertising..
-[Rx][13:34:40.935] Connected..int 18
-[Rx][13:34:42.785] Phy update Rx:2 Tx:2 ..
-[Rx][13:34:43.936] Send Security Req ...
-[Rx][13:34:55.664] Update 1 - Int 0xc - Latency 4
-[Rx][13:37:56.116] res_num 0
-[Rx][13:37:56.116] adv state 0
-[Rx][13:37:56.116] IRK 86 2c 10 9c eb 10
-[Rx][13:37:56.116] e4 66 e5 47 9c b8
-[Rx][13:37:56.116] e4 67 e5 47 9c b8
-[Rx][13:37:56.116] adv mode pairing:0 bonded:0 idx:1
-[Rx][13:37:56.126] disable adv
-[Rx][13:37:56.126] ADV timeout timer start 96000
-[Rx][13:37:56.126] Disconnected.. Reason:13
-[Rx][13:37:56.216] Advertising..
-[Rx][13:37:58.135] SEND_DISCONNECT_EVT
-[Rx][13:38:34.626] Connected..int 18
-[Rx][13:38:36.226] Phy update Rx:2 Tx:2 ..
-[Rx][13:38:37.625] Send Security Req ...
-[Rx][13:38:48.316] Update 1 - Int 0xc - Latency 4
+我现在正在测试蓝牙功能，上电后可以发起蓝牙广播，但是在主机断连后并未进入广播回连，而是重新开始广播，我需要分析为什么它没有进入回连广播。以下是串口输出的日志：
+B19 HAL initialized
+HW Timer: Initialized successfully
+hidEmuTaskId:d,centralTaskId:e
+Input: Service initialized with task ID 15
+HW Timer: Starting timer 0, interval=5ms, ticks=390000
+HW Timer: Starting TMR0 with 390000 ticks
+Output service init start
+Task registered, ID=16
+Output service init done
+System initialized successfullyInitialized..
+Advertising..
+Connected..int 18
+Pair state 2 ; status 0
+Phy update Rx:2 Tx:2 ..
+Send Security Req ...
+Update 1 - Int 0xc - Latency 4
+[DISC] res_num 0
+adv state 0
+IRK 86 2c 10 9c eb 10
+e4 66 e5 47 9c b8
+e4 67 e5 47 9c b8
+[BOND] check: idx=1 flag=1 bond_flag=1 result=1
+[ADV] enable=1 pairing=0 bonded=1 idx=1
+[ADV] WHITE LIST mode (reconnect)
+ADV timeout timer start 96000
+[DISC] save_bond(FALSE) from disconnect handler
+[BOND] save: mode=1 is_pairing=0 flag=1 before=1
+[BOND] save: after=1
+Disconnected.. Reason:13
+Advertising..
+SEND_DISCONNECT_EVT
+ADV timeout -> request deep sleep
+[BOND] check: idx=1 flag=1 bond_flag=1 result=1
+[ADV] enable=0 pairing=0 bonded=1 idx=1
+[ADV] GENERAL mode (pairing or not bonded)
+Wireless: ADV timeout, enter deep sleep
+可以参考demo工厂蓝牙流程：docs\knowledge\3mode-communication-flow.md
 
 
 
@@ -168,3 +174,10 @@
 现在正基于该3模键盘开发自己的量产项目，现在针对该项目的通讯模块（USB\BLE\2.4G）代码比较混乱。需要重新梳理后封装简化通讯流程。请分析完整代码库，输出3模的完整流程，其中需要展示关键的代码路径。用于给新项目做参考设计。其中包括但不限于：
 1、3模的切换和管理流程，每个模块切换时的生命周期。
 2、着重分析BLE 模块，包括了广播、回连、断联、蓝牙地址管理。
+
+2
+
+
+继续实现n0046-branch5-backlight-system-requirements.md。但是该文档需要变更，请根据下面的需求描述重新修改该文件修改完成后再实施。
+1. 不直接调用方法，而是通过事件或状态机来控制灯效的变化。状态机在output_process_event。
+2. 所有的背光事件，都发送状态机，

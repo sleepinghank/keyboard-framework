@@ -170,10 +170,13 @@ void system_init_middleware(void) {
     // report_buffer_init();
 
     // 4. 低功耗管理初始化
-    // lpm_init();
+    lpm_init();
 
     // 5. 无线管理层初始化
-    // wireless_init();
+    wireless_init();
+#ifdef BLUETOOTH_ENABLE_FLAG
+    wireless_switch_to_bt_driver();
+#endif
 
     // 6. 键盘处理初始化
     // keyboard_init();

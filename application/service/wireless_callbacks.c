@@ -149,12 +149,38 @@ __attribute__((weak)) void wireless_enter_sleep_kb(void) {
 #endif
 }
 
+void access_ble_notify_advertising(uint8_t pairing_state, uint8_t host_idx) {
+    dprintf("[WT_SYNC] adv pairing=%d host=%d\r\n", pairing_state, host_idx);
+    if (pairing_state) {
+        wireless_state_set_pairing(host_idx);
+    } else {
+        wireless_state_set_reconnecting(host_idx);
+    }
+}
+
+void access_ble_notify_connected(uint8_t host_idx) {
+    dprintf("[WT_SYNC] connected host=%d\r\n", host_idx);
+    wireless_state_set_connected(host_idx);
+}
+
+void access_ble_notify_disconnected(uint8_t host_idx, uint8_t reason) {
+    dprintf("[WT_SYNC] disconnected host=%d reason=%d\r\n", host_idx, reason);
+    wireless_state_set_disconnected(host_idx, reason);
+}
+
 void access_ble_enter_idel_sleep(void) {
+    if (wireless_get_state() != WT_CONNECTED) {
+        dprintf("[WT_SLEEP] ignore state=%d deep=%d\r\n", wireless_get_state(), access_state.deep_sleep_flag);
+        return;
+    }
+
     if (!access_state.deep_sleep_flag) {
+        println("[WT_SLEEP] skip deep_sleep_flag=0");
         return;
     }
 
     println("Wireless: ADV timeout, enter deep sleep");
+    wireless_state_set_sleep();
 
     if (storage_is_initialized()) {
         storage_save();

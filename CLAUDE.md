@@ -18,8 +18,9 @@ Always open `@/openspec/AGENTS.md` when the request:
 
 ## Build Commands
 
+### 标准构建 (MSYS2 MINGW64)
+
 ```bash
-# 标准构建 (MSYS2 MINGW64)
 cmake -S . -B build -G "MinGW Makefiles"
 cmake --build build -j4
 ./build/keyboard-framework.exe
@@ -32,6 +33,37 @@ cmake --build build -j4
 **环境要求:** MSYS2 MINGW64, CMake 3.29+, GCC 15.2.0+
 
 **注意:** `test_main.c` 使用无限循环 (`OSAL_SystemProcess()`)，不是传统的单元测试框架。
+
+### WCH RISC-V BLE 项目编译 (CH584M)
+
+使用 MounRiver Studio 工具链编译 CH58x/CH59x 系列 BLE 固件：
+
+```bash
+# 编译命令 (通过 cmd.exe 执行，因为 makefile 使用 Windows 路径格式)
+cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj && \
+  set PATH=D:\\Software\\Work\\MounRiver_Studio2\\resources\\app\\resources\\win32\\components\\WCH\\Toolchain\\RISC-V Embedded GCC12\\bin;D:\\Software\\Work\\MounRiver_Studio2\\resources\\app\\resources\\win32\\others\\Build_Tools\\Make\\bin;%PATH% && \
+  make.exe main-build"
+
+# 清理并重新编译
+cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj && \
+  set PATH=D:\\Software\\Work\\MounRiver_Studio2\\resources\\app\\resources\\win32\\components\\WCH\\Toolchain\\RISC-V Embedded GCC12\\bin;D:\\Software\\Work\\MounRiver_Studio2\\resources\\app\\resources\\win32\\others\\Build_Tools\\Make\\bin;%PATH% && \
+  make.exe clean && make.exe main-build"
+```
+
+**工具链路径:**
+- GCC 编译器: `MounRiver_Studio2/resources/app/resources/win32/components/WCH/Toolchain/RISC-V Embedded GCC12/bin/`
+- Make 工具: `MounRiver_Studio2/resources/app/resources/win32/others/Build_Tools/Make/bin/`
+
+**编译输出:** `project/ch584m/obj/`
+- `keyboard-framework.elf` - ELF 可执行文件（调试用）
+- `keyboard-framework.hex` - HEX 固件（烧录用）
+- `keyboard-framework.map` - 内存映射文件
+
+**烧录工具:**
+- WCH-Link: `MounRiver_Studio2/.../WCH-LinkUtility/WCH-LinkUtility.exe`
+- ISP 串口: `MounRiver_Studio2/.../WCHISPTool_CH57x-59x/WCHISPTool_CH57x-59x.exe`
+
+**快捷方式:** 使用 `/wch-riscv-build` skill 自动执行编译流程。
 
 ## Architecture
 
