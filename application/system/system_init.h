@@ -64,6 +64,17 @@ bool system_is_initialized(void);
  */
 uint8_t system_get_init_status(void);
 
+/**
+ * @brief 选择默认传输通道
+ *
+ * 根据编译配置选择默认的传输通道，优先使用蓝牙通道。
+ * set_transport() 内部会调用相应的驱动切换函数来初始化无线传输函数表。
+ *
+ * @note 如果编译时未启用任何传输通道，default_transport 将保持为 TRANSPORT_NONE，
+ *       此时不会调用 set_transport()。
+ */
+void system_select_default_transport(void);
+
 #ifdef __cplusplus
 }
 #endif
