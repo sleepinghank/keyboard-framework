@@ -149,14 +149,17 @@ void system_init_drivers(void) {
     // 1. 存储系统初始化 (最优先)
     storage_init();
 
-    // 2. 电池管理初始化
+#ifdef BLUETOOTH_ENABLE_FLAG
+    // 2. 蓝牙驱动初始化 - BLE 协议栈
+    bt_driver_init(false);
+#endif
+
+    // 3. 电池管理初始化
     // battery_init();
 
     // 3. 指示灯初始化
     // indicator_init();
 
-    // Bluetooth stack and role init should be owned by driver layer.
-    bt_driver_init(false);
 
     // 标记Driver init完成
     g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_INIT;
@@ -174,9 +177,6 @@ void system_init_middleware(void) {
 
     // 5. 无线管理层初始化
     wireless_init();
-#ifdef BLUETOOTH_ENABLE_FLAG
-    wireless_switch_to_bt_driver();
-#endif
 
     // 6. 键盘处理初始化
     // keyboard_init();
