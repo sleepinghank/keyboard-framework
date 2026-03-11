@@ -134,13 +134,17 @@ void wireless_config_save(void) {
 #endif
 
 /*
- * Bluetooth init.
+ * Wireless init.
  */
 void wireless_init(void) {
     wireless_state = WT_INITIALIZED;
 
 #if defined(EECONFIG_BASE_WIRELESS_CONFIG)
     wireless_config_load();
+#endif
+
+#ifndef DISABLE_REPORT_BUFFER
+    report_buffer_init();
 #endif
 }
 
@@ -152,19 +156,23 @@ void wireless_set_transport(wt_func_t *transport) {
     if (transport) memcpy(&wireless_transport, transport, sizeof(wt_func_t));
 }
 
-// 切换到蓝牙驱动
+// 蓝牙驱动函数表（静态初始化）
 #ifdef BLUETOOTH_ENABLE_FLAG
+static const wt_func_t bt_driver_func_table = {
+    .init = bt_driver_init,
+    .connect_ex = bt_driver_connect_ex,
+    .pairing_ex = bt_driver_pairing_ex,
+    .disconnect = bt_driver_disconnect,
+    .send_keyboard = bt_driver_send_keyboard,
+    .send_nkro = bt_driver_send_nkro,
+    .send_consumer = bt_driver_send_consumer,
+    .send_system = bt_driver_send_system,
+    .send_mouse = bt_driver_send_mouse,
+    .update_bat_level = bt_driver_update_bat_level,
+};
+
 void wireless_switch_to_bt_driver(void) {
-    wireless_transport.init = bt_driver_init;
-    wireless_transport.connect_ex = bt_driver_connect_ex;
-    wireless_transport.pairing_ex = bt_driver_pairing_ex;
-    wireless_transport.disconnect = bt_driver_disconnect;
-    wireless_transport.send_keyboard = bt_driver_send_keyboard;
-    wireless_transport.send_nkro = bt_driver_send_nkro;
-    wireless_transport.send_consumer = bt_driver_send_consumer;
-    wireless_transport.send_system = bt_driver_send_system;
-    wireless_transport.send_mouse = bt_driver_send_mouse;
-    wireless_transport.update_bat_level = bt_driver_update_bat_level;
+    wireless_set_transport((wt_func_t*)&bt_driver_func_table);
     kc_printf("Wireless: Switched to BT driver\n");
 }
 #endif
@@ -538,7 +546,7 @@ void wireless_low_battery_shutdown(void) {
 }
 
 
-void wireless_task(void) {
+void    wireless_task(void) {
     // 调用当前驱动的任务函数
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_task();
