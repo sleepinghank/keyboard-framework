@@ -44,7 +44,6 @@ typedef struct
 #define SEND_DISCONNECT_EVT          1<<8
 #define BLE_CLEAR_BUF_EVT         1<<9
 #define PERI_SECURITY_REQ_EVT         1<<10
-#define ADV_TIMEOUT_SLEEP_EVT         1<<11
 
 #define START_SVC_DISCOVERY_EVT       0x0008
 #define START_READ_OR_WRITE_EVT       0x0080
@@ -69,7 +68,7 @@ typedef void (*pfnHidEmuReceiveCB_t)( uint8_t *pData, uint8_t len );
 #define DEFAULT_DESIRED_CONN_TIMEOUT         300
 
 #define DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT       (1600 * 2)
-#define ADV_TIMEOUT_SLEEP_EVT_TIMEOUT           (1600 * 60)
+#define SYSTEM_DEEP_SLEEP_EVT_TIMEOUT          (1600 * 60)
 /*********************************************************************
  * FUNCTIONS
  */

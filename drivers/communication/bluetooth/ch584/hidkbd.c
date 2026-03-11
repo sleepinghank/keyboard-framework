@@ -108,7 +108,7 @@ typedef struct att_read_by_type_val_rsp
 
 // HID idle timeout in msec; set to zero to disable timeout
 #define DEFAULT_HID_IDLE_TIMEOUT             60000
-#define WL_RECONNECT_ADV_TIMEOUT             (1600 * 8)
+#define WL_RECONNECT_ADV_TIMEOUT             (1600 * 60)
 
 // Default passcode
 #define DEFAULT_PASSCODE                     0
@@ -152,13 +152,16 @@ extern void access_ble_notify_advertising(uint8_t pairing_state, uint8_t host_id
 extern void access_ble_notify_connected(uint8_t host_idx);
 extern void access_ble_notify_disconnected(uint8_t host_idx, uint8_t reason);
 extern void access_ble_enter_idel_sleep(void);
+extern void access_ble_init_done(void);
+extern void access_ble_schedule_deep_sleep_evt(uint32_t delay_ticks);
+extern void access_ble_cancel_deep_sleep_evt(void);
 
 /*********************************************************************
  * LOCAL VARIABLES
  */
 access_state_t access_state;            // Access模块的全局状态结构体
 bleConfig_t ble_config;
-static uint8_t reconnect_adv_fallback_stage = 0; // 0: whitelist reconnect, 1: general fallback
+static uint8_t reconnect_adv_fallback_stage = 1; // 0: whitelist reconnect, 1: general fallback
 
 // GAP Profile - Name attribute for SCAN RSP data
 static uint8_t scanRspData[] = {
@@ -706,40 +709,6 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
         return (events ^ SEND_DISCONNECT_EVT);
     }
 
-    if(events & ADV_TIMEOUT_SLEEP_EVT)
-    {
-        uint8_t ble_state;
-        uint8_t advertising_state;
-        GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
-        GAPRole_GetParameter(GAPROLE_ADVERT_ENABLED, &advertising_state);
-        dprint("[TRACE_EVT] ADV_TIMEOUT_SLEEP_EVT state=%x adv=%x pairing=%x deep=%x\n",
-               ble_state, advertising_state, access_state.pairing_state, access_state.deep_sleep_flag);
-        if((ble_state != GAPROLE_CONNECTED) && (!access_state.pairing_state))
-        {
-            if((reconnect_adv_fallback_stage == 0) && hidEmu_is_ble_bonded(access_state.ble_idx))
-            {
-                reconnect_adv_fallback_stage = 1;
-                dprint("ADV timeout -> fallback to general advertising\n");
-                hidEmu_adv_enable(ENABLE);
-            }
-            else if((reconnect_adv_fallback_stage == 1) && hidEmu_is_ble_bonded(access_state.ble_idx))
-            {
-                dprint("ADV timeout -> keep general advertising for reconnect\n");
-                hidEmu_adv_enable(ENABLE);
-            }
-            else
-            {
-                dprint("ADV timeout -> keep advertising (no deep sleep in reconnect path)\n");
-                hidEmu_adv_enable(ENABLE);
-            }
-        }
-        else
-        {
-            dprint("ADV timeout ignored, state:%x pairing:%x\n", ble_state, access_state.pairing_state);
-        }
-        return (events ^ ADV_TIMEOUT_SLEEP_EVT);
-    }
-
     if(events & SEND_PACKET_EVT)
     {
         uint8_t ble_state;
@@ -1069,27 +1038,17 @@ void hidEmu_adv_enable(uint8_t enable)
         }
     }
 
-    if(OSAL_GetTaskTimer(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT))
-    {
-        dprint("[TRACE_ADV] stop ADV_TIMEOUT_SLEEP_EVT before adv enable=%x\n", initial_advertising_enable);
-        OSAL_StopTask(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT);
-    }
+    access_ble_cancel_deep_sleep_evt();
     if(initial_advertising_enable && (!access_state.pairing_state))
     {
-        uint32_t adv_timeout = ADV_TIMEOUT_SLEEP_EVT_TIMEOUT;
-        if((reconnect_adv_fallback_stage == 0) && (bonded != 0))
-        {
-            adv_timeout = WL_RECONNECT_ADV_TIMEOUT;
-        }
         access_state.deep_sleep_flag = FALSE;
-        OSAL_SetDelayedEvent(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT, adv_timeout);
-        dprint("ADV timeout timer start %d\n", adv_timeout);
-        dprint("[TRACE_ADV] set ADV_TIMEOUT_SLEEP_EVT timeout=%d req=%x idx=%x\n",
-               adv_timeout, initial_advertising_enable, access_state.ble_idx);
+        access_ble_schedule_deep_sleep_evt(SYSTEM_DEEP_SLEEP_EVT_TIMEOUT);
+        dprint("[TRACE_ADV] set SYSTEM_DEEP_SLEEP_EVT timeout=%d req=%x idx=%x\n",
+               SYSTEM_DEEP_SLEEP_EVT_TIMEOUT, initial_advertising_enable, access_state.ble_idx);
     }
     else if(initial_advertising_enable == 0)
     {
-        reconnect_adv_fallback_stage = 0;
+        reconnect_adv_fallback_stage = 1;
     }
 
     GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
@@ -1284,14 +1243,16 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
         {
             start_device_over = TRUE;
             LL_SetDataRelatedAddressChanges( 1, 1 ) ;
-            if(access_taskId != INVALID_TASK_ID)//等待access任务注册成功
-            {
-// 初始化完成后，检查是否需要直接切换到对应连接  记录的  当前的  恢复成flash记录的通道
-                if(storage_get_config_ptr()->ble_idx != access_state.ble_idx)
-                {
-                    access_ctl_process( storage_get_config_ptr()->ble_idx);
-                }
-            }
+//             if(access_taskId != INVALID_TASK_ID)//等待access任务注册成功
+//             {
+// // 初始化完成后，检查是否需要直接切换到对应连接  记录的  当前的  恢复成flash记录的通道
+//                 if(storage_get_config_ptr()->ble_idx != access_state.ble_idx)
+//                 {
+//                     access_ctl_process( storage_get_config_ptr()->ble_idx);
+//                 }
+//             }
+            dprint("1\n");
+            access_ble_init_done();
             dprint("Initialized..\n");
         }
         break;
@@ -1329,12 +1290,9 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 // get connection handle
                 hidEmuConnHandle = event->connectionHandle;
                 access_state.deep_sleep_flag = FALSE;
-                reconnect_adv_fallback_stage = 0;
+                reconnect_adv_fallback_stage = 1;
                 access_ble_notify_connected(access_state.ble_idx);
-                if(OSAL_GetTaskTimer(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT))
-                {
-                    OSAL_StopTask(hidEmuTaskId, ADV_TIMEOUT_SLEEP_EVT);
-                }
+                access_ble_cancel_deep_sleep_evt();
                 centralConnHandle = event->connectionHandle;//锟斤拷锟斤拷锟斤拷锟接撅拷锟? 系统识锟斤拷使锟斤拷
 
                 OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
@@ -1438,127 +1396,12 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                 dprint("[TRACE_DISC] terminate reason=%x con_work_mode=%x idx=%x pairing=%x deep=%x\n",
                        pEvent->linkTerminate.reason, con_work_mode, access_state.ble_idx,
                        access_state.pairing_state, access_state.deep_sleep_flag);
-                reconnect_adv_fallback_stage = 0;
+                reconnect_adv_fallback_stage = 1;
                 access_ble_notify_disconnected(access_state.ble_idx, pEvent->linkTerminate.reason);
                 if(OSAL_GetTaskTimer(hidEmuTaskId, WAIT_TERMINATE_EVT))
                 {
                     OSAL_StopTask(hidEmuTaskId, WAIT_TERMINATE_EVT);
                 }
-//                // 上报蓝牙断开
-//                // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-//                if( access_state.ble_idx != WORK_MODE_2_4G)
-//                {
-//                    //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-//                }
-                // 1、切换到其他模式，命令停止的连接，则判断模式，不开启新的广播
-                // 2、还是当前模式没变，只是连接断开，则继续广播，并开启过滤,(注意是否是OTA模式)
-                // 3、切换到另外的蓝牙模式，命令停止的连接，则修改mac地址，判断是否已经绑定过，是则开启广播，并开启过滤，否则不开启广播，等待配对命令。
-                if((con_work_mode == access_state.ble_idx) ||
-                    ( (access_state.ble_idx>BLE_INDEX_IDEL) && (access_state.ble_idx<BLE_INDEX_MAX) && ( hidEmu_is_ble_bonded(access_state.ble_idx) ) ))
-                {
-                    if( access_state.ble_idx == BLE_INDEX_MAX)
-                    {
-                        uint8_t initial_advertising_enable = ENABLE;
-                        GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
-                        // 上报蓝牙断开
-                        // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                        if( access_state.ble_idx != BLE_INDEX_IDEL)
-                        {
-                            //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                        }
-                    }
-                    else
-                    {
-                        if( access_state.pairing_state )
-                        {
-                            // 上报蓝牙断开
-                            // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                            if( access_state.ble_idx != BLE_INDEX_IDEL)
-                            {
-                                //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                            }
-                            //access_tran_report(REPORT_CMD_STATE, STATE_PAIRING);
-                            hidEmu_adv_enable(ENABLE);
-                        }
-                        else
-                        {
-                            if(con_work_mode == access_state.ble_idx)
-                            {
-                                if(access_state.deep_sleep_flag)
-                                {
-                                    dprint("send dis\n");
-                                    // 上报蓝牙断开
-                                    // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                                    if( access_state.ble_idx != BLE_INDEX_IDEL)
-                                    {
-                                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                                    }
-                                }
-                                else
-                                {
-                                //同通道超时断开，不广播，进入睡眠  改为广播5秒后睡眠
-                                // 恢复没有发出去的包；
-                                dprint("[DISC] res_num %d\n", BLE_buf_resend_num);
-                                dprint("[TRACE_DISC] same_mode reconnect adv enable, reason=%x deep=%x pairing=%x idx=%x\n",
-                                       pEvent->linkTerminate.reason, access_state.deep_sleep_flag,
-                                       access_state.pairing_state, access_state.ble_idx);
-                                hidEmu_resend_BUF();
-                                hidEmu_adv_enable(ENABLE);
-                                dprint("[DISC] save_bond(FALSE) from disconnect handler\n");
-                                hidEmu_save_ble_bonded(FALSE);
-                                dprint("[TRACE_DISC] set SEND_DISCONNECT_EVT delay=%d reason=%x\n",
-                                       DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT, pEvent->linkTerminate.reason);
-                                OSAL_SetDelayedEvent(hidEmuTaskId, SEND_DISCONNECT_EVT, DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT);
-//                                    if(OSAL_GetTaskTimer(access_taskId, ACCESS_IDEL_SLEEP_EVT)<IDEL_SLEEP_EVT_TIMEOUT+160)
-//                                    {
-//                                        access_update_idel_sleep_timeout(IDEL_SLEEP_EVT_TIMEOUT+160);
-//                                    }
-                                }
-                            }
-                            else
-                            {
-                                // 上报蓝牙断开
-                                // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                                if( access_state.ble_idx != BLE_INDEX_IDEL)
-                                {
-                                    //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                                }
-                                // 进入新蓝牙模式的回连状态
-                                //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECTING);
-                                dprint("[TRACE_DISC] switch_mode reconnect adv enable, reason=%x deep=%x pairing=%x idx=%x\n",
-                                       pEvent->linkTerminate.reason, access_state.deep_sleep_flag,
-                                       access_state.pairing_state, access_state.ble_idx);
-                                hidEmu_adv_enable(ENABLE);
-                            }
-                        }
-                    }
-                }
-                else if((access_state.ble_idx>BLE_INDEX_IDEL) && (access_state.ble_idx<BLE_INDEX_MAX))
-                {
-                    con_work_mode = access_state.ble_idx;
-                   // 上报蓝牙断开
-                    // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                    if( access_state.ble_idx != BLE_INDEX_IDEL)
-                    {
-                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                    }
-                    // 没绑定过，无法回连
-                    //access_tran_report(REPORT_CMD_STATE, STATE_RE_CONNECT_FAIL);
-                }
-                else //还有可能是IDEL模式
-                {
-                    con_work_mode = access_state.ble_idx;
-                    // 上报蓝牙断开
-                    // 如果当前已经是2.4G模式的话，说明已经发过的断开，不再发。
-                    if( access_state.ble_idx != BLE_INDEX_IDEL)
-                    {
-                        //access_tran_report(REPORT_CMD_STATE, STATE_CON_TERMINATE);
-                    }
-                }
-//                // 记下当前模式  深度睡眠后模式改为idel，所以这里不能同步模式
-//                con_work_mode = access_state.ble_idx;
-                // 20230831修改 蓝牙模式串口没有上报蓝牙连接断开指令
-                dprint("Disconnected.. Reason:%x\n", pEvent->linkTerminate.reason);
             }
             else if(pEvent->gap.opcode == GAP_LINK_ESTABLISHED_EVENT)
             {

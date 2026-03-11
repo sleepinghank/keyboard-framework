@@ -22,6 +22,7 @@
 #include "keycode_config.h"
 #include "host.h"
 #include "wait.h"
+#include "storage.h"
 
 #ifndef REINIT_LED_DRIVER
 #    define REINIT_LED_DRIVER 0
@@ -41,22 +42,19 @@ nkro_t nkro = {false, false};
 static void transport_changed(transport_t new_transport);
 
 #ifdef BLUETOOTH_ENABLE_FLAG
-__attribute__((weak)) void bt_transport_enable(bool enable) {
+void bt_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
         host_set_driver(&wireless_driver);
-
-        /* Disconnect and reconnect to sync the wireless state
-         * TODO: query wireless state to sync
-         */
+        dprintf("Transport: Switching to Bluetooth\n");
         wireless_disconnect();
 
         uint32_t t = timer_read32();
         // while (timer_elapsed32(t) < 50) {
         //     wireless_transport.task();
         // }
-        // wireless_connect();
-        wireless_connect_ex(30, 0);
+        wireless_connect();
+
         // TODO: Clear USB report
         //}
     } else {
@@ -71,7 +69,7 @@ __attribute__((weak)) void bt_transport_enable(bool enable) {
 #endif
 
 #ifdef P2P4G_ENABLE_FLAG
-__attribute__((weak)) void p24g_transport_enable(bool enable) {
+void p24g_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
         host_set_driver(&wireless_driver);
@@ -101,12 +99,12 @@ __attribute__((weak)) void p24g_transport_enable(bool enable) {
 #endif
 
 #ifdef USB_ENABLE_FLAG
-__attribute__((weak)) void usb_power_connect(void) {}
-__attribute__((weak)) void usb_power_disconnect(void) {}
+void usb_power_connect(void) {}
+void usb_power_disconnect(void) {}
 #endif
 
 #ifdef USB_ENABLE_FLAG
-__attribute__((weak)) void usb_transport_enable(bool enable) {
+void usb_transport_enable(bool enable) {
     if (enable) {
         if (host_get_driver() != &usb_driver) {
 #if !defined(KEEP_USB_CONNECTION_IN_WIRELESS_MODE)
@@ -137,6 +135,7 @@ void set_transport(transport_t new_transport) {
 #endif
 
         transport = new_transport;
+        dprintf("Transport: Switching to %d\n", transport);
 
         switch (transport) {
 #ifdef USB_ENABLE_FLAG
@@ -162,13 +161,14 @@ void set_transport(transport_t new_transport) {
                 p24g_transport_enable(false);
                 wait_ms(1);
 #endif
+                dprintf("Transport: Switching to Bluetooth\n");
+                // 先切换无线层驱动绑定，确保 wireless_transport 指向蓝牙驱动
+                wireless_switch_to_bt_driver();
                 bt_transport_enable(true);
 #ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
                 lpm_timer_reset();
-                // 通知无线层切换到蓝牙驱动
-                wireless_switch_to_bt_driver();
                 break;
 #endif
 
@@ -178,13 +178,13 @@ void set_transport(transport_t new_transport) {
                 bt_transport_enable(false);
                 wait_ms(1);
 #endif
+                // 先切换无线层驱动绑定，确保 wireless_transport 指向2.4G驱动
+                wireless_switch_to_p24g_driver();
                 p24g_transport_enable(true);
 #ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
                 lpm_timer_reset();
-                // 通知无线层切换到2.4G驱动
-                wireless_switch_to_p24g_driver();
                 break;
 #endif
 
@@ -201,9 +201,11 @@ void transport_notify_driver_switch(transport_t new_transport) {
     kc_printf("Transport: Notifying driver switch to %d\n", new_transport);
 
     switch (new_transport) {
+#ifdef USB_ENABLE_FLAG
         case TRANSPORT_USB:
             wireless_switch_to_usb_mode();
             break;
+#endif
 #ifdef BLUETOOTH_ENABLE_FLAG
         case TRANSPORT_BLUETOOTH:
             wireless_switch_to_bt_driver();

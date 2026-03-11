@@ -184,7 +184,7 @@ Wireless: ADV timeout, enter deep sleep
 
 
 [需求描述]：
-我现在需要基于ch584平台实现所有蓝牙驱动功能，驱动接口地址为drivers\communication\bluetooth\bt_driver.h。
+我现在需要基于ch584平台实现所有蓝牙驱动功能，驱动接口地址为drivers\communication\bluetooth\bt_driver.h。请根据如下需求，审核2026-03-10-ch584-bluetooth-driver-design.md 和 2026-03-10-ch584-bluetooth-driver-implementation.md两个文档，确认设计和实现方案是否满足需求。
 [具体细节]：
 1、蓝牙驱动目录在drivers\communication\bluetooth\ch584中，是从现有方案中直接挪过来的，已经包含了基本的蓝牙功能实现。（现有方案地址：D:\Code\CLionProjects\kb04122-13a-wch）
 2、官方的蓝牙demo 地址为（D:\Code\CLionProjects\kb04122-13a-wch）

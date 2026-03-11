@@ -6,7 +6,8 @@
 #include "hidkbdservice.h"
 #include "CH58x_common.h"
 #include "HAL.h"
-
+#include "print.h"
+#include "debug.h"
 static bool g_bt_driver_initialized = false;
 
 
@@ -66,7 +67,7 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
 {
     uint8_t ble_state = 0;
     uint8_t target_host_idx = host_idx;
-    dprintf("bt_driver_connect_ex: host_idx=%d, timeout=%d\n", host_idx, timeout);
+    dprintf("bt_driver_connect_ex: host_idx=%d, timeout=%d\r\n", host_idx, timeout);
     if ((target_host_idx <= BLE_INDEX_IDEL) || (target_host_idx >= BLE_INDEX_MAX)) {
         storage_config_t *cfg = storage_get_config_ptr();
         if ((cfg != NULL) && (cfg->ble_idx > BLE_INDEX_IDEL) && (cfg->ble_idx < BLE_INDEX_MAX)) {
@@ -319,4 +320,9 @@ uint8_t bt_driver_send_mouse(uint8_t *report)
 void bt_driver_update_bat_level(uint8_t bat_lvl)
 {
     // Batt_SetParameter(BATT_PARAM_LEVEL, sizeof(uint8_t), &bat_lvl);
+}
+
+void bt_driver_set_advertising(bool enable)
+{
+    hidEmu_adv_enable(enable ? ENABLE : DISABLE);
 }

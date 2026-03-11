@@ -63,6 +63,7 @@ void keyboard_task(void) {
 
     // 3. 优先处理层切换键（解决同时按下时序问题）
     if (key_st == KEY_UPDATE) {
+        dprintf("Key update detected, processing layer switch keys first\r\n");
         process_layer_switch_key();
     }
 

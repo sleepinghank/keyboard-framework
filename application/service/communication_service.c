@@ -6,6 +6,9 @@
 #include "wireless.h"
 #include "wireless_event_type.h"
 #include "report_buffer.h"
+#include "wireless.h"
+#include "keyboard.h"
+#include "transport.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -14,6 +17,29 @@ extern "C" {
 uint8_t commu_taskID = 0;
 
 wireless_event_t event    = {0};
+
+
+/**
+ * @brief 选择默认传输通道
+ *
+ * 根据编译配置选择默认的传输通道，优先使用蓝牙通道。
+ * set_transport() 内部会调用相应的驱动切换函数来初始化无线传输函数表。
+ */
+void system_select_default_transport(void) {
+    transport_t default_transport = TRANSPORT_NONE;
+
+    // 默认使用蓝牙通道
+#ifdef BLUETOOTH_ENABLE_FLAG
+    default_transport = TRANSPORT_BLUETOOTH;
+#elif defined(P2P4G_ENABLE_FLAG)
+    default_transport = TRANSPORT_P2P4;
+#endif
+
+    if (default_transport != TRANSPORT_NONE) {
+        set_transport(default_transport);
+    }
+}
+
 /**
  * @brief 通信服务事件处理器（移植自 wireless_event_task）
  * @param task_id 任务ID
@@ -25,6 +51,8 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
     // 处理无线模块初始化事件
     if (events & WL_INIT_EVT) {
         wireless_init();
+        // 选择默认传输通道
+        system_select_default_transport();
         dprintf("Communication: Wireless module initialization\r\n");
         return (events ^ WL_INIT_EVT);
     }
@@ -52,21 +80,22 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理无线连接成功事件
     if (events & WL_CONNECTED_EVT) {
-        wireless_enter_connected_kb(event.params.hostIndex);
+        wireless_state_set_connected(event.params.hostIndex);
         dprintf("Communication: Wireless connected\r\n");
         return (events ^ WL_CONNECTED_EVT);
     }
 
     // 处理无线断开连接事件
     if (events & WL_DISCONNECTED_EVT) {
-        wireless_enter_disconnected_kb(event.params.hostIndex, event.data);
+        wireless_state_set_disconnected(event.params.hostIndex, event.data);
         dprintf("Communication: Wireless disconnected\r\n");
+        OSAL_SetEvent(commu_taskID, WL_RECONNECT_EVT); // 断开后自动尝试重连
         return (events ^ WL_DISCONNECTED_EVT);
     }
 
     // 处理广播结束事件（进入挂起）
     if (events & WL_ADVEND_EVT) {
-        wireless_enter_sleep_kb();
+        wireless_state_set_sleep();
         dprintf("Communication: Wireless suspended\r\n");
         return (events ^ WL_ADVEND_EVT);
     }
@@ -82,7 +111,7 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
     // 处理蓝牙回连事件
     if (events & WL_RECONNECT_EVT) {
         wireless_connect_ex(event.params.hostIndex, 0);
-        dprintf("Communication: Exit Bluetooth PIN code entry\r\n");
+        dprintf("Communication: Wireless reconnect\r\n");
         return (events ^ WL_RECONNECT_EVT);
     }
 
@@ -110,7 +139,9 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理USB连接事件
     if (events & USB_CONNECT_EVT) {
+#ifdef USB_ENABLE_FLAG
         wireless_switch_to_usb_mode();
+#endif
         dprintf("Communication: USB connected\r\n");
         return (events ^ USB_CONNECT_EVT);
     }
@@ -133,9 +164,6 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 void commu_service_init(void) {
     // 注册任务并获取任务ID
     commu_taskID = OSAL_ProcessEventRegister(commu_process_event);
-
-    // 启动无线模块初始化事件
-    OSAL_SetEvent(commu_taskID, WL_INIT_EVT);
 
     // TODO: 根据配置启动相应的定时任务
     // 例如：启动广播检测、连接状态监控等

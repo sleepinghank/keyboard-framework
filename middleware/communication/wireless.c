@@ -26,6 +26,9 @@
 #include "product_config.h"
 #include "wait.h"
 #include "string.h"
+#include "print.h"
+#include "debug.h"
+#include "storage.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -201,7 +204,7 @@ void wireless_switch_to_usb_mode(void) {
  * Enter pairing with current host index
  */
 void wireless_pairing(void) {
-    if (battery_is_critical_low()) return;
+    // if (battery_is_critical_low()) return;
 
     wireless_pairing_ex(0, NULL);
     wireless_state = WT_PARING;
@@ -212,7 +215,7 @@ void wireless_pairing(void) {
  */
 void wireless_pairing_ex(uint8_t host_idx, void *param) {
     kc_printf("wireless_pairing_ex %d\n\r", host_idx);
-    if (battery_is_critical_low()) return;
+    // if (battery_is_critical_low()) return;
 
     if (wireless_transport.pairing_ex) wireless_transport.pairing_ex(host_idx, param);
     wireless_state = WT_PARING;
@@ -224,13 +227,13 @@ void wireless_pairing_ex(uint8_t host_idx, void *param) {
  * Initiate connection request to paired host
  */
 void wireless_connect(void) {
-    /*  Work around empty report after wakeup, which leads to reconneect/disconnected loop */
-    if (battery_is_critical_low() || timer_read32() == 0) return;
+    kc_printf("wireless_connect\n\r");
+    // if (battery_is_critical_low() || timer_read32() == 0) return;
 
     if (wireless_state == WT_RECONNECTING ) {
         wireless_indicator_update(wireless_state, host_index);
     }
-    wireless_transport.connect_ex(0, 0);
+    wireless_transport.connect_ex(BLE_INDEX_1, 0);
     wireless_state = WT_RECONNECTING;
 }
 
@@ -239,9 +242,10 @@ void wireless_connect(void) {
  */
 void wireless_connect_ex(uint8_t host_idx, uint16_t timeout) {
     kc_printf("wireless_connect_ex %d\n\r", host_idx);
-    if (battery_is_critical_low()) return;
+    // if (battery_is_critical_low()) return;
 
     if (host_idx != 0) {
+
         /* Do nothing when trying to connect to current connected host*/
         if (host_index == host_idx && wireless_state == WT_CONNECTED) return;
 
@@ -259,23 +263,23 @@ void wireless_disconnect(void) {
 }
 
 /* Called when the BT device is reset. */
-static void wireless_enter_reset(uint8_t reason) {
+void wireless_enter_reset(uint8_t reason) {
     kc_printf("wireless_enter_reset\n\r");
     wireless_state = WT_RESET;
-    wireless_enter_reset_kb(reason);
+    // wireless_enter_reset_kb(reason);
 }
 
 /* Enters discoverable state. Upon entering this state we perform the following actions:
  *   - change state to WT_PARING
  *   - set pairing indication
  */
-static void wireless_enter_discoverable(uint8_t host_idx) {
+void wireless_enter_discoverable(uint8_t host_idx) {
     kc_printf("wireless_enter_discoverable: %d\n\r", host_idx);
     host_index = host_idx;
 
     wireless_state = WT_PARING;
     wireless_indicator_update(wireless_state, host_idx);
-    wireless_enter_discoverable_kb(host_idx);
+    // wireless_enter_discoverable_kb(host_idx);
 }
 
 /*
@@ -283,13 +287,13 @@ static void wireless_enter_discoverable(uint8_t host_idx) {
  *   - change state to RECONNECTING
  *   - set reconnect indication
  */
-static void wireless_enter_reconnecting(uint8_t host_idx) {
+void wireless_enter_reconnecting(uint8_t host_idx) {
     host_index = host_idx;
 
     kc_printf("wireless_reconnecting %d\n\r", host_idx);
     wireless_state = WT_RECONNECTING;
     wireless_indicator_update(wireless_state, host_idx);
-    wireless_enter_reconnecting_kb(host_idx);
+    // wireless_enter_reconnecting_kb(host_idx);
 }
 
 /* Enters connected state. Upon entering this state we perform the following actions:
@@ -297,7 +301,7 @@ static void wireless_enter_reconnecting(uint8_t host_idx) {
  *   - set connected indication
  *   - enable NKRO if it is support
  */
-static void wireless_enter_connected(uint8_t host_idx) {
+void wireless_enter_connected(uint8_t host_idx) {
     kc_printf("wireless_connected %d\n\r", host_idx);
 
     wireless_state = WT_CONNECTED;
@@ -311,7 +315,7 @@ static void wireless_enter_connected(uint8_t host_idx) {
     keymap_config.nkro = false;
 #endif
 
-    wireless_enter_connected_kb(host_idx);
+    // wireless_enter_connected_kb(host_idx);
     if (battery_is_empty()) {
         indicator_battery_low_enable(true);
     }
@@ -323,7 +327,7 @@ static void wireless_enter_connected(uint8_t host_idx) {
  *   - change state to DISCONNECTED
  *   - set disconnected indication
  */
-static void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
+void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
     kc_printf("wireless_disconnected %d, %d\n\r", host_idx, reason);
 
     uint8_t previous_state = wireless_state;
@@ -349,34 +353,34 @@ static void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
     report_buffer_init();
 #endif
     retry = 0;
-    wireless_enter_disconnected_kb(host_idx, reason);
+    // wireless_enter_disconnected_kb(host_idx, reason);
 
     indicator_battery_low_enable(false);
 }
 
 /* Enter pin code entry state. */
-static void wireless_enter_bluetooth_pin_code_entry(void) {
+void wireless_enter_bluetooth_pin_code_entry(void) {
 #if defined(NKRO_ENABLE)
     keymap_config.nkro = FALSE;
 #endif
     pincodeEntry = true;
-    wireless_enter_bluetooth_pin_code_entry_kb();
+    // wireless_enter_bluetooth_pin_code_entry_kb();
 }
 
 /* Exit pin code entry state. */
-static void wireless_exit_bluetooth_pin_code_entry(void) {
+void wireless_exit_bluetooth_pin_code_entry(void) {
 #if defined(NKRO_ENABLE) || defined(WIRELESS_NKRO_ENABLE)
     keymap_config.raw = eeconfig_read_keymap();
 #endif
     pincodeEntry = false;
-    wireless_exit_bluetooth_pin_code_entry_kb();
+    // wireless_exit_bluetooth_pin_code_entry_kb();
 }
 
 /* Enters disconnected state. Upon entering this state we perform the following actions:
  *   - change state to DISCONNECTED
  *   - set disconnected indication
  */
-static void wireless_enter_sleep(void) {
+void wireless_enter_sleep(void) {
     kc_printf("wireless_enter_sleep %d\n\r", wireless_state);
 
     led_state = 0;
@@ -386,7 +390,7 @@ static void wireless_enter_sleep(void) {
         kc_printf("WT_SUSPEND\n\r");
         lpm_timer_reset();
 
-        wireless_enter_sleep_kb();
+        // wireless_enter_sleep_kb();
         wireless_indicator_update(wireless_state, 0);
         indicator_battery_low_enable(false);
     }
@@ -417,7 +421,7 @@ uint8_t wreless_keyboard_leds(void) {
 //extern keymap_config_t keymap_config;
 
 void wireless_send_keyboard(report_keyboard_t *report) {
-    if (battery_is_critical_low()) return;
+    // if (battery_is_critical_low()) return;
 
     if (wireless_state == WT_PARING && !pincodeEntry) return;
 

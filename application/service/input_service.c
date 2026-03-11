@@ -47,6 +47,7 @@ uint8_t input_taskID = 0;
  * @brief 硬件定时器回调函数
  *        在定时器中断中被调用，触发 OSAL 事件
  */
+__HIGH_CODE
 static void matrix_scan_timer_callback(void)
 {
     /* 触发矩阵扫描事件，由 OSAL 主循环处理 */
@@ -87,8 +88,8 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理矩阵扫描事件
     if (events & INPUT_MATRIX_SCAN_EVT) {
-        // keyboard_task();
-        dprintln("*");
+        keyboard_task();
+        dprintln("1*");
 #ifdef TOUCH_EN
         // 检查触摸板状态，如有触摸中断则设置事件
         if (touch_timer_task() > 0) {

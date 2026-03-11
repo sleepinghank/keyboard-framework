@@ -1,4 +1,6 @@
 #pragma once
+
+#include <stdint.h>
 /**
  * 所有系统相关服务事件
  * 低电关机
@@ -20,3 +22,8 @@ typedef enum {
     SYSTEM_FACTORY_RESET_EVT         = 1 << 6,  /**< 恢复出厂设置事件 */
     SYSTEM_OTA_EVT                   = 1 << 7,  /**< OTA升级事件 */
 } system_task_event_t;
+
+extern uint8_t system_taskID;
+
+uint16_t system_process_event(uint8_t task_id, uint16_t events);
+void system_service_init(void);

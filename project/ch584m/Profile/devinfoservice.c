@@ -112,7 +112,7 @@ static const uint8_t devInfoHardwareRev[] = "Hardware Revision";
 
 // Software Revision String characteristic
 static uint8_t       devInfoSoftwareRevProps = GATT_PROP_READ;
-static const uint8_t devInfoSoftwareRev[] = "Software Revision";
+static const uint8_t devInfoSoftwareRev[] = "2024.01.03 SVN0127";
 
 // Manufacturer Name String characteristic
 static uint8_t       devInfoMfrNameProps = GATT_PROP_READ;
@@ -130,9 +130,19 @@ static const uint8_t devInfo11073Cert[] = {
 static uint8_t devInfoPnpIdProps = GATT_PROP_READ;
 static uint8_t devInfoPnpId[DEVINFO_PNP_ID_LEN] = {
     1,                                    // Vendor ID source (1=Bluetooth SIG)
-    LO_UINT16(0x07D7), HI_UINT16(0x07D7), // Vendor ID (WCH)
-    LO_UINT16(0x0000), HI_UINT16(0x0000), // Product ID (vendor-specific)
-    LO_UINT16(0x0110), HI_UINT16(0x0110)  // Product version (JJ.M.N)
+//    LO_UINT16(0x0C45), HI_UINT16(0x0C45), // Vendor ID (0x05AC)
+//    LO_UINT16(0xFEFE), HI_UINT16(0xFEFE), // Product ID (0x024F)
+
+//    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+//    LO_UINT16(0x0251), HI_UINT16(0x0251), // Product ID (0x024F)
+
+//    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+//    LO_UINT16(0x0250), HI_UINT16(0x0250), // Product ID (0x024F)
+
+    LO_UINT16(0x05AC), HI_UINT16(0x05AC), // Vendor ID (0x05AC)
+    LO_UINT16(0x024F), HI_UINT16(0x024F), // Product ID (0x024F)
+
+    LO_UINT16(0x0127), HI_UINT16(0x0127)  // Product version (JJ.M.N)
 };
 
 /*********************************************************************

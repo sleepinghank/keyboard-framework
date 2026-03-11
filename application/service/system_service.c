@@ -12,12 +12,13 @@
 #include "wireless.h"
 #include "transport.h"
 #include "system_hal.h"
+#include "bt_driver.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-uint8_t system_taskID = 0;
+uint8_t system_taskID = 0xFF;
 
 /**
  * @brief 系统服务事件处理器
@@ -71,6 +72,10 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
     // 处理深度睡眠事件
     if (events & SYSTEM_DEEP_SLEEP_EVT) {
         println("System: Enter deep sleep");
+        if (get_transport() == TRANSPORT_BLUETOOTH) {
+            bt_driver_set_advertising(false);
+        }
+        wireless_disconnect();
         // 深度睡眠流程:
         // 1. 保存关键状态
         storage_save();

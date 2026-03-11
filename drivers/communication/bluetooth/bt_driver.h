@@ -156,6 +156,12 @@ uint8_t bt_driver_send_mouse(uint8_t *report);
  */
 void bt_driver_update_bat_level(uint8_t bat_lvl);
 
+/**
+ * @brief 控制蓝牙广播开关
+ * @param enable true开启广播 false关闭广播
+ */
+void bt_driver_set_advertising(bool enable);
+
 /*********************************************************************
  * @fn      bt_driver_send_ptp
  *

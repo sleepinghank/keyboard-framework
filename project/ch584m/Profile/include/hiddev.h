@@ -431,6 +431,7 @@ extern bStatus_t HidDev_ReadAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
 extern bStatus_t HidDev_WriteAttrCB(uint16_t connHandle, gattAttribute_t *pAttr,
                                     uint8_t *pValue, uint16_t len, uint16_t offset, uint8_t method);
 
+extern void hidDevBattCB(uint8_t event);
 /*********************************************************************
 *********************************************************************/
 

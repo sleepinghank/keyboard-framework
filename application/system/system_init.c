@@ -135,7 +135,7 @@ void system_init_hal(void) {
     writePinHigh(B19);
     PRINT("B19 HAL initialized\r\n");
     // 硬件定时器初始化
-    hw_timer_init();
+    // hw_timer_init();
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
@@ -186,37 +186,14 @@ void system_init_middleware(void) {
     g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_INIT;
 }
 
-/**
- * @brief 选择默认传输通道
- *
- * 根据编译配置选择默认的传输通道，优先使用蓝牙通道。
- * set_transport() 内部会调用相应的驱动切换函数来初始化无线传输函数表。
- */
-void system_select_default_transport(void) {
-    transport_t default_transport = TRANSPORT_NONE;
-
-    // 默认使用蓝牙通道
-#ifdef BLUETOOTH_ENABLE_FLAG
-    default_transport = TRANSPORT_BLUETOOTH;
-#elif defined(P2P4G_ENABLE_FLAG)
-    default_transport = TRANSPORT_P2P4;
-#endif
-
-    if (default_transport != TRANSPORT_NONE) {
-        set_transport(default_transport);
-    }
-}
 
 void system_init_application(void) {
     // 应用层初始化阶段
     // 初始化各应用服务
-    // system_service_init();
+    system_service_init();
     input_service_init();   // 启动矩阵扫描定时器
     output_service_init();
-    // commu_service_init();
-
-    // 选择默认传输通道
-    system_select_default_transport();
+    commu_service_init();
 
     // 标记Application init完成
     g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;

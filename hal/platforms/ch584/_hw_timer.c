@@ -129,7 +129,7 @@ void TMR0_IRQHandler(void)
         TMR0_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_0);
     }
-    togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+    // togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 __INTERRUPT
@@ -140,7 +140,7 @@ void TMR1_IRQHandler(void)
         TMR1_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_1);
     }
-    togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+    // togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 __INTERRUPT
@@ -151,7 +151,7 @@ void TMR2_IRQHandler(void)
         TMR2_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_2);
     }
-    togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+    // togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 /*==========================================
