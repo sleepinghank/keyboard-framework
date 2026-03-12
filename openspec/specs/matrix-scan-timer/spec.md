@@ -1,31 +1,27 @@
 # matrix-scan-timer Specification
 
 ## Purpose
-TBD - created by archiving change add-hw-timer-matrix-scan. Update Purpose after archive.
-## Requirements
-### Requirement: 硬件定时器驱动矩阵扫描
+使用硬件定时器触发矩阵扫描，通过 main loop 标志位执行，减少 OSAL 调度压力和延迟。
 
-系统 SHALL 使用硬件定时器以固定周期触发键盘矩阵扫描任务。
+## Requirements
+
+### Requirement: 硬件定时器触发矩阵扫描标志位
+
+系统 SHALL 使用硬件定时器以固定周期设置矩阵扫描标志位。
 
 #### Scenario: 正常扫描周期
 
 - **WHEN** 系统初始化完成且输入服务启动
 - **THEN** 硬件定时器以 5ms 周期运行
-- **AND** 每次定时器中断触发 `INPUT_MATRIX_SCAN_EVT` 事件
-- **AND** OSAL 主循环处理该事件时执行 `keyboard_task()`
+- **AND** 每次定时器中断设置 `g_matrix_scan_flag` 标志位
+- **AND** main loop 检测到标志位后执行 `keyboard_task()`
 
-#### Scenario: 定时器启动
+#### Scenario: 标志位访问
 
-- **WHEN** 调用 `matrix_scan_timer_start()` 函数
-- **THEN** 硬件定时器开始运行
-- **AND** 函数返回 `NO_ERROR`
-
-#### Scenario: 定时器停止
-
-- **WHEN** 调用 `matrix_scan_timer_stop()` 函数
-- **THEN** 硬件定时器停止运行
-- **AND** 不再触发矩阵扫描事件
-- **AND** 函数返回 `NO_ERROR`
+- **WHEN** 定时器中断设置标志位
+- **THEN** main loop 通过 `input_get_matrix_scan_flag()` 读取标志位
+- **AND** 执行完成后通过 `input_clear_matrix_scan_flag()` 清除标志位
+- **AND** 标志位使用 `volatile` 保证中断可见性
 
 ### Requirement: 扫描周期可配置
 
@@ -56,4 +52,3 @@ TBD - created by archiving change add-hw-timer-matrix-scan. Update Purpose after
 - **WHEN** 系统从低功耗模式唤醒
 - **THEN** 可调用 `matrix_scan_timer_start()` 恢复定时器
 - **AND** 矩阵扫描恢复正常周期运行
-
