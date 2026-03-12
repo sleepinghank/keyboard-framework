@@ -96,6 +96,12 @@ uint8_t *OSAL_MsgAllocate(uint16_t len);
 void OSAL_SystemProcess(void);
 
 /**
+ * @brief   OSAL 系统单次处理（非阻塞）
+ *          处理一轮事件后返回，用于自定义主循环
+ */
+void OSAL_SystemProcessOnce(void);
+
+/**
  * @brief   get last period of time for this event
  *
  * @param   taskID - task ID of event
