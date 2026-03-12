@@ -31,7 +31,7 @@
  * 触控板看门狗检查
  */
 typedef enum {
-    INPUT_MATRIX_SCAN_EVT     = 1 << 0,  /**< 矩阵扫描事件 */
+    // INPUT_MATRIX_SCAN_EVT  = 1 << 0,  // 移除：改用 main loop 标志位
     INPUT_MATRIX_CHANGED_EVT  = 1 << 1,  /**< 矩阵数据变化事件 */
     INPUT_TOUCH_INT_EVT       = 1 << 2,  /**< 触控中断事件 */
     INPUT_BATTERY_DETE_EVT    = 1 << 3,  /**< 电量变化事件 */
@@ -62,3 +62,18 @@ error_code_t matrix_scan_timer_stop(void);
  * @brief 输入服务初始化
  */
 void input_service_init(void);
+
+/*==========================================
+ * 矩阵扫描标志位接口
+ *=========================================*/
+
+/**
+ * @brief 检查是否需要执行矩阵扫描
+ * @return true 需要执行, false 不需要
+ */
+bool input_get_matrix_scan_flag(void);
+
+/**
+ * @brief 清除矩阵扫描标志位
+ */
+void input_clear_matrix_scan_flag(void);
