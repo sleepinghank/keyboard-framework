@@ -23,6 +23,7 @@
 #include "transport.h"
 #include "host_driver.h"
 #include "report.h"
+#include "keyboard.h"
 #include "product_config.h"
 #include "wait.h"
 #include "string.h"
@@ -41,12 +42,14 @@ extern report_buffer_t kb_rpt;
 extern uint32_t        retry_time_buffer;
 extern uint8_t         retry;
 
-__attribute__((weak)) void indicator_battery_low_enable(bool enable) {
+void indicator_battery_low_enable(bool enable) {
     (void)enable;
 }
 
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
+//系统状态变量
+uint8_t host_system_type = 0;
 
 wt_func_t  wireless_transport;
 #ifdef P2P4G_ENABLE_FLAG
@@ -310,6 +313,9 @@ void wireless_enter_connected(uint8_t host_idx) {
 
     clear_keyboard();
 
+    // 根据系统类型切换层
+    keyboard_update_base_layer_by_system();
+
     /* Enable NKRO since it may be disabled in pin code entry */
 #if defined(NKRO_ENABLE) && !defined(WIRELESS_NKRO_ENABLE)
     keymap_config.nkro = false;
@@ -550,15 +556,15 @@ void wireless_low_battery_shutdown(void) {
 }
 
 
-void    wireless_task(void) {
+void wireless_task(void) {
     // 调用当前驱动的任务函数
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_task();
 #endif
-    indicator_task();
-//    keychron_wireless_common_task();
-    battery_task();
-    lpm_task();
+//     indicator_task();
+// //    keychron_wireless_common_task();
+//     battery_task();
+//     lpm_task();
 }
 
 void send_string_task(void) {

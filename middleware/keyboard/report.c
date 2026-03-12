@@ -19,6 +19,7 @@
 #include "debug.h"
 #include "util.h"
 #include <string.h>
+#include "wireless.h"
 
 // 外部变量
 extern uint8_t keyboard_protocol;
@@ -436,7 +437,7 @@ static void classify_and_add_keycode(uint16_t keycode,
         return;
     }
 }
-
+extern wt_func_t wireless_transport;
 void report_update_proc(key_update_st_t key_st) {
     if (key_st == GHOST_KEY) {
         return;
@@ -476,20 +477,26 @@ void report_update_proc(key_update_st_t key_st) {
     // 检查并发送键盘报告
     if (memcmp(&kb_report, &last_kb_report, sizeof(kb_report)) != 0) {
         memcpy(&last_kb_report, &kb_report, sizeof(kb_report));
-
-        report_buffer_t report;
-        report.type = REPORT_TYPE_KB;
-        memcpy(&report.keyboard, &kb_report, sizeof(kb_report));
-        report_buffer_enqueue(&report);
+        dprintf("Report: Keyboard report changed, sending update:%d\r\n", kb_report.keys[0]);
+        // report_buffer_t report;
+        // report.type = REPORT_TYPE_KB;
+        // memcpy(&report.keyboard, &kb_report, sizeof(kb_report));
+        // report_buffer_enqueue(&report);
+        if (wireless_transport.send_keyboard) {
+            wireless_transport.send_keyboard(&kb_report);
+        }
     }
 
     // 检查并发送消费者报告
     if (consumer_report != last_consumer_report) {
         last_consumer_report = consumer_report;
-
-        report_buffer_t report;
-        report.type = REPORT_TYPE_CONSUMER;
-        report.consumer = consumer_report;
-        report_buffer_enqueue(&report);
+        dprintf("Report: Consumer report changed, sending update:%04X\r\n", consumer_report);
+        if (wireless_transport.send_consumer) {
+            wireless_transport.send_consumer(consumer_report);
+        }
+        // report_buffer_t report;
+        // report.type = REPORT_TYPE_CONSUMER;
+        // report.consumer = consumer_report;
+        // report_buffer_enqueue(&report);
     }
 }
