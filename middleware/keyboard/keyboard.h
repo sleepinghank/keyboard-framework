@@ -18,4 +18,7 @@ void keyboard_task(void);
 // 获取上一次的更新状态
 key_update_st_t keyboard_get_last_update_state(void);
 
+// 根据主机系统类型更新基础层
+void keyboard_update_base_layer_by_system(void);
+
 #endif
