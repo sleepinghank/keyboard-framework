@@ -37,10 +37,9 @@ int main(void)
 
     // 主循环：矩阵扫描 + OSAL 事件处理
     while (1) {
-        /* 检查矩阵扫描标志位 */
-        if (input_get_matrix_scan_flag()) {
+        /* 原子地检查并清除矩阵扫描标志位 */
+        if (input_test_and_clear_matrix_scan_flag()) {
             keyboard_task();
-            input_clear_matrix_scan_flag();
         }
 
         /* OSAL 单次处理（BLE 协议栈等） */

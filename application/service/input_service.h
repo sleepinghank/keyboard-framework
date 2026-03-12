@@ -68,12 +68,21 @@ void input_service_init(void);
  *=========================================*/
 
 /**
+ * @brief 原子地检查并清除矩阵扫描标志位
+ *        使用关中断保护确保原子性，避免竞态条件
+ * @return true 需要执行扫描并已清除标志位, false 不需要
+ */
+bool input_test_and_clear_matrix_scan_flag(void);
+
+/**
  * @brief 检查是否需要执行矩阵扫描
  * @return true 需要执行, false 不需要
+ * @note 非原子操作，仅供调试或非关键场景使用
  */
 bool input_get_matrix_scan_flag(void);
 
 /**
  * @brief 清除矩阵扫描标志位
+ * @note 非原子操作，仅供调试或非关键场景使用
  */
 void input_clear_matrix_scan_flag(void);

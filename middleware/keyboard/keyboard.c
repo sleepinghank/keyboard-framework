@@ -7,6 +7,8 @@
 #include "report_buffer.h"
 #include "keycode.h"
 #include <string.h>
+#include "sys_config.h"
+#include "debug.h"
 
 // 按键列表（供 process_combo.c 使用）
 list_t* _key_code_list = NULL;
@@ -51,7 +53,10 @@ void keyboard_init(void) {
     memset(matrix_debounced, 0, sizeof(matrix_debounced));
 }
 
+__HIGH_CODE
 void keyboard_task(void) {
+    togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+
     // 1. 矩阵扫描 + 驱动层防抖
     key_update_st_t key_st = scan_and_debounce();
     last_update_state = key_st;
