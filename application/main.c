@@ -15,6 +15,8 @@
 #include "system_init.h"
 #include "sys_config.h"
 #include "debug.h"
+#include "input_service.h"
+#include "keyboard.h"
 
 
 /**
@@ -32,8 +34,18 @@ int main(void)
         return init_result;
     }
     dprint("System initialized successfully");
-    
-    // 最后的时间循环器
-    OSAL_SystemProcess();
+
+    // 主循环：矩阵扫描 + OSAL 事件处理
+    while (1) {
+        /* 检查矩阵扫描标志位 */
+        if (input_get_matrix_scan_flag()) {
+            keyboard_task();
+            input_clear_matrix_scan_flag();
+        }
+
+        /* OSAL 单次处理（BLE 协议栈等） */
+        OSAL_SystemProcessOnce();
+    }
+
     return 0;
 }
