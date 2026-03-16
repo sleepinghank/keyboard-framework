@@ -32,7 +32,7 @@ cmake --build build -j4
 
 **环境要求:** MSYS2 MINGW64, CMake 3.29+, GCC 15.2.0+
 
-**注意:** `test_main.c` 使用无限循环 (`OSAL_SystemProcess()`)，不是传统的单元测试框架。
+**注意:** `test_main.c` 为 **Windows 仿真入口**（桌面调试用，不烧录硬件），`application/main.c` 为 **CH584M 实际烧录入口**。
 
 ### WCH RISC-V BLE 项目编译 (CH584M)
 
@@ -69,7 +69,7 @@ cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Application Layer (test_main.c, services)                  │
+│  Application Layer (main.c / test_main.c, services)         │
 ├─────────────────────────────────────────────────────────────┤
 │  Middleware Layer                                           │
 │  ├── keyboard/   按键处理、层级、组合键、HID报告            │
@@ -236,7 +236,8 @@ _post_task();  // task 之后
 
 ## Critical Files
 
-- 入口: `test_main.c`
+- 烧录入口: `application/main.c`（CH584M 实际固件）
+- 仿真入口: `test_main.c`（Windows 桌面调试，不烧录）
 - 启动流程: `application/system/system_init.c`
 - 事件 API: `drivers/system/event_manager.h`
 - 键盘核心: `middleware/keyboard/keyboard.c`

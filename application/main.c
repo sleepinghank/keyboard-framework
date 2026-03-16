@@ -18,6 +18,7 @@
 #include "input_service.h"
 #include "keyboard.h"
 #include "gpio.h"
+#include "lpm.h"
 
 /**
  * @brief 主函数 - 系统启动入口
@@ -37,7 +38,9 @@ int main(void)
 
     // 主循环：矩阵扫描 + OSAL 事件处理
     while (1) {
-        /* 原子地检查并清除矩阵扫描标志位 */
+        /* LPM 状态机推进：检查空闲超时并投递睡眠请求事件 */
+        lpm_task();
+
         if (input_get_matrix_scan_flag()) {
             togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
             keyboard_task();
