@@ -17,6 +17,8 @@
 #include "report_buffer.h"
 #include "wireless.h"
 #include "lpm.h"
+#include <string.h>
+#include "timer.h"
 
 /* The report buffer is mainly used to fix key press lost issue of macro
  * when wireless module fifo isn't large enough. The maximun macro

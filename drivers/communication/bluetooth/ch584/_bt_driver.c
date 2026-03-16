@@ -7,16 +7,13 @@
 #include "battservice.h"
 #include "CH58x_common.h"
 #include "HAL.h"
+#include "debug.h"
 
 static bool g_bt_driver_initialized = false;
 
 /* 报告数据长度：与 HID 描述符保持一致 */
 #define BT_DRV_KEYBOARD_RPT_LEN    8    /* modifier(1) + reserved(1) + keycodes(6) */
 #define BT_DRV_MOUSE_RPT_LEN       5    /* buttons(1) + X(1) + Y(1) + wheel(1) + pan(1) */
-
-/* TODO: 以下 Report ID 待 Profile 工具生成 hidkbdservice.h 后替换为对应常量 */
-#define BT_DRV_RPT_ID_CONSUMER_IN  3    /* 消费者键输入 */
-#define BT_DRV_RPT_ID_SYSTEM_IN    4    /* 系统控制输入 */
 
 
 
@@ -206,7 +203,7 @@ void bt_driver_disconnect(void)
  */
 uint8_t bt_driver_send_keyboard(uint8_t *report)
 {
-    uint8_t ret = HidDev_Report(HID_RPT_ID_KEY_IN, HID_REPORT_TYPE_INPUT,
+    uint8_t ret = HidDev_Report(HID_RPT_ID_CLASS_KEY_IN, HID_REPORT_TYPE_INPUT,
                                 BT_DRV_KEYBOARD_RPT_LEN, report);
     if (ret != 0) {
         dprintf("[BT] send_keyboard fail ret=%d\n", ret);
@@ -243,8 +240,7 @@ uint8_t bt_driver_send_consumer(uint16_t report)
     uint8_t buffer[2];
     buffer[0] = LO_UINT16(report);
     buffer[1] = HI_UINT16(report);
-    /* TODO: Profile 工具生成后，将 BT_DRV_RPT_ID_CONSUMER_IN 替换为 hidkbdservice.h 中的常量 */
-    uint8_t ret = HidDev_Report(BT_DRV_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT,
+    uint8_t ret = HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT,
                                 sizeof(buffer), buffer);
     dprintf("[BT] send_consumer val=0x%04x ret=%d\n", report, ret);
     return ret;
@@ -264,8 +260,7 @@ uint8_t bt_driver_send_system(uint16_t report)
     uint8_t buffer[2];
     buffer[0] = LO_UINT16(report);
     buffer[1] = HI_UINT16(report);
-    /* TODO: Profile 工具生成后，将 BT_DRV_RPT_ID_SYSTEM_IN 替换为 hidkbdservice.h 中的常量 */
-    uint8_t ret = HidDev_Report(BT_DRV_RPT_ID_SYSTEM_IN, HID_REPORT_TYPE_INPUT,
+    uint8_t ret = HidDev_Report(HID_RPT_ID_SYS_CTL_IN, HID_REPORT_TYPE_INPUT,
                                 sizeof(buffer), buffer);
     dprintf("[BT] send_system val=0x%04x ret=%d\n", report, ret);
     return ret;
@@ -355,4 +350,9 @@ uint8_t bt_driver_send_ptp(uint8_t *report, uint8_t len)
     (void)report;
     (void)len;
     return 0;
+}
+
+void bt_driver_set_advertising(bool enable)
+{
+    hidEmu_adv_enable(enable ? ENABLE : DISABLE);
 }

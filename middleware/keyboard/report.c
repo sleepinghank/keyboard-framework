@@ -489,7 +489,7 @@ void report_update_proc(key_update_st_t key_st) {
         // memcpy(&report.keyboard, &kb_report, sizeof(kb_report));
         // report_buffer_enqueue(&report);
         if (wireless_transport.send_keyboard) {
-            wireless_transport.send_keyboard(&kb_report);
+            wireless_transport.send_keyboard((uint8_t *)&kb_report);
         }
     }
 

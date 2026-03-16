@@ -160,7 +160,7 @@ static void button_ticks(combo_t *combo) {
 }
 
 static void add_combo_result(const combo_t *combo, uint16_t* buf) {
-    memset(buf, 0, 20 * sizeof(uint16_t));
+    memset(buf, 0, 10 * sizeof(uint16_t));
     if (combo->cb[combo->event] != NULL) {
         uint8_t idx = combo->cb[combo->event](buf);
         for (uint8_t i = 0; i < idx; ++i) {
