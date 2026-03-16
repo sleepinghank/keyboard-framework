@@ -201,6 +201,12 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_LPM_ENTER_DEEP_EVT);
     }
 
+    // LPM 周期检查（1s 定时驱动，替代主循环轮询）
+    if (events & SYSTEM_LPM_CHECK_EVT) {
+        lpm_task();
+        return (events ^ SYSTEM_LPM_CHECK_EVT);
+    }
+
     // 处理唤醒恢复事件
     if (events & SYSTEM_LPM_WAKE_EVT) {
         dprintf("System: Wake resume start\r\n");
@@ -235,9 +241,8 @@ void system_service_init(void) {
 
     // lpm_init() 已在 system_init_middleware() 中调用，此处不重复初始化
 
-    // TODO: 根据配置启动相应的定时任务
-    // 例如：空闲检测、电池检测等
-    // OSAL_StartReloadTask(system_taskID, SYSTEM_IDLE_CHECK_EVT, 10000);
+    // 启动 LPM 周期检查任务（每 1000ms 调用一次 lpm_task）
+    OSAL_StartReloadTask(system_taskID, SYSTEM_LPM_CHECK_EVT, 1000);
 }
 
 #ifdef __cplusplus

@@ -35,6 +35,7 @@ typedef enum {
     SYSTEM_LPM_ENTER_IDLE_EVT        = 1 << 11, /**< 最终进入 Idle（自投递，做二次确认） */
     SYSTEM_LPM_ENTER_DEEP_EVT        = 1 << 12, /**< 最终进入 Deep（自投递，做二次确认） */
     SYSTEM_LPM_WAKE_EVT              = 1 << 13, /**< 唤醒恢复入口（由 GPIO ISR 投递） */
+    SYSTEM_LPM_CHECK_EVT             = 1 << 14, /**< LPM 周期检查（1s reload，驱动 lpm_task） */
 } system_task_event_t;
 
 extern uint8_t system_taskID;
