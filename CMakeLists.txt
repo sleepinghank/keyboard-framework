@@ -59,7 +59,7 @@ set(SOURCES
     ./application/service/input_service.c
     ./application/service/output_service.c
     ./application/service/system_service.c
-    ./application/service/wireless_callbacks.c
+    ./middleware/communication/wireless_callbacks.c
 
     # Drivers - Communication (Test Platform Only)
     ./drivers/communication/bluetooth/test/_bt_driver.c
