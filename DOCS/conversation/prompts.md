@@ -201,3 +201,247 @@ Wireless: ADV timeout, enter deep sleep
 
 1、同步
 2、远程调试
+
+[需求描述]：
+将矩阵扫描定时器由OSAL 调度改为 main loop 标志位执行。减少调度压力和延迟。
+[具体细节]：
+1.去掉INPUT_MATRIX_SCAN_EVT事件，改为在main loop（application\main.c）中通过一个标志位来控制矩阵扫描的执行。
+2.在matrix_scan_timer_callback中设置这个标志位，表示需要执行矩阵扫描。
+3.在main loop中检查这个标志位，如果被设置了就执行keyboard_task，并在执行完后清除这个标志位。
+4.需要确保这个标志位的访问是线程安全的，可能需要使用volatile关键字或者其他同步机制来防止竞态条件。
+[要求]：
+1. 代码必须遵循现有架构，
+2. 不能随意修改其他模块的代码。
+3. 理论上遵循最小改动原则。
+4. 先分析需求，列出不清晰的地方，主动询问澄清，直到完全理解需求。
+
+当前层切换实现过于复杂，暂时去掉Fn层切换功能键功能，只保留按照不同系统切换层的功能。
+
+
+
+重要：先深入分析问题，给出解决方法，禁止直接修改代码。
+按键后主机不出字符，怀疑是报告描述符和报告结构没有对应上，请检查一下是什么问题。打印日志如下：
+Col 3 Row 7: Pressed
+Matrix scan: Detected changes in raw matrix
+Debounce: Matrix changed
+  Row 7: 0x0008
+Matrix scan detected changes
+Key update detected, updating key code list
+Row 7 changed: 0x0008
+  Column 3 changed, keycode: 0x0020
+Key pressed: row 7, col 3, keycode 0x0020
+Processing keycode from _key_code_list: 0x0020
+  Regular keycode: 0x0020, adding to keys[0]
+Report: Keyboard report changed, sending update:32
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Col 3 Row 7: Pressed
+Matrix scan: Detected changes in raw matrix
+Debounce: Matrix changed
+Matrix scan detected changes
+Key update detected, updating key code list
+Row 7 changed: 0x0008
+  Column 3 changed, keycode: 0x0020
+Key released: row 7, col 3, keycode 0x0020
+Report: Keyboard report changed, sending update:0
+
+
+重要：先深入分析问题，给出解决方法，禁止直接修改代码。
+现在测试遇到一个关于休眠功耗的bug。
+正常状态下。上位机关闭触控板后功耗会降到4.1-5.2mA跳动，符合预期。异常情况，当滑动触控板，主控还未进入IDLE状态时，上位机关闭触控板，进入idle状态后，功耗会恒定在5.2mA。并不会继续下降。
+请帮我分析一下可能是哪里的原因，或者告诉我怎样快速排查问题。
+异常日志如下：
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=41
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=40
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=39
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=38
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=37
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=36
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=35
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=34
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=33
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=32
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=31
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=30
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=29
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=28
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=27
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=26
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=25
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=24
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=23
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=22
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=21
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=20
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=19
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=18
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=17
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=16
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=15
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=14
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=13
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=12
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=11
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=10
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=9
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=8
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=7
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=6
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=5
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=4
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=3
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=2
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=1
+DEBUG:SYS_IDLE
+DEBUG:_touch_pd_cnt=0
+DEBUG:Touch power off
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:[TIMEOUT] backlight timeout, turning off
+
+DEBUG:back_sleep_state=0
+
+INFO:
+--------------------Backlight_Disable[TIMER] disable[5]
+
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLEDEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+INFO:[TIMEOUT] sleep timeout, entering sleep mode
+[TIMER] disable[0]
+[TIMER] === SWITCH: 5ms->5000ms, sync_sys=170146, cnt=24 ===
+[TIMER] switch interval to 5000 ms (163840 ticks)
+[TIMER] disable[1]
+
+INFO:SYS_ENTER_SLA_LCY
+
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+DEBUG:SYS_IDLE
+
+
+
+
+HID 报告描述符如下，请分析一下该报告的数据结构是怎么样的，我需要确认一下发送数据是否正确
+0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+0x09, 0x06,        // Usage (Keyboard)
+0xA1, 0x01,        // Collection (Application)
+0x85, 0x01,        //   Report ID (1)
+0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+0x19, 0xE0,        //   Usage Minimum (0xE0)
+0x29, 0xE7,        //   Usage Maximum (0xE7)
+0x15, 0x00,        //   Logical Minimum (0)
+0x25, 0x01,        //   Logical Maximum (1)
+0x75, 0x01,        //   Report Size (1)
+0x95, 0x08,        //   Report Count (8)
+0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+0x95, 0x01,        //   Report Count (1)
+0x75, 0x08,        //   Report Size (8)
+0x81, 0x01,        //   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+0x95, 0x05,        //   Report Count (5)
+0x75, 0x01,        //   Report Size (1)
+0x05, 0x08,        //   Usage Page (LEDs)
+0x19, 0x01,        //   Usage Minimum (Num Lock)
+0x29, 0x05,        //   Usage Maximum (Kana)
+0x91, 0x02,        //   Output (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+0x95, 0x01,        //   Report Count (1)
+0x75, 0x03,        //   Report Size (3)
+0x91, 0x01,        //   Output (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+0x95, 0x06,        //   Report Count (6)
+0x75, 0x08,        //   Report Size (8)
+0x15, 0x00,        //   Logical Minimum (0)
+0x25, 0x65,        //   Logical Maximum (101)
+0x05, 0x07,        //   Usage Page (Kbrd/Keypad)
+0x19, 0x00,        //   Usage Minimum (0x00)
+0x29, 0x65,        //   Usage Maximum (0x65)
+0x81, 0x00,        //   Input (Data,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+0xC0,              // End Collection
+
+// 65 bytes
+
+
+KB04122-13A-WCH_code.xml这个文件包含了仓库中所有文件的合并内容。请帮我分析一下，低功耗休眠策略，特别是HAL_SLEEP宏的作用。
+  将具体流程梳理出来绘制成markdown表格。
+
+
+docs\code_demo\qmk_firmware_code.xml这个文件包含了仓库中所有文件的合并内容。请帮我分析一下，lpm文件的作用。
+
+
+我现在需要在本项目实现本地的idle休眠方案、深度休眠方案。需要参考KB04122-13A-WCH_code.xml中关键的休眠流程，然后结合本地代码框架，制定一个详细的休眠方案设计文档，输出到docs\N0046_sleep_strategy.md中。需要明确以下内容：
+1. 休眠方案的总体设计思路和目标
+2. 不同休眠模式的触发条件和进入流程
+3. 休眠模式下的唤醒条件和流程
+4. 休眠模式下的功耗优化措施
+5. 休眠模式下的外设管理策略
+注意：
+1. 注意层级隔离，在执行层应该不允许操作上层按键和背光等。
+2. idle 睡眠，是否能只针对定时器降频，进入蓝牙低功耗。不关闭背光和指示灯（基于PWM 不收定时器限制）
+流程：有按键活跃 -> 无按键流程 ->5s无操作 -> 进入idle sleep关闭扫描定时器降低功耗(不关闭指示灯和背光)，设置按键 触控 定时器唤醒等 -> 10min无操作 -> 进入deep sleep -> 断连、关闭指示灯、关闭背光。
+唤醒：有 idle sleep 唤醒，恢复键盘扫描状态。 deep sleep 唤醒，重新初始化所有标志位，开启外设状态等。
+3.所有关键事件都通过OSAL 事件调度执行，做好隔离。这样才方便修改。
+4.总结出所有的修改内容。

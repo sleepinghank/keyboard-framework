@@ -313,9 +313,6 @@ void wireless_enter_connected(uint8_t host_idx) {
 
     clear_keyboard();
 
-    // 根据系统类型切换层
-    keyboard_update_base_layer_by_system();
-
     /* Enable NKRO since it may be disabled in pin code entry */
 #if defined(NKRO_ENABLE) && !defined(WIRELESS_NKRO_ENABLE)
     keymap_config.nkro = false;

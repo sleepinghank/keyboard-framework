@@ -39,7 +39,6 @@ void system_select_default_transport(void) {
         set_transport(default_transport);
     }
 }
-
 /**
  * @brief 通信服务事件处理器（移植自 wireless_event_task）
  * @param task_id 任务ID

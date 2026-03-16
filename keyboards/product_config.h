@@ -1,6 +1,11 @@
 #pragma once
 #include "gpio.h"
-
+// Pin definitions
+#ifdef NO_PIN
+#define NO_PIN_DEFINED
+#else
+#define NO_PIN 0xFF
+#endif
 // Test product configuration - simplified version
 #define PRODUCT_ID 0x0001
 #define VENDOR_ID 0x0002
@@ -17,7 +22,8 @@
 
 // Matrix pins
 #define MATRIX_ROW_PINS { A4,A5,A6,A0,A1,A8,A9,B9 }
-#define MATRIX_COL_PINS { B5,B8,B17,B16,B15,B14,B13,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
+// #define MATRIX_COL_PINS { B5,B8,B17,B16,B15,B14,B13,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
+#define MATRIX_COL_PINS { B5,B8,B17,B16,B15,NO_PIN,NO_PIN,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
 
 // No direct pins for this test
 // #define DIRECT_PINS {}
@@ -29,20 +35,17 @@
 // Debounce configuration
 #define DEBOUNCE 5
 #define DEBOUNCE_ALGORITHM DEBOUNCE_SYM_DEFER_PK
-#define DEBOUNCE_DELAY 5
+#define DEBOUNCE_DELAY 20
 #define MAX_MATRIX_ROWS 16
+
+#define DEBUG_DEBOUNCE
 
 // USB configuration
 #define USB_MAX_POWER_CONSUMPTION 500
 #define USB_POLLING_INTERVAL_MS 10
 #define USB_SUSPEND_WAKEUP_DELAY 0
 
-// Pin definitions
-#ifdef NO_PIN
-#define NO_PIN_DEFINED
-#else
-#define NO_PIN 0xFF
-#endif
+
 
 // Tap configuration
 #define TAPPING_TERM 200

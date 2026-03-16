@@ -419,6 +419,7 @@ static void classify_and_add_keycode(uint16_t keycode,
 
     // 修饰键 (0xE0-0xE7)
     if (keycode >= KC_LCTL && keycode <= KC_RWIN) {
+        dprintf("  Modifier keycode: 0x%04X, adding to mods\n", keycode);
         kb_report->mods |= (1 << (keycode - KC_LCTL));
         return;
     }
@@ -426,6 +427,7 @@ static void classify_and_add_keycode(uint16_t keycode,
     // 普通键 (0x04-0xDF)
     if (keycode >= KC_A && keycode < KC_LCTL) {
         if (*key_idx < KEYBOARD_REPORT_KEYS) {
+            dprintf("  Regular keycode: 0x%04X, adding to keys[%d]\n", keycode, *key_idx);
             kb_report->keys[(*key_idx)++] = (uint8_t)keycode;
         }
         return;
@@ -433,6 +435,7 @@ static void classify_and_add_keycode(uint16_t keycode,
 
     // 媒体键（M_KEY_TYPE 标记）
     if ((keycode & M_KEY_TYPE) == M_KEY_TYPE) {
+        dprintf("  Consumer keycode: 0x%04X, adding to consumer report\n", keycode);
         *consumer_report = keycode ^ M_KEY_TYPE;
         return;
     }
@@ -453,6 +456,7 @@ void report_update_proc(key_update_st_t key_st) {
         while (current != NULL) {
             if (current->data.is_report != 0) {
                 uint16_t keycode = current->data.key_code;
+                dprintf("Processing keycode from _key_code_list: 0x%04X\r\n", keycode);
                 classify_and_add_keycode(keycode, &kb_report, &consumer_report, &key_idx);
             }
             current = current->next;
@@ -467,6 +471,7 @@ void report_update_proc(key_update_st_t key_st) {
                 // 跳过已在主列表中的键
                 if (!find_activate_key(_key_code_list, current->data.key_code)) {
                     uint16_t keycode = current->data.key_code;
+                    dprintf("Processing keycode from _key_code_list_extend: 0x%04X\r\n", keycode);
                     classify_and_add_keycode(keycode, &kb_report, &consumer_report, &key_idx);
                 }
             }
@@ -477,7 +482,8 @@ void report_update_proc(key_update_st_t key_st) {
     // 检查并发送键盘报告
     if (memcmp(&kb_report, &last_kb_report, sizeof(kb_report)) != 0) {
         memcpy(&last_kb_report, &kb_report, sizeof(kb_report));
-        dprintf("Report: Keyboard report changed, sending update:%d\r\n", kb_report.keys[0]);
+        dprintf("sending keycode:%d,%d,%d,%d,%d,%d,%d,%d\r\n", kb_report.mods,kb_report.reserved,
+                kb_report.keys[0], kb_report.keys[1], kb_report.keys[2], kb_report.keys[3], kb_report.keys[4], kb_report.keys[5]);
         // report_buffer_t report;
         // report.type = REPORT_TYPE_KB;
         // memcpy(&report.keyboard, &kb_report, sizeof(kb_report));

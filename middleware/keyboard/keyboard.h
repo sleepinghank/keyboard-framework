@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "linkedlist.h"
-#include "combo/process_combo.h"
+#include "combo/kb_combo_engine.h"
 
 // 按键列表（供 combo 模块使用）
 extern list_t* _key_code_list;

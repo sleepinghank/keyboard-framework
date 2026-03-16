@@ -46,7 +46,7 @@ void bt_transport_enable(bool enable) {
     if (enable) {
         // if (host_get_driver() != &wireless_driver) {
         host_set_driver(&wireless_driver);
-        dprintf("Transport: Switching to Bluetooth\n");
+        // dprintf("Transport: Switching to Bluetooth\n");
         wireless_disconnect();
 
         uint32_t t = timer_read32();
@@ -135,7 +135,7 @@ void set_transport(transport_t new_transport) {
 #endif
 
         transport = new_transport;
-        dprintf("Transport: Switching to %d\n", transport);
+        // dprintf("Transport: Switching to %d\n", transport);
 
         switch (transport) {
 #ifdef USB_ENABLE_FLAG
@@ -161,7 +161,7 @@ void set_transport(transport_t new_transport) {
                 p24g_transport_enable(false);
                 wait_ms(1);
 #endif
-                dprintf("Transport: Switching to Bluetooth\n");
+                // dprintf("Transport: Switching to Bluetooth\n");
                 // 先切换无线层驱动绑定，确保 wireless_transport 指向蓝牙驱动
                 wireless_switch_to_bt_driver();
                 bt_transport_enable(true);

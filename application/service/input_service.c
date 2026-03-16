@@ -87,22 +87,6 @@ error_code_t matrix_scan_timer_stop(void)
  * 矩阵扫描标志位接口实现
  *=========================================*/
 
-/**
- * @brief 原子地检查并清除矩阵扫描标志位
- *        使用关中断保护确保原子性，避免竞态条件
- * @return true 需要执行扫描并已清除标志位, false 不需要
- */
-__HIGH_CODE
-bool input_test_and_clear_matrix_scan_flag(void) {
-    bool result;
-    uint32_t irq_state = system_hal_disable_irq();  /* 关中断保护 */
-    result = g_matrix_scan_flag;
-    if (result) {
-        g_matrix_scan_flag = false;
-    }
-    system_hal_restore_irq(irq_state);  /* 恢复中断状态 */
-    return result;
-}
 
 __HIGH_CODE
 bool input_get_matrix_scan_flag(void) {

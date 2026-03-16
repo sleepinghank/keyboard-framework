@@ -232,10 +232,10 @@ void bt_driver_disconnect(void)
  */
 uint8_t bt_driver_send_keyboard(uint8_t *report)
 {
-    uint8_t buffer[21];
+    uint8_t buffer[10];
     // buffer[0] = CMD_CLASS_KEYBOARD;
-    memcpy(&buffer[1], report, 20);
-    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
+    memcpy(&buffer[1], report, 10);
+    return HidDev_Report(HID_RPT_ID_CLASS_KEY_IN, HID_REPORT_TYPE_INPUT, 10, buffer);
 }
 
 /*********************************************************************
@@ -252,7 +252,7 @@ uint8_t bt_driver_send_nkro(uint8_t *report)
     uint8_t buffer[21];
     // buffer[0] = CMD_ALL_KEYBOARD;
     memcpy(&buffer[1], report, 20);
-    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
+    return HidDev_Report(HID_RPT_ID_ALL_KEY_IN, HID_REPORT_TYPE_INPUT, 21, buffer);
 }
 
 /*********************************************************************
@@ -270,7 +270,7 @@ uint8_t bt_driver_send_consumer(uint16_t report)
     // buffer[0] = CMD_CONSUMER;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
-    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
+    return HidDev_Report(HID_RPT_ID_CONSUMER_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
 }
 
 /*********************************************************************
@@ -288,7 +288,7 @@ uint8_t bt_driver_send_system(uint16_t report)
     // buffer[0] = CMD_SYS_CTL;
     buffer[1] = LO_UINT16(report);
     buffer[2] = HI_UINT16(report);
-    return HidDev_Report(HID_RPT_ID_MOUSE_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
+    return HidDev_Report(HID_RPT_ID_SYS_CTL_IN, HID_REPORT_TYPE_INPUT, 3, buffer);
 }
 
 /*********************************************************************

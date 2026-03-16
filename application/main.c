@@ -17,7 +17,7 @@
 #include "debug.h"
 #include "input_service.h"
 #include "keyboard.h"
-
+#include "gpio.h"
 
 /**
  * @brief 主函数 - 系统启动入口
@@ -38,8 +38,10 @@ int main(void)
     // 主循环：矩阵扫描 + OSAL 事件处理
     while (1) {
         /* 原子地检查并清除矩阵扫描标志位 */
-        if (input_test_and_clear_matrix_scan_flag()) {
+        if (input_get_matrix_scan_flag()) {
+            togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
             keyboard_task();
+            input_clear_matrix_scan_flag();
         }
 
         /* OSAL 单次处理（BLE 协议栈等） */

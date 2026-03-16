@@ -8,15 +8,24 @@
 #endif
 
 // RTC频率：32kHz = 32768 Hz
+#if defined(CLK_OSC32K) && (CLK_OSC32K == 1)
+#define RTC_FREQUENCY 32000UL
+#else
 #define RTC_FREQUENCY 32768UL
+#endif
 // 毫秒转换：cycles * 1000 / 32768
 #define CYCLES_TO_MS(cycles) ((uint32_t)(((uint64_t)(cycles) * 1000UL) / RTC_FREQUENCY))
 
 // 溢出调整：最大的32768的倍数，使得结果不超过UINT32_MAX
 // 这样可以确保在转换为毫秒时不会溢出
-#define OVERFLOW_ADJUST_CYCLES ((uint32_t)((UINT32_MAX / RTC_FREQUENCY) * RTC_FREQUENCY))
+#if(CHIP_TYPE == CHIP_CH584M)
+#define RTC_COUNTER_MOD 0xA8C00000UL
+#define RTC_WRAP_CYCLES UINT64_C(0xA8C00000)
+#else
+#define RTC_WRAP_CYCLES (UINT64_C(1) << 32)
+#endif
+#define RTC_WRAP_MS (CYCLES_TO_MS(RTC_WRAP_CYCLES))
 // 对应的毫秒数
-#define OVERFLOW_ADJUST_MS (CYCLES_TO_MS(OVERFLOW_ADJUST_CYCLES))
 
 // 静态变量
 static uint32_t cycles_offset = 0;  // RTC周期偏移量
@@ -29,8 +38,19 @@ volatile uint32_t timer_count = 0;
 // 获取当前RTC周期数（32位）
 // 此函数必须在原子操作保护下调用
 static inline uint32_t get_rtc_cycles(void) {
-    // return RTC_GetCycle32k();
-    return 1;
+    return RTC_GetCycle32k();
+    // return 1;
+}
+
+static inline uint32_t rtc_cycles_diff(uint32_t current, uint32_t base) {
+#if(CHIP_TYPE == CHIP_CH584M)
+    if (current >= base) {
+        return current - base;
+    }
+    return (RTC_COUNTER_MOD - base) + current;
+#else
+    return current - base;
+#endif
 }
 
 void timer_init(void) {
@@ -58,7 +78,7 @@ uint32_t timer_read32(void) {
         uint32_t cycles = get_rtc_cycles();
         
         // 计算相对于偏移量的周期数
-        cycles_elapsed = cycles - cycles_offset;
+        cycles_elapsed = rtc_cycles_diff(cycles, cycles_offset);
         
         // 检测溢出：如果当前周期数小于上次读取的值，说明发生了32位溢出
         if (cycles_elapsed < last_cycles) {
@@ -66,9 +86,7 @@ uint32_t timer_read32(void) {
             // 因为在转换为毫秒时可能会遇到溢出问题。
             // 解决方案是：从周期计数器中减去一个合理的大数值，使其值低于32位限制，
             // 然后将等价的毫秒数加到转换后的值中。
-            cycles_elapsed -= OVERFLOW_ADJUST_CYCLES;
-            cycles_offset  += OVERFLOW_ADJUST_CYCLES;
-            ms_offset      += OVERFLOW_ADJUST_MS;
+            ms_offset += RTC_WRAP_MS;
         }
         
         last_cycles = cycles_elapsed;

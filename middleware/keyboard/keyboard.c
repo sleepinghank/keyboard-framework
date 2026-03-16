@@ -125,14 +125,15 @@ static void update_key_code_list(void) {
             matrix_row_t col_mask = (matrix_row_t)1 << col;
             if (!(changes & col_mask)) continue;
 
-            uint16_t keycode = keymap_get_keycode(row, col);
+            uint16_t keycode = keymap_get_keycode(row, col-1);
             dprintf("  Column %d changed, keycode: 0x%04X\r\n", col, keycode);
             if (keycode == KC_NO) continue;
 
             if (current & col_mask) {
-                dprintf("Key pressed: row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
+                
                 // 按键按下：添加到列表
                 if (!find_key(_key_code_list, keycode)) {
+                    dprintf("Key pressed: row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
                     add(keycode, _key_code_list);
                 }
             } else {

@@ -43,7 +43,7 @@
 #include "p24g_driver.h"
 #endif
 
-#define KC_DEBUG
+// #define KC_DEBUG
 
 /* ==================== 调试输出配置 ==================== */
 #ifdef KC_DEBUG
@@ -77,6 +77,19 @@ typedef enum {
     WT_RECONNECTING,  /**< 重连中，尝试连接已配对主机 */
     WT_SUSPEND        /**< 挂起，低功耗模式 */
 } wt_state_t;
+
+//系统类型枚举
+enum
+{
+    ANDROID,
+    IOS,
+    WIN,
+    MAC
+};
+#define ALL_SYSTEM 0xff // for combo map, 0xff means trigger for all system
+#define APPLE_SYSTEM (IOS | MAC) // for combo map, 0x0c means trigger for apple system (macOS and iOS), but not trigger for windows and android
+#define OTHER_SYSTEM (ALL_SYSTEM & ~APPLE_SYSTEM) // for combo map, 0x03 means trigger for windows and android, but not trigger for macOS and iOS
+extern uint8_t host_system_type;
 
 /* ==================== 驱动函数表结构 ==================== */
 /**

@@ -67,9 +67,9 @@ void lpm_timer_stop(void) {
 static inline bool lpm_any_matrix_action(void) { return memcmp(matrix, empty_matrix, sizeof(empty_matrix)); }
 
 /* Implement of entering low power mode and wakeup varies per mcu or platform */
-__attribute__((weak)) void enter_power_mode(pm_t mode) {}
+void enter_power_mode(pm_t mode) {}
 
-__attribute__((weak)) bool usb_power_connected(void) {
+bool usb_power_connected(void) {
 #ifdef USB_POWER_SENSE_PIN
     return readPin(USB_POWER_SENSE_PIN) == USB_POWER_CONNECTED_LEVEL;
 #endif

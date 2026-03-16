@@ -34,7 +34,7 @@ void output_service_init(void) {
     output_taskID = OSAL_ProcessEventRegister(output_process_event);
 
     PRINT("Task registered, ID=%d\r\n", output_taskID);
-    PRINT("Output service init done\r\n");
+    PRINT("Output service init done1\r\n");
 }
 
 #ifdef __cplusplus

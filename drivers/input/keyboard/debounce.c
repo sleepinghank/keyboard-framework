@@ -78,7 +78,6 @@ void debounce_free(void) {
 static bool debounce_symmetric_defer_pk(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool changed) {
     bool matrix_changed = false;
     uint16_t now = timer_read();
-
     for (uint8_t row = 0; row < num_rows; row++) {
         matrix_row_t row_changed = raw[row] ^ cooked[row];
 

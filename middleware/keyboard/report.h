@@ -347,7 +347,7 @@ bool has_mouse_report_changed(report_mouse_t* new_report, report_mouse_t* old_re
 #endif
 
 // 新增：简化键盘报告接口
-#include "combo/process_combo.h"
+#include "combo/kb_combo_engine.h"
 
 // 初始化报告模块
 void report_init(void);

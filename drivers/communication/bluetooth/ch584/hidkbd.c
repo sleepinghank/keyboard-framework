@@ -24,22 +24,14 @@
 #include "hidkbd.h"
 #include "event_manager.h"
 #include "debug.h"
+#include "wireless.h"
 #include <string.h>
 
 #ifdef dprint
 #undef dprint
 #endif
 #define dprint(...) dprintf(__VA_ARGS__)
-//系统状态变量
-uint8_t sys_state = 0;
-//系统类型枚举
-enum
-{
-    ANDROID,
-    IOS,
-    WIN,
-    MAC
-};
+
 //应用状态
 enum
 {
@@ -1646,22 +1638,29 @@ static void centralProcessGATTMsg(gattMsgEvent_t *pMsg)
             if (pMsg->msg.readRsp.pValue[0] == 0x01 && 
                 pMsg->msg.readRsp.pValue[1] == 0x06)
             {
-                sys_state = WIN;
+                host_system_type = WIN;
                 dprint("========== OS_WINDOWS ==========\r\n");
+                // 根据系统类型切换层
+                keyboard_update_base_layer_by_system();
             }
             else if (pMsg->msg.readRsp.pValue[0] == 0x69 && 
                      pMsg->msg.readRsp.pValue[1] == 0x50)
             {
-                sys_state = IOS;
+                host_system_type = IOS;
                 dprint("========== OS_IOS ==========\r\n");
                 dprint("Device: %s\n", pMsg->msg.readRsp.pValue);
+                // 根据系统类型切换层
+                keyboard_update_base_layer_by_system();
             }
             else if (pMsg->msg.readRsp.pValue[0] == 0x4D && 
                      pMsg->msg.readRsp.pValue[1] == 0x61)
             {
-                sys_state = MAC;
+                host_system_type = MAC;
                 dprint("========== OS_MAC ==========\r\n");
+                // 根据系统类型切换层
+                keyboard_update_base_layer_by_system();
             }
+            
         }
         centralProcedureInProgress = FALSE;
     }
@@ -1730,7 +1729,9 @@ static void centralGATTDiscoveryEvent(gattMsgEvent_t *pMsg)
         if(pMsg->msg.errorRsp.reqOpcode == ATT_FIND_BY_TYPE_VALUE_REQ)
         {
             dprint("========== OS_ANDROID ==========\n");
-            sys_state = ANDROID;
+            host_system_type = ANDROID;
+            // 根据系统类型切换层
+            keyboard_update_base_layer_by_system();
         }
     }
     

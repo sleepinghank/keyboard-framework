@@ -146,6 +146,8 @@ uint8_t *OSAL_MsgAllocate(uint16_t len)
  * @brief   OSAL 系统单次处理（非阻塞）
  *          处理一轮事件后返回，用于自定义主循环
  */
+__attribute__((used))
+__HIGH_CODE
 void OSAL_SystemProcessOnce(void) {
     TMOS_SystemProcess();
 }

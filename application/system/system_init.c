@@ -134,8 +134,11 @@ void system_init_hal(void) {
     setPinOutput(B19);
     writePinHigh(B19);
     PRINT("B19 HAL initialized\r\n");
+
     // 硬件定时器初始化
-    // hw_timer_init();
+    hw_timer_init();
+    PRINT("Hardware timer initialized\r\n");
+
     // 标记HAL init完成
     g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
 }
@@ -145,7 +148,7 @@ void system_init_drivers(void) {
     // 按依赖关系顺序初始化各驱动
 
     // 时钟初始化
-    // timer_init();
+    timer_init();
 
     // 1. 存储系统初始化 (最优先)
     storage_init();
@@ -180,7 +183,7 @@ void system_init_middleware(void) {
     wireless_init();
 
     // 6. 键盘处理初始化
-    // keyboard_init();
+    keyboard_init();
 
     // 标记Middleware init完成
     g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_INIT;
