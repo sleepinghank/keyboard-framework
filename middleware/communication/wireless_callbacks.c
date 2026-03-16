@@ -196,19 +196,12 @@ void access_ble_enter_idel_sleep(void) {
         return;
     }
 
-    dprintf("Wireless: ADV timeout, enter deep sleep");
-    wireless_state_set_sleep();
+    dprintf("[WT_SLEEP] schedule deep sleep via OSAL event\r\n");
 
-    if (storage_is_initialized()) {
-        storage_save();
-    }
-    indicator_off_all();
-
-    system_hal_enter_sleep(SYSTEM_POWER_MODE_DEEP_SLEEP,
-                           SYSTEM_WAKEUP_GPIO | SYSTEM_WAKEUP_KEYBOARD | SYSTEM_WAKEUP_BLE);
-
-    dprintf("Wireless: Wakeup from deep sleep, reconnect");
-    bt_driver_connect_ex(0, 0);
+    /* 不直接调用 system_hal_enter_sleep()，改为投递 LPM Deep 请求 */
+    /* 由 lpm 状态机和 system_service 协调执行 */
+    OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
+    /* 唤醒后的回连由 COMMU_LPM_RESUME_EVT 或业务层决定，此处不直接调用 bt_driver_connect_ex */
 }
 
 void access_ble_schedule_deep_sleep_evt(uint32_t delay_ticks) {

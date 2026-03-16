@@ -2,34 +2,44 @@
 #pragma once
 #include <stdint.h>
 
-/** 所有通讯相关服务事件
- * reset
- * INIT
- * disconnected 
- * Paring*（带信道号）
- * connected
- * suspend
- * reconnect(带信道号，会自动判断)
- * USB 连接
- * USB 断开
+/**
+ * @file communication_service.h
+ * @brief 通信服务事件定义
+ *
+ * 所有通讯相关服务事件：
+ * - reset
+ * - INIT
+ * - disconnected
+ * - Paring（带信道号）
+ * - connected
+ * - suspend
+ * - reconnect（带信道号，会自动判断）
+ * - USB 连接
+ * - USB 断开
+ * - LPM prepare/resume（bits 14-15）
  */
-typedef enum {
-    WL_INIT_EVT             = 1 << 0,  /**< 无线模块初始化事件 */
-    WL_RESET_EVT            = 1 << 1,  /**< 无线模块初始化事件 */
-    WL_DISCOVERABLE_EVT          = 1 << 2,  /**< 无线配对事件（带信道号） */
-    WL_RECONNECTING_EVT        = 1 << 3,  /**< 无线回连事件（带信道号，自动判断） */
-    WL_CONNECTED_EVT        = 1 << 4,  /**< 无线连接成功事件 */
-    WL_DISCONNECTED_EVT     = 1 << 5,  /**< 无线断开连接事件 */
-    WL_ADVEND_EVT          = 1 << 6,  /**< 广播结束，进入无线挂起事件 */
-    WL_HID_SET_PROTOCOL_EVT          = 1 << 7,  /**< 设置协议 */
-    WL_HID_INDICATOR_EVT          = 1 << 8,  /**< hid 指示灯 */
-    WL_CONECTION_INTERVAL_EVT          = 1 << 9,  /**< 连接间隔 */
-    WL_PAIR_EVT          = 1 << 10,  /**< 配对事件（带信道号） */
-    WL_RECONNECT_EVT= 1 << 11,  /**< 回连事件（带信道号，自动判断） */
-    USB_CONNECT_EVT               = 1 << 12,  /**< USB 连接事件 */
-    USB_DISCONNECT_EVT            = 1 << 13,  /**< USB 断开事件 */
-} commu_task_EVT_t;
 
+/* 无线事件定义 */
+#define WL_INIT_EVT               (1 << 0)
+#define WL_RESET_EVT              (1 << 1)
+#define WL_DISCOVERABLE_EVT       (1 << 2)
+#define WL_RECONNECTING_EVT       (1 << 3)
+#define WL_CONNECTED_EVT          (1 << 4)
+#define WL_DISCONNECTED_EVT       (1 << 5)
+#define WL_ADVEND_EVT             (1 << 6)
+#define WL_HID_SET_PROTOCOL_EVT   (1 << 7)
+#define WL_HID_INDICATOR_EVT      (1 << 8)
+#define WL_CONECTION_INTERVAL_EVT (1 << 9)
+#define WL_PAIR_EVT               (1 << 10)
+#define WL_RECONNECT_EVT          (1 << 11)
+#define USB_CONNECT_EVT           (1 << 12)
+#define USB_DISCONNECT_EVT        (1 << 13)
+
+/* LPM 调度事件（bits 14-15） */
+#define COMMU_LPM_PREPARE_EVT     (1 << 14)
+#define COMMU_LPM_RESUME_EVT      (1 << 15)
+
+/* 配对参数结构体 */
 typedef struct {
     uint8_t     hostIndex;
     uint16_t    timeout;     /* Pairing timeout, valid value range from 30 to 3600 seconds, 0 for default */
@@ -38,3 +48,9 @@ typedef struct {
     uint8_t     txPower;     /* Only available for BLE module */
     const char* leName;      /* Only available for BLE module */
 } pairing_param_t;
+
+/* task ID 外部声明 */
+extern uint8_t commu_taskID;
+
+/* 函数声明 */
+void commu_service_init(void);

@@ -17,7 +17,7 @@
 #define MATRIX_ROWS 8
 #define MATRIX_COLS 16
 #define MATRIX_IO_DELAY 30
-#define DIODE_DIRECTION ROW2COL
+#define DIODE_DIRECTION COL2ROW
 #define MATRIX_SCAN_TIMER 5 
 
 // Matrix pins

@@ -18,32 +18,46 @@
  *
  *  Filename:      lpm.c
  *
- *  Description:   Contains low power mode implementation
+ *  Description:   LPM 状态机实现 - Idle/Deep 睡眠管理
+ *                 基于 OSAL 事件驱动 + service prepare 位图汇聚架构
  *
  ******************************************************************************/
 
-//#include "quantum.h"
-//#if defined(PROTOCOL_CHIBIOS)
-//#    include <usb_main.h>
-//#endif
-//#include "bluetooth.h"
-#include "output/indicators/indicator.h"
 #include "lpm.h"
-#include "transport.h"
-#include "battery.h"
 #include "timer.h"
+#include "event_manager.h"
+#include "debug.h"
 #include <string.h>
-#include "matrix.h"
-#include "wireless.h"
 
-extern matrix_row_t          matrix[MATRIX_ROWS];
-extern wt_func_t bluetooth_transport;
+/* ---- 外部依赖 ---- */
+extern uint8_t system_taskID;
 
-static uint32_t     lpm_timer_buffer;
-static bool         lpm_time_up               = false;
-static matrix_row_t empty_matrix[MATRIX_ROWS] = {0};
+/* LPM 调度事件（定义在 system_service.h，此处声明） */
+#ifndef SYSTEM_LPM_IDLE_REQ_EVT
+#define SYSTEM_LPM_IDLE_REQ_EVT   (1 << 8)
+#define SYSTEM_LPM_DEEP_REQ_EVT   (1 << 9)
+#endif
+
+/* ---- 内部状态 ---- */
+static lpm_state_t  g_lpm_state          = LPM_STATE_ACTIVE;
+static lpm_mode_t   g_lpm_mode           = LPM_MODE_NONE;
+static uint8_t      g_prepare_pending    = 0;
+static uint8_t      g_prepare_done       = 0;
+static uint32_t     g_last_activity_ms   = 0;
+static bool         g_inhibited          = false;
+
+/*===========================================
+ * 初始化
+ *==========================================*/
 
 void lpm_init(void) {
+    g_lpm_state        = LPM_STATE_ACTIVE;
+    g_lpm_mode         = LPM_MODE_NONE;
+    g_prepare_pending  = 0;
+    g_prepare_done     = 0;
+    g_inhibited        = false;
+    g_last_activity_ms = timer_read32();
+
 #ifdef USB_POWER_SENSE_PIN
 #    if (USB_POWER_CONNECTED_LEVEL == 0)
     setPinInputHigh(USB_POWER_SENSE_PIN);
@@ -51,54 +65,136 @@ void lpm_init(void) {
     setPinInputLow(USB_POWER_SENSE_PIN);
 #    endif
 #endif
-    lpm_timer_reset();
+
+    dprintf("[LPM] Initialized, idle=%lums, deep=%lums\r\n",
+            (unsigned long)LPM_IDLE_TIMEOUT_MS,
+            (unsigned long)LPM_DEEP_TIMEOUT_MS);
 }
 
-inline void lpm_timer_reset(void) {
-    lpm_time_up      = false;
-    lpm_timer_buffer = timer_read32();
+/*===========================================
+ * 活动记录
+ *==========================================*/
+
+void lpm_note_activity(void) {
+    g_last_activity_ms = timer_read32();
+
+    /* 若处于 PENDING 状态收到活动，取消本轮睡眠 */
+    if (g_lpm_state == LPM_STATE_IDLE_PENDING ||
+        g_lpm_state == LPM_STATE_DEEP_PENDING) {
+        dprintf("[LPM] Activity detected, cancel pending sleep\r\n");
+        g_lpm_state = LPM_STATE_ACTIVE;
+        g_prepare_pending = 0;
+        g_prepare_done = 0;
+    }
+}
+
+void lpm_timer_reset(void) {
+    g_last_activity_ms = timer_read32();
 }
 
 void lpm_timer_stop(void) {
-    lpm_time_up      = false;
-    lpm_timer_buffer = 0;
+    g_last_activity_ms = 0;
 }
 
-static inline bool lpm_any_matrix_action(void) { return memcmp(matrix, empty_matrix, sizeof(empty_matrix)); }
+/*===========================================
+ * 状态查询
+ *==========================================*/
 
-/* Implement of entering low power mode and wakeup varies per mcu or platform */
-__attribute__((weak)) void enter_power_mode(pm_t mode) { (void)mode; }
+lpm_state_t lpm_get_state(void) {
+    return g_lpm_state;
+}
+
+lpm_mode_t lpm_get_mode(void) {
+    return g_lpm_mode;
+}
+
+bool lpm_is_in_sleep(void) {
+    return g_lpm_state == LPM_STATE_IDLE_SLEEP ||
+           g_lpm_state == LPM_STATE_DEEP_SLEEP;
+}
+
+/*===========================================
+ * 状态切换
+ *==========================================*/
+
+void lpm_set_state(lpm_state_t state) {
+    g_lpm_state = state;
+}
+
+/*===========================================
+ * prepare 位图操作
+ *==========================================*/
+
+void lpm_mark_prepare_done(uint8_t prepare_bit) {
+    g_prepare_done |= prepare_bit;
+}
+
+bool lpm_all_prepare_done(void) {
+    return (g_prepare_done & g_prepare_pending) == g_prepare_pending;
+}
+
+/*===========================================
+ * 禁止进入低功耗
+ *==========================================*/
+
+void lpm_inhibit(bool inhibit) {
+    g_inhibited = inhibit;
+    if (inhibit) {
+        dprintf("[LPM] Inhibit enabled\r\n");
+    } else {
+        dprintf("[LPM] Inhibit disabled\r\n");
+    }
+}
+
+bool lpm_is_inhibited(void) {
+    return g_inhibited;
+}
+
+/*===========================================
+ * 主循环任务
+ *==========================================*/
+
+void lpm_task(void) {
+    if (g_lpm_state != LPM_STATE_ACTIVE) {
+        return;
+    }
+    if (g_inhibited) {
+        return;
+    }
+    if (g_last_activity_ms == 0) {
+        return;
+    }
+
+    uint32_t elapsed = timer_elapsed32(g_last_activity_ms);
+
+    if (elapsed >= LPM_DEEP_TIMEOUT_MS) {
+        /* 直接推进到 Deep（跳过 Idle pending） */
+        dprintf("[LPM] Deep timeout reached (%lu ms), requesting deep sleep\r\n", elapsed);
+        g_lpm_mode  = LPM_MODE_DEEP;
+        g_prepare_pending = LPM_DEEP_PREPARE_MASK;
+        g_prepare_done    = 0;
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
+    } else if (elapsed >= LPM_IDLE_TIMEOUT_MS) {
+        dprintf("[LPM] Idle timeout reached (%lu ms), requesting idle sleep\r\n", elapsed);
+        g_lpm_mode  = LPM_MODE_IDLE;
+        g_prepare_pending = LPM_IDLE_PREPARE_MASK;
+        g_prepare_done    = 0;
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_IDLE_REQ_EVT);
+    }
+}
+
+/*===========================================
+ * 兼容旧接口
+ *==========================================*/
+
+__attribute__((weak)) void enter_power_mode(pm_t mode) {
+    (void)mode;
+    /* 由 HAL 层实现 */
+}
 
 __attribute__((weak)) bool usb_power_connected(void) {
 #ifdef USB_POWER_SENSE_PIN
     return readPin(USB_POWER_SENSE_PIN) == USB_POWER_CONNECTED_LEVEL;
 #endif
-
     return true;
-}
-
-void lpm_task(void) {
-    if (!lpm_time_up && timer_elapsed32(lpm_timer_buffer) > RUN_MODE_PROCESS_TIME) {
-        lpm_time_up      = true;
-        lpm_timer_buffer = 0;
-    }
-
-    /* 低功耗模式进入条件:
-     * 1. 使用蓝牙传输模式
-     * 2. 空闲超时时间已到
-     * 3. 指示灯不在运行中
-     * 4. 没有按键按下
-     * 5. 不在电池采样期间
-     */
-//    if (get_transport() == TRANSPORT_BLUETOOTH && lpm_time_up && !indicator_any_active()
-//#ifdef LED_MATRIX_ENABLE
-//        && led_matrix_is_driver_shutdown()
-//#endif
-//#ifdef RGB_MATRIX_ENABLE
-//        && rgb_matrix_is_driver_shutdown()
-//#endif
-//        && !lpm_any_matrix_action() && !battery_power_on_sample()) {
-//
-//        enter_power_mode(PM_STOP0);
-//    }
 }

@@ -82,6 +82,29 @@ void matrix_slave_scan_kb(void);
 void matrix_slave_scan_user(void);
 #endif
 
+/**
+ * @brief 配置矩阵 GPIO 为睡眠唤醒模式
+ *        COL 引脚：全部拉低输出
+ *        ROW 引脚：下降沿中断 + 使能 GPIO IRQ
+ *        最后开启 RB_SLP_GPIO_WAKE
+ * @note  必须在所有 GPIO 中断标志清除之后调用
+ */
+void matrix_prepare_wakeup(void);
+
+/**
+ * @brief 从睡眠恢复矩阵 GPIO 到正常扫描模式
+ *        COL 引脚：恢复输入上拉（unselect 状态）
+ *        ROW 引脚：恢复输入上拉
+ *        关闭行中断（中断模式 → 轮询模式）
+ */
+void matrix_resume_from_sleep(void);
+
+/**
+ * @brief 唤醒后立即执行一次矩阵扫描
+ * @note  用于检测触发唤醒的那个按键，防止首键丢失
+ */
+void matrix_scan_once_after_wakeup(void);
+
 #ifdef __cplusplus
 }
 #endif

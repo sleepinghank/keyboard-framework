@@ -14,6 +14,7 @@
 #include "system_init.h"
 #include "sys_config.h"
 #include "event_manager.h"
+#include "lpm.h"
 /**
  * @brief 主函数 - 系统启动入口
  * @return int (通常不会返回)
@@ -52,6 +53,9 @@ int main(void) {
 
     // 主循环 - 持续调用各层级的生命周期函数
     while (1) {
+        /* LPM 状态机推进：检查空闲超时并投递睡眠请求事件 */
+        lpm_task();
+
         OSAL_SystemProcess();
     }
 

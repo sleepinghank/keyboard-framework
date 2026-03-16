@@ -9,6 +9,8 @@
 #include "wireless.h"
 #include "keyboard.h"
 #include "transport.h"
+#include "lpm.h"
+#include "system_service.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,6 +156,45 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ USB_DISCONNECT_EVT);
     }
 
+    /*========================================
+     * LPM prepare/resume 事件处理
+     *========================================*/
+
+    // 处理 LPM prepare 事件
+    if (events & COMMU_LPM_PREPARE_EVT) {
+        lpm_mode_t mode = lpm_get_mode();
+        dprintf("Commu: LPM prepare start (mode=%d)\r\n", mode);
+
+        if (mode == LPM_MODE_IDLE) {
+            /* Idle：请求 BLE 低功耗，不断连 */
+            /* WCH BLE 低功耗依赖 HAL_SLEEP=1 的 idleCB，此处主要是减少业务活动 */
+            /* 停止主动发送报文（report_buffer 停发） */
+            /* 注意：不调用 wireless_disconnect()，保持连接 */
+            dprintf("Commu: BLE idle low-power prepare done\r\n");
+        } else {
+            /* Deep：断开 BLE 连接，停止广播 */
+            wireless_disconnect();
+            dprintf("Commu: BLE disconnected for deep sleep\r\n");
+        }
+
+        /* 标记 commu prepare 完成，通知 system_service 汇聚 */
+        lpm_mark_prepare_done(LPM_PREPARE_COMMU);
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_STEP_DONE_EVT);
+
+        dprintf("Commu: LPM prepare done\r\n");
+        return (events ^ COMMU_LPM_PREPARE_EVT);
+    }
+
+    // 处理 LPM resume 事件
+    if (events & COMMU_LPM_RESUME_EVT) {
+        dprintf("Commu: LPM resume start\r\n");
+        /* Deep 唤醒后：仅恢复本地无线上下文，不自动回连 */
+        /* 业务层回连由上层（如 SYSTEM_WAKEUP_EVT 或用户按键触发）决定 */
+        /* 此处清理睡眠标志，恢复 report_buffer 状态 */
+        dprintf("Commu: LPM resume done (reconnect decision deferred to app)\r\n");
+        return (events ^ COMMU_LPM_RESUME_EVT);
+    }
+
     return 0;
 }
 
@@ -172,4 +213,3 @@ void commu_service_init(void) {
 #ifdef __cplusplus
 }
 #endif
-

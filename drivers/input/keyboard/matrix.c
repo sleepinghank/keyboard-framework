@@ -23,6 +23,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "debug.h"
 #include "print.h"
 #include "wait.h"
+#include "CH58x_common.h"
+#include "_pin_defs.h"
 
 #  define ROWS_PER_HAND (MATRIX_ROWS)
 
@@ -259,4 +261,115 @@ bool matrix_scan_custom(matrix_row_t current_matrix[]) {
 
 bool peek_matrix(uint8_t row_index, uint8_t col_index, bool raw) {
     return 0 != ((raw ? raw_matrix[row_index] : matrix[row_index]) & (MATRIX_ROW_SHIFTER << col_index));
+}
+
+/*===========================================
+ * LPM 睡眠唤醒支持
+ *==========================================*/
+
+/**
+ * @brief 配置矩阵 GPIO 为睡眠唤醒模式
+ *        COL2ROW 扫描方向：
+ *        - COL 引脚：全部拉低输出（与按键下拉形成检测回路）
+ *        - ROW 引脚：下降沿中断 + 使能 GPIO IRQ
+ *        最后开启 RB_SLP_GPIO_WAKE
+ * @note  必须在所有 GPIO 中断标志清除之后调用
+ */
+void matrix_prepare_wakeup(void) {
+    uint32_t porta_mask = 0;
+    uint32_t portb_mask = 0;
+
+    /* 1. COL 引脚：全部拉低输出 */
+    for (uint8_t c = 0; c < MATRIX_COLS; c++) {
+        pin_t pin = col_pins[c];
+        if (pin != NO_PIN) {
+            setPinOutput(pin);
+            writePinLow(pin);
+        }
+    }
+
+    /* 2. ROW 引脚：切换为下降沿中断模式 */
+    for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
+        pin_t pin = row_pins[r];
+        if (pin != NO_PIN) {
+            uint8_t pin_num = GET_GPIO_PIN(pin);
+            if (IS_PORTA(pin)) {
+                porta_mask |= (1 << pin_num);
+            } else if (IS_PORTB(pin)) {
+                portb_mask |= (1 << pin_num);
+            }
+        }
+    }
+
+    /* 3. 配置 ROW 引脚为下降沿中断 */
+    if (porta_mask) {
+        GPIOA_ITModeCfg(porta_mask, GPIO_ITMode_FallEdge);
+    }
+    if (portb_mask) {
+        GPIOB_ITModeCfg(portb_mask, GPIO_ITMode_FallEdge);
+    }
+
+    /* 4. 清 PFIC 挂起位，使能 GPIO IRQ */
+    PFIC_ClearPendingIRQ(GPIO_A_IRQn);
+    PFIC_ClearPendingIRQ(GPIO_B_IRQn);
+    PFIC_EnableIRQ(GPIO_A_IRQn);
+    PFIC_EnableIRQ(GPIO_B_IRQn);
+
+    /* 5. 开启 GPIO 唤醒源 */
+    PWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
+}
+
+/**
+ * @brief 从睡眠恢复矩阵 GPIO 到正常扫描模式
+ *        COL2ROW 扫描方向：
+ *        - COL 引脚：恢复输入上拉（unselect 状态）
+ *        - ROW 引脚：恢复输入上拉
+ *        关闭行中断（清除 INT_EN 对应位）
+ */
+void matrix_resume_from_sleep(void) {
+    uint32_t porta_mask = 0;
+    uint32_t portb_mask = 0;
+
+    /* 收集 ROW 引脚掩码 */
+    for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
+        pin_t pin = row_pins[r];
+        if (pin != NO_PIN) {
+            uint8_t pin_num = GET_GPIO_PIN(pin);
+            if (IS_PORTA(pin)) {
+                porta_mask |= (1 << pin_num);
+            } else if (IS_PORTB(pin)) {
+                portb_mask |= (1 << pin_num);
+            }
+        }
+    }
+
+    /* 关闭行中断：直接清除 INT_EN 寄存器对应位（CH58x 无 GPIO_ITMode_Disable 枚举） */
+    if (porta_mask) {
+        R16_PA_INT_EN &= ~porta_mask;
+        R16_PA_INT_IF = porta_mask; /* 清除可能的中断标志 */
+    }
+    if (portb_mask) {
+        /* 注意：PB22/PB23 在 PB_INT_EN 中需要特殊处理 */
+        uint32_t pb_int_en_mask = portb_mask | ((portb_mask & (GPIO_Pin_22 | GPIO_Pin_23)) >> 14);
+        R16_PB_INT_EN &= ~pb_int_en_mask;
+        R16_PB_INT_IF = pb_int_en_mask; /* 清除可能的中断标志 */
+    }
+
+    /* 恢复 COL 为输入上拉（unselect 状态） */
+    unselect_cols();
+
+    /* 恢复 ROW 为输入上拉 */
+    for (uint8_t r = 0; r < MATRIX_ROWS; r++) {
+        if (row_pins[r] != NO_PIN) {
+            setPinInputHigh(row_pins[r]);
+        }
+    }
+}
+
+/**
+ * @brief 唤醒后立即执行一次矩阵扫描
+ * @note  用于检测触发唤醒的那个按键，防止首键丢失
+ */
+void matrix_scan_once_after_wakeup(void) {
+    matrix_scan();
 }

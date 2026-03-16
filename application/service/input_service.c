@@ -11,6 +11,9 @@
 #include "product_config.h"
 #include "gpio.h"
 #include "system_hal.h"
+#include "lpm.h"
+#include "matrix.h"
+#include "CH58x_common.h"
 
 #ifdef TOUCH_EN
 #include "touchpad_service.h"
@@ -43,6 +46,13 @@ uint8_t input_taskID = 0;
 
 /* 矩阵扫描标志位 - volatile 保证中断可见性 */
 static volatile bool g_matrix_scan_flag = false;
+
+/* 唤醒原因（由 GPIO ISR 锁存） */
+static volatile lpm_wakeup_source_t g_last_wakeup_source = LPM_WAKEUP_NONE;
+
+lpm_wakeup_source_t input_get_last_wakeup_source(void) {
+    return g_last_wakeup_source;
+}
 
 /*==========================================
  * 矩阵扫描定时器回调
@@ -135,7 +145,6 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         if (battery_level <= CRITICAL_BATTERY_THRESHOLD) {
             // 电量极低，触发关机事件
             println("Input: Critical battery, triggering shutdown");
-            extern uint8_t system_taskID;
             OSAL_SetEvent(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
         } else if (battery_level <= LOW_BATTERY_THRESHOLD) {
             // 低电量警告，闪烁指示灯
@@ -144,6 +153,79 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         }
 
         return (events ^ INPUT_BATTERY_DETE_EVT);
+    }
+
+    /*========================================
+     * LPM prepare/resume 事件处理
+     *========================================*/
+
+    // 处理 LPM prepare 事件（Idle/Deep 通用，mode 通过 lpm_get_mode() 查询）
+    if (events & INPUT_LPM_PREPARE_EVT) {
+        lpm_mode_t mode = lpm_get_mode();
+        dprintf("Input: LPM prepare start (mode=%d)\r\n", mode);
+
+        /* 1. 停止矩阵扫描定时器 */
+        matrix_scan_timer_stop();
+
+        /* 2. 配置矩阵 GPIO 为唤醒中断模式（COL 拉低，ROW 配下降沿中断） */
+        matrix_prepare_wakeup();
+
+        /* 3. PA2 电源键：保留独立唤醒中断 */
+        GPIOA_ClearITFlagBit(GPIO_Pin_2);
+        GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_PU);
+        GPIOA_ITModeCfg(GPIO_Pin_2, GPIO_ITMode_FallEdge);
+
+#ifdef TOUCH_EN
+        if (mode == LPM_MODE_IDLE) {
+            /* 触控低功耗，保留 INT 唤醒 */
+            // touch_prepare_idle_sleep();
+        } else {
+            /* 触控更深低功耗，保留 INT 唤醒 */
+            // touch_prepare_deep_sleep();
+        }
+#endif
+
+        /* 4. 暂停 ADC 电量采样 */
+        OSAL_StopTask(input_taskID, INPUT_BATTERY_DETE_EVT);
+
+        /* 5. 标记 input prepare 完成，通知 system_service 汇聚 */
+        lpm_mark_prepare_done(LPM_PREPARE_INPUT);
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_STEP_DONE_EVT);
+
+        dprintf("Input: LPM prepare done\r\n");
+        return (events ^ INPUT_LPM_PREPARE_EVT);
+    }
+
+    // 处理 LPM resume 事件
+    if (events & INPUT_LPM_RESUME_EVT) {
+        dprintf("Input: LPM resume start\r\n");
+
+        /* 1. 恢复矩阵 GPIO 为正常扫描模式 */
+        matrix_resume_from_sleep();
+
+        /* 2. PA2 恢复（三步序列，顺序不可颠倒） */
+        GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_PU);
+        GPIOA_ITModeCfg(GPIO_Pin_2, GPIO_ITMode_FallEdge);
+        GPIOA_ClearITFlagBit(GPIO_Pin_2);
+
+#ifdef TOUCH_EN
+        // touch_resume_from_sleep();
+#endif
+
+        /* 3. 补一次矩阵扫描（防止首键丢失） */
+        matrix_scan_once_after_wakeup();
+
+        /* 4. 重启矩阵扫描定时器 */
+        matrix_scan_timer_start();
+
+        /* 5. 恢复 ADC 电量采样 */
+        OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
+
+        /* 6. 重置唤醒原因 */
+        g_last_wakeup_source = LPM_WAKEUP_NONE;
+
+        dprintf("Input: LPM resume done\r\n");
+        return (events ^ INPUT_LPM_RESUME_EVT);
     }
 
     return 0;
@@ -174,4 +256,3 @@ void input_service_init(void) {
 #ifdef __cplusplus
 }
 #endif
-

@@ -4,15 +4,19 @@
 #include "system_service.h"
 #include <stdint.h>
 #include "event_manager.h"
+#include "debug.h"
 #include "print.h"
 #include "storage.h"
 #include "battery.h"
-#include "indicator.h"
 #include "lpm.h"
 #include "wireless.h"
 #include "transport.h"
 #include "system_hal.h"
 #include "bt_driver.h"
+#include "input_service.h"
+#include "communication_service.h"
+#include "output_service.h"
+#include "indicator.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,14 +47,10 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
     }
 
-    // 处理系统空闲事件
+    // 处理系统空闲事件（保留兼容旧调用，实际由 LPM 调度替代）
     if (events & SYSTEM_IDLE_EVT) {
-        println("System: System idle detected");
-        // 系统空闲处理:
-        // 1. 关闭背光灯节省功耗
-        indicator_off_all();
-        // 2. 进入轻度睡眠模式
-        enter_power_mode(PM_SLEEP);
+        /* 此事件已由 SYSTEM_LPM_IDLE_REQ_EVT 替代，保留为空以兼容旧调用 */
+        dprintf("System: Legacy idle event received, ignored\r\n");
         return (events ^ SYSTEM_IDLE_EVT);
     }
 
@@ -69,20 +69,13 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_SHUTDOWN_EVT);
     }
 
-    // 处理深度睡眠事件
+    // 处理深度睡眠事件（保留兼容，转发到 LPM 调度）
     if (events & SYSTEM_DEEP_SLEEP_EVT) {
-        println("System: Enter deep sleep");
-        if (get_transport() == TRANSPORT_BLUETOOTH) {
-            bt_driver_set_advertising(false);
-        }
-        wireless_disconnect();
-        // 深度睡眠流程:
-        // 1. 保存关键状态
-        storage_save();
-        // 2. 关闭指示灯
-        indicator_off_all();
-        // 3. 进入深度睡眠（保留RAM）
-        enter_power_mode(PM_STANDBY_WITH_RAM);
+        /* 转发为 LPM Deep 请求，由 LPM 状态机处理 */
+        dprintf("System: Legacy deep sleep event, forwarding to LPM\r\n");
+        lpm_note_activity();          /* 先重置，让 lpm_task 重新计时 */
+        lpm_set_state(LPM_STATE_ACTIVE);
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
         return (events ^ SYSTEM_DEEP_SLEEP_EVT);
     }
 
@@ -133,6 +126,105 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_OTA_EVT);
     }
 
+    /*========================================
+     * LPM 调度事件处理
+     *========================================*/
+
+    // 处理 Idle 睡眠请求
+    if (events & SYSTEM_LPM_IDLE_REQ_EVT) {
+        dprintf("System: Idle sleep requested\r\n");
+        lpm_set_state(LPM_STATE_IDLE_PENDING);
+
+        /* 扇出 prepare 事件到各 service */
+        OSAL_SetEvent(input_taskID,  INPUT_LPM_PREPARE_EVT);
+        OSAL_SetEvent(commu_taskID,  COMMU_LPM_PREPARE_EVT);
+        /* output_service Idle 无操作，直接标记完成 */
+        lpm_mark_prepare_done(LPM_PREPARE_OUTPUT);
+
+        return (events ^ SYSTEM_LPM_IDLE_REQ_EVT);
+    }
+
+    // 处理 Deep 睡眠请求
+    if (events & SYSTEM_LPM_DEEP_REQ_EVT) {
+        dprintf("System: Deep sleep requested\r\n");
+        lpm_set_state(LPM_STATE_DEEP_PENDING);
+
+        OSAL_SetEvent(input_taskID,  INPUT_LPM_PREPARE_EVT);
+        OSAL_SetEvent(commu_taskID,  COMMU_LPM_PREPARE_EVT);
+        OSAL_SetEvent(output_taskID, OUTPUT_LPM_PREPARE_EVT);
+
+        return (events ^ SYSTEM_LPM_DEEP_REQ_EVT);
+    }
+
+    // 处理 prepare 完成汇聚事件
+    if (events & SYSTEM_LPM_STEP_DONE_EVT) {
+        lpm_state_t cur = lpm_get_state();
+
+        if (!lpm_all_prepare_done()) {
+            /* 还有 service 未完成，继续等待 */
+            return (events ^ SYSTEM_LPM_STEP_DONE_EVT);
+        }
+
+        /* 全部完成，投递最终进入事件（拆开汇聚与执行） */
+        if (cur == LPM_STATE_IDLE_PENDING) {
+            OSAL_SetEvent(system_taskID, SYSTEM_LPM_ENTER_IDLE_EVT);
+        } else if (cur == LPM_STATE_DEEP_PENDING) {
+            OSAL_SetEvent(system_taskID, SYSTEM_LPM_ENTER_DEEP_EVT);
+        }
+
+        return (events ^ SYSTEM_LPM_STEP_DONE_EVT);
+    }
+
+    // 处理最终进入 Idle 睡眠事件（二次确认）
+    if (events & SYSTEM_LPM_ENTER_IDLE_EVT) {
+        /* 二次确认：若有新活动则取消本次睡眠 */
+        if (lpm_get_state() != LPM_STATE_IDLE_PENDING) {
+            dprintf("System: Idle enter cancelled (state changed)\r\n");
+            return (events ^ SYSTEM_LPM_ENTER_IDLE_EVT);
+        }
+
+        dprintf("System: Entering Idle sleep, waiting TMOS idleCB\r\n");
+        lpm_set_state(LPM_STATE_IDLE_SLEEP);
+        /* MCU 睡眠由 TMOS CH58x_LowPower() idleCB 自动触发，此处无需调用 LowPower_Sleep() */
+
+        return (events ^ SYSTEM_LPM_ENTER_IDLE_EVT);
+    }
+
+    // 处理最终进入 Deep 睡眠事件（二次确认）
+    if (events & SYSTEM_LPM_ENTER_DEEP_EVT) {
+        if (lpm_get_state() != LPM_STATE_DEEP_PENDING) {
+            dprintf("System: Deep enter cancelled (state changed)\r\n");
+            return (events ^ SYSTEM_LPM_ENTER_DEEP_EVT);
+        }
+
+        dprintf("System: Entering Deep sleep, waiting TMOS idleCB\r\n");
+        lpm_set_state(LPM_STATE_DEEP_SLEEP);
+
+        return (events ^ SYSTEM_LPM_ENTER_DEEP_EVT);
+    }
+
+    // 处理唤醒恢复事件
+    if (events & SYSTEM_LPM_WAKE_EVT) {
+        dprintf("System: Wake resume start\r\n");
+        lpm_set_state(LPM_STATE_WAKE_RESUME);
+        lpm_mode_t mode = lpm_get_mode();
+
+        /* 先恢复输入侧（最关键，需要最快响应） */
+        OSAL_SetEvent(input_taskID, INPUT_LPM_RESUME_EVT);
+
+        if (mode == LPM_MODE_DEEP) {
+            /* Deep 唤醒需要恢复输出侧和通信侧 */
+            OSAL_SetEvent(output_taskID, OUTPUT_LPM_RESUME_EVT);
+            OSAL_SetEvent(commu_taskID,  COMMU_LPM_RESUME_EVT);
+        }
+        /* Idle 唤醒：通信侧保持（BLE 未断连），output 无需恢复 */
+
+        lpm_set_state(LPM_STATE_ACTIVE);
+        lpm_timer_reset();
+
+        return (events ^ SYSTEM_LPM_WAKE_EVT);
+    }
+
     return 0;
 }
 
@@ -143,6 +235,9 @@ void system_service_init(void) {
     // 注册任务并获取任务ID
     system_taskID = OSAL_ProcessEventRegister(system_process_event);
 
+    // 初始化 LPM 状态机
+    lpm_init();
+
     // TODO: 根据配置启动相应的定时任务
     // 例如：空闲检测、电池检测等
     // OSAL_StartReloadTask(system_taskID, SYSTEM_IDLE_CHECK_EVT, 10000);
@@ -151,4 +246,3 @@ void system_service_init(void) {
 #ifdef __cplusplus
 }
 #endif
-

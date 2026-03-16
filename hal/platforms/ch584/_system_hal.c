@@ -133,6 +133,10 @@ system_result_t system_hal_shutdown(void)
  * @brief 进入睡眠模式
  * @param mode 目标睡眠模式
  * @param wakeup_sources 唤醒源掩码
+ *
+ * @note Option A（HAL_SLEEP=1）后，LowPower_Sleep() 由 TMOS CH58x_LowPower() 统一执行。
+ *       此函数只负责唤醒源配置，不直接执行睡眠指令。
+ *       保留 mode 参数供将来扩展（如 Shutdown 路径仍直接执行）
  */
 system_result_t system_hal_enter_sleep(system_power_mode_t mode, uint32_t wakeup_sources)
 {
@@ -153,29 +157,12 @@ system_result_t system_hal_enter_sleep(system_power_mode_t mode, uint32_t wakeup
         PWR_PeriphWakeUpCfg(ENABLE, wake_ctrl, Short_Delay);
     }
 
-    /* 根据模式选择不同的低功耗函数 */
-    switch (mode) {
-        case SYSTEM_POWER_MODE_IDLE:
-            LowPower_Idle();
-            break;
-
-        case SYSTEM_POWER_MODE_SLEEP:
-            /* Sleep 模式，保留 96K RAM 和扩展区域(BLE) */
-            LowPower_Sleep(RB_PWR_RAM96K | RB_PWR_EXTEND);
-            break;
-
-        case SYSTEM_POWER_MODE_DEEP_SLEEP:
-            /* 深度睡眠，只保留 32K RAM */
-            LowPower_Sleep(RB_PWR_RAM32K);
-            break;
-
-        case SYSTEM_POWER_MODE_SHUTDOWN:
-            /* Shutdown 模式，不保留 RAM */
-            LowPower_Shutdown(0);
-            break;
-
-        default:
-            return SYSTEM_ERROR_INVALID_PARAM;
+    /* Option A: LowPower_Sleep() 由 TMOS CH58x_LowPower() idleCB 自动触发
+     * 此函数只负责唤醒源配置，不直接执行睡眠指令
+     * 保留 mode 参数供将来扩展（如 Shutdown 路径仍直接执行） */
+    if (mode == SYSTEM_POWER_MODE_SHUTDOWN) {
+        LowPower_Shutdown(0);
+        /* 不会返回 */
     }
 
     return SYSTEM_OK;
