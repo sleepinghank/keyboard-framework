@@ -170,10 +170,10 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         /* 2. 配置矩阵 GPIO 为唤醒中断模式（COL 拉低，ROW 配下降沿中断） */
         matrix_prepare_wakeup();
 
-        /* 3. PA2 电源键：保留独立唤醒中断 */
-        GPIOA_ClearITFlagBit(GPIO_Pin_2);
+        /* 3. PA2 电源键：保留独立唤醒中断（三步序列，顺序不可颠倒） */
         GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_PU);
         GPIOA_ITModeCfg(GPIO_Pin_2, GPIO_ITMode_FallEdge);
+        GPIOA_ClearITFlagBit(GPIO_Pin_2);   /* 最后清标志，防止配置过程产生假中断 */
 
 #ifdef TOUCH_EN
         if (mode == LPM_MODE_IDLE) {
@@ -251,6 +251,36 @@ void input_service_init(void) {
     /* 启动触控板看门狗定时检查 */
     OSAL_StartReloadTask(input_taskID, INPUT_TOUCH_WATCHDOG_EVT, TOUCH_WATCHDOG_INTERVAL);
 #endif
+}
+
+/*==========================================
+ * GPIO 唤醒中断服务程序
+ * 在睡眠期间由 GPIO 下降沿触发，锁存唤醒原因并投递 SYSTEM_LPM_WAKE_EVT
+ *=========================================*/
+
+__INTERRUPT
+__HIGH_CODE
+void GPIOA_IRQHandler(void) {
+    uint32_t flags = R16_PA_INT_IF;
+    R16_PA_INT_IF = flags;  /* 清除中断标志，防止重入 */
+
+    if (lpm_is_in_sleep()) {
+        /* PA2（GPIO_Pin_2 = bit2）为电源键，其余为矩阵 ROW 引脚 */
+        g_last_wakeup_source = (flags & GPIO_Pin_2) ? LPM_WAKEUP_PA2 : LPM_WAKEUP_MATRIX;
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_WAKE_EVT);
+    }
+}
+
+__INTERRUPT
+__HIGH_CODE
+void GPIOB_IRQHandler(void) {
+    uint32_t flags = R16_PB_INT_IF;
+    R16_PB_INT_IF = flags;  /* 清除中断标志，防止重入 */
+
+    if (lpm_is_in_sleep()) {
+        g_last_wakeup_source = LPM_WAKEUP_MATRIX;
+        OSAL_SetEvent(system_taskID, SYSTEM_LPM_WAKE_EVT);
+    }
 }
 
 #ifdef __cplusplus

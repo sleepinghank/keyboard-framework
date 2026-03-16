@@ -309,13 +309,21 @@ void matrix_prepare_wakeup(void) {
         GPIOB_ITModeCfg(portb_mask, GPIO_ITMode_FallEdge);
     }
 
-    /* 4. 清 PFIC 挂起位，使能 GPIO IRQ */
+    /* 4. 清除 ROW 引脚残留中断标志（防止配置下降沿中断后立即产生假中断） */
+    if (porta_mask) {
+        GPIOA_ClearITFlagBit(porta_mask);
+    }
+    if (portb_mask) {
+        GPIOB_ClearITFlagBit(portb_mask);
+    }
+
+    /* 5. 清 PFIC 挂起位，使能 GPIO IRQ */
     PFIC_ClearPendingIRQ(GPIO_A_IRQn);
     PFIC_ClearPendingIRQ(GPIO_B_IRQn);
     PFIC_EnableIRQ(GPIO_A_IRQn);
     PFIC_EnableIRQ(GPIO_B_IRQn);
 
-    /* 5. 开启 GPIO 唤醒源 */
+    /* 6. 开启 GPIO 唤醒源 */
     PWR_PeriphWakeUpCfg(ENABLE, RB_SLP_GPIO_WAKE, Long_Delay);
 }
 

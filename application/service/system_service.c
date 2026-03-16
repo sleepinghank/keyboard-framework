@@ -73,8 +73,6 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
     if (events & SYSTEM_DEEP_SLEEP_EVT) {
         /* 转发为 LPM Deep 请求，由 LPM 状态机处理 */
         dprintf("System: Legacy deep sleep event, forwarding to LPM\r\n");
-        lpm_note_activity();          /* 先重置，让 lpm_task 重新计时 */
-        lpm_set_state(LPM_STATE_ACTIVE);
         OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
         return (events ^ SYSTEM_DEEP_SLEEP_EVT);
     }
@@ -235,8 +233,7 @@ void system_service_init(void) {
     // 注册任务并获取任务ID
     system_taskID = OSAL_ProcessEventRegister(system_process_event);
 
-    // 初始化 LPM 状态机
-    lpm_init();
+    // lpm_init() 已在 system_init_middleware() 中调用，此处不重复初始化
 
     // TODO: 根据配置启动相应的定时任务
     // 例如：空闲检测、电池检测等

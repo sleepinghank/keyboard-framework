@@ -26,17 +26,9 @@
 #include "lpm.h"
 #include "timer.h"
 #include "event_manager.h"
+#include "system_service.h"   /* SYSTEM_LPM_*_EVT 定义，system_taskID extern 声明 */
 #include "debug.h"
 #include <string.h>
-
-/* ---- 外部依赖 ---- */
-extern uint8_t system_taskID;
-
-/* LPM 调度事件（定义在 system_service.h，此处声明） */
-#ifndef SYSTEM_LPM_IDLE_REQ_EVT
-#define SYSTEM_LPM_IDLE_REQ_EVT   (1 << 8)
-#define SYSTEM_LPM_DEEP_REQ_EVT   (1 << 9)
-#endif
 
 /* ---- 内部状态 ---- */
 static lpm_state_t  g_lpm_state          = LPM_STATE_ACTIVE;
@@ -170,15 +162,17 @@ void lpm_task(void) {
     if (elapsed >= LPM_DEEP_TIMEOUT_MS) {
         /* 直接推进到 Deep（跳过 Idle pending） */
         dprintf("[LPM] Deep timeout reached (%lu ms), requesting deep sleep\r\n", elapsed);
-        g_lpm_mode  = LPM_MODE_DEEP;
+        g_lpm_mode        = LPM_MODE_DEEP;
         g_prepare_pending = LPM_DEEP_PREPARE_MASK;
         g_prepare_done    = 0;
+        g_lpm_state       = LPM_STATE_DEEP_PENDING;  /* 先推进状态，防止主循环重复投递 */
         OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
     } else if (elapsed >= LPM_IDLE_TIMEOUT_MS) {
         dprintf("[LPM] Idle timeout reached (%lu ms), requesting idle sleep\r\n", elapsed);
-        g_lpm_mode  = LPM_MODE_IDLE;
+        g_lpm_mode        = LPM_MODE_IDLE;
         g_prepare_pending = LPM_IDLE_PREPARE_MASK;
         g_prepare_done    = 0;
+        g_lpm_state       = LPM_STATE_IDLE_PENDING;  /* 先推进状态，防止主循环重复投递 */
         OSAL_SetEvent(system_taskID, SYSTEM_LPM_IDLE_REQ_EVT);
     }
 }
