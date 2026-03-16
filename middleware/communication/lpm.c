@@ -110,7 +110,17 @@ bool lpm_is_in_sleep(void) {
  *==========================================*/
 
 void lpm_set_state(lpm_state_t state) {
+    lpm_state_t old = g_lpm_state;
     g_lpm_state = state;
+
+    /* 只在状态实际变化时输出日志 */
+    if (old != state) {
+        static const char* const state_names[] = {
+            "ACTIVE", "IDLE_PENDING", "IDLE_SLEEP", "DEEP_PENDING", "DEEP_SLEEP", "WAKE_RESUME"
+        };
+        dprintf("[LPM] State: %s -> %s\r\n",
+                state_names[old], state_names[state]);
+    }
 }
 
 /*===========================================

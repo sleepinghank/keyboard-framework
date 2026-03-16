@@ -153,6 +153,17 @@ WT_RESET → WT_INITIALIZED → WT_DISCONNECTED ⇄ WT_PARING
                           WT_RECONNECTING → WT_CONNECTED ⇄ WT_SUSPEND
 ```
 
+### 低功耗状态机 (LPM)
+```
+ACTIVE → IDLE_PENDING → IDLE_SLEEP ⇄ WAKE_RESUME → ACTIVE
+    ↓
+DEEP_PENDING → DEEP_SLEEP → WAKE_RESUME → ACTIVE
+```
+
+- **Idle**: 5秒无活动，BLE 保持连接，快速唤醒
+- **Deep**: 10分钟无活动，BLE 断连，需要重连
+- **唤醒源**: 按键扫描 (GPIO 中断) 或 USB 插入
+
 ## Configuration
 
 ### 产品配置 (keyboards/product_config.h)
@@ -249,3 +260,5 @@ _post_task();  // task 之后
 **开发流程要求:** 实现任何需求时，严禁直接修改代码。必须先理清需求、确认方案、编写详细设计文档，经过评审后才能动手编码。
 
 **Windows 注意:** 项目根目录存在名为 `nul` 的文件，在 Windows 上进行广度递归 grep 可能会失败。
+
+**PowerShell 要求:** 使用 PowerShell 7.x.x 及以上版本，禁止使用 Windows 自带 PowerShell 5.x.x。

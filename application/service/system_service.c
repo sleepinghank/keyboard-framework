@@ -209,9 +209,9 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理唤醒恢复事件
     if (events & SYSTEM_LPM_WAKE_EVT) {
-        dprintf("System: Wake resume start\r\n");
-        lpm_set_state(LPM_STATE_WAKE_RESUME);
         lpm_mode_t mode = lpm_get_mode();
+        dprintf("System: WAKE event, mode=%s\r\n", mode == LPM_MODE_DEEP ? "DEEP" : "IDLE");
+        lpm_set_state(LPM_STATE_WAKE_RESUME);
 
         /* 先恢复输入侧（最关键，需要最快响应） */
         OSAL_SetEvent(input_taskID, INPUT_LPM_RESUME_EVT);
@@ -225,6 +225,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
         lpm_set_state(LPM_STATE_ACTIVE);
         lpm_timer_reset();
+        dprintf("System: Wake complete, now ACTIVE\r\n");
 
         return (events ^ SYSTEM_LPM_WAKE_EVT);
     }
