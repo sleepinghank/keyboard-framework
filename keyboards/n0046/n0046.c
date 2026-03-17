@@ -7,7 +7,7 @@
 #include "config_led.h"
 #include "keyboard.h"
 #include "wireless.h"
-#include "indicator.h"
+#include "output_service.h"
 #include "backlight.h"
 #include "battery.h"
 #include "host.h"
@@ -29,13 +29,11 @@ enum n0046_keycodes {
 void n0046_setup(void) {}
 
 void n0046_init(void) {
-    indicator_init();
     backlight_init(NULL);
     battery_init();
 }
 
 void n0046_task(void) {
-    indicator_task();
     backlight_task();
     battery_task();
 }
@@ -88,22 +86,20 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
 
 void wireless_enter_connected_kb(uint8_t host_idx) {
     (void)host_idx;
-    indicator_off(IND_LED_CAPS);
+    output_service_request_indicator(IND_REQ_CAPS_OFF, 0);
 }
 
 void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason) {
     (void)host_idx;
     (void)reason;
-    indicator_set(IND_LED_CAPS, &IND_BLINK_SLOW);
+    output_service_request_indicator(IND_REQ_CAPS_DISCONNECTED, 0);
 }
 
 void wireless_enter_discoverable_kb(uint8_t host_idx) {
-    (void)host_idx;
-    indicator_set(IND_LED_CAPS, &IND_BLINK_FAST);
+    output_service_request_indicator(IND_REQ_BT_PAIRING, host_idx);
 }
 
 void wireless_enter_reconnecting_kb(uint8_t host_idx) {
-    (void)host_idx;
-    indicator_set(IND_LED_CAPS, &IND_BLINK_SLOW);
+    output_service_request_indicator(IND_REQ_BT_RECONNECTING, host_idx);
 }
 

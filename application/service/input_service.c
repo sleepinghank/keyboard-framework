@@ -4,7 +4,7 @@
 #include "event_manager.h"
 #include "debug.h"
 #include "battery.h"
-#include "indicator.h"
+#include "output_service.h"
 #include "system_service.h"
 #include "bt_driver.h"
 #include "hw_timer.h"
@@ -149,7 +149,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         } else if (battery_level <= LOW_BATTERY_THRESHOLD) {
             // 低电量警告，闪烁指示灯
             println("Input: Low battery warning");
-            indicator_set(0, &IND_BLINK_FAST);
+            output_service_request_indicator(IND_REQ_LOW_BATTERY, 0);
         }
 
         return (events ^ INPUT_BATTERY_DETE_EVT);

@@ -1,5 +1,7 @@
 
 #pragma once
+
+#include <stdint.h>
 /**
  * 所有输出相关服务事件
  * 指示灯
@@ -22,10 +24,22 @@ typedef enum {
     OUTPUT_LPM_RESUME_EVT           = 1 << 7,  /**< LPM resume（Deep 唤醒后按系统状态恢复灯效） */
 } output_task_event_t;
 
-#include <stdint.h>
+typedef enum {
+    IND_REQ_NONE = 0,
+    IND_REQ_BT_PAIRING,
+    IND_REQ_BT_RECONNECTING,
+    IND_REQ_BT_CONNECTED,
+    IND_REQ_BT_DISCONNECTED,
+    IND_REQ_CAPS_ON,
+    IND_REQ_CAPS_OFF,
+    IND_REQ_CAPS_DISCONNECTED,
+    IND_REQ_LOW_BATTERY,
+    IND_REQ_BATTERY_NORMAL,
+} ind_req_type_t;
 
 uint16_t output_process_event(uint8_t task_id, uint16_t events);
 void output_service_init(void);
+void output_service_request_indicator(ind_req_type_t type, uint8_t param);
 
 /* task ID 外部声明 */
 extern uint8_t output_taskID;

@@ -19,7 +19,6 @@
 #include "report_buffer.h"
 #include "lpm.h"
 #include "battery.h"
-#include "indicator.h"
 #include "transport.h"
 #include "host_driver.h"
 #include "report.h"
@@ -62,34 +61,6 @@ uint8_t           wireless_report_protocol = true;
 
 uint16_t backlit_disable_time = CONNECTED_BACKLIGHT_DISABLE_TIMEOUT;
 uint16_t connected_idle_time = CONNECTED_IDLE_TIME;
-
-static uint8_t wireless_indicator_led(uint8_t host_idx) {
-    if (host_idx >= 1 && host_idx <= 3) {
-        return (uint8_t)(host_idx - 1);
-    }
-    return 0;
-}
-
-static const ind_effect_t *wireless_indicator_effect(wt_state_t state) {
-    switch (state) {
-        case WT_PARING:
-            return &IND_BLINK_SLOW;
-        case WT_RECONNECTING:
-            return &IND_BLINK_FAST;
-        case WT_CONNECTED:
-            return &IND_ON;
-        case WT_DISCONNECTED:
-        case WT_SUSPEND:
-        case WT_RESET:
-        case WT_INITIALIZED:
-        default:
-            return &IND_OFF;
-    }
-}
-
-static void wireless_indicator_update(wt_state_t state, uint8_t host_idx) {
-    indicator_set(wireless_indicator_led(host_idx), wireless_indicator_effect(state));
-}
 
 /* declarations */
 uint8_t wreless_keyboard_leds(void);
@@ -233,9 +204,6 @@ void wireless_connect(void) {
     kc_printf("wireless_connect\n\r");
     // if (battery_is_critical_low() || timer_read32() == 0) return;
 
-    if (wireless_state == WT_RECONNECTING ) {
-        wireless_indicator_update(wireless_state, host_index);
-    }
     wireless_transport.connect_ex(BLE_INDEX_1, 0);
     wireless_state = WT_RECONNECTING;
 }
@@ -281,7 +249,6 @@ void wireless_enter_discoverable(uint8_t host_idx) {
     host_index = host_idx;
 
     wireless_state = WT_PARING;
-    wireless_indicator_update(wireless_state, host_idx);
     // wireless_enter_discoverable_kb(host_idx);
 }
 
@@ -295,7 +262,6 @@ void wireless_enter_reconnecting(uint8_t host_idx) {
 
     kc_printf("wireless_reconnecting %d\n\r", host_idx);
     wireless_state = WT_RECONNECTING;
-    wireless_indicator_update(wireless_state, host_idx);
     // wireless_enter_reconnecting_kb(host_idx);
 }
 
@@ -308,7 +274,6 @@ void wireless_enter_connected(uint8_t host_idx) {
     kc_printf("wireless_connected %d\n\r", host_idx);
 
     wireless_state = WT_CONNECTED;
-    wireless_indicator_update(wireless_state, host_idx);
     host_index = host_idx;
 
     clear_keyboard();
@@ -342,9 +307,7 @@ void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
 
     if (previous_state == WT_CONNECTED) {
         lpm_timer_reset();
-        wireless_indicator_update(WT_SUSPEND, host_idx);
     } else {
-        wireless_indicator_update(wireless_state, host_idx);
 #if defined(RGB_MATRIX_ENABLE) || defined(LED_MATRIX_ENABLE)
         if (reason && (get_transport() & TRANSPORT_WIRELESS)) {
             indicator_set_backlit_timeout(DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT*1000);
@@ -394,7 +357,6 @@ void wireless_enter_sleep(void) {
         lpm_timer_reset();
 
         // wireless_enter_sleep_kb();
-        wireless_indicator_update(wireless_state, 0);
         indicator_battery_low_enable(false);
     }
 }

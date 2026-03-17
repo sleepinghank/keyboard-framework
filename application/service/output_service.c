@@ -6,6 +6,7 @@
 #include "report_buffer.h"
 #include "transport.h"
 #include "indicator.h"
+#include "indicator_config.h"
 #include "lpm.h"
 #include "system_service.h"
 
@@ -19,11 +20,56 @@ extern "C" {
 
 uint8_t output_taskID = 0;
 
+typedef struct {
+    const ind_effect_t* effect;
+    bool                dirty;
+} ind_pending_t;
+
+typedef struct {
+    ind_req_type_t      type;
+    uint8_t             led_id;
+    const ind_effect_t* effect;
+} ind_req_map_t;
+
+static ind_pending_t ind_pending[IND_LED_COUNT];
+
+static const ind_req_map_t ind_req_map[] = {
+    { IND_REQ_BT_PAIRING,        LED_WHITE, &IND_BLINK_SLOW },
+    { IND_REQ_BT_RECONNECTING,   LED_WHITE, &IND_BLINK_FAST },
+    { IND_REQ_BT_CONNECTED,      LED_WHITE, &IND_ON         },
+    { IND_REQ_BT_DISCONNECTED,   LED_WHITE, &IND_OFF        },
+    { IND_REQ_CAPS_ON,           LED_WHITE, &IND_ON         },
+    { IND_REQ_CAPS_OFF,          LED_WHITE, &IND_OFF        },
+    { IND_REQ_CAPS_DISCONNECTED, LED_WHITE, &IND_BLINK_SLOW },
+    { IND_REQ_LOW_BATTERY,       LED_RED,   &IND_BLINK_FAST },
+    { IND_REQ_BATTERY_NORMAL,    LED_RED,   &IND_OFF        },
+};
+
+void output_service_request_indicator(ind_req_type_t type, uint8_t param) {
+    (void)param;
+
+    for (uint8_t i = 0; i < (sizeof(ind_req_map) / sizeof(ind_req_map[0])); i++) {
+        if (ind_req_map[i].type == type) {
+            uint8_t led_id = ind_req_map[i].led_id;
+
+            ind_pending[led_id].effect = ind_req_map[i].effect;
+            ind_pending[led_id].dirty = true;
+            OSAL_SetEvent(output_taskID, OUTPUT_INDICATOR_EVT);
+            return;
+        }
+    }
+}
+
 uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     (void)task_id;
 
     if (events & OUTPUT_INDICATOR_EVT) {
-        // 指示灯状态更新
+        for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+            if (ind_pending[i].dirty && ind_pending[i].effect != NULL) {
+                indicator_set(i, ind_pending[i].effect);
+                ind_pending[i].dirty = false;
+            }
+        }
         return (events ^ OUTPUT_INDICATOR_EVT);
     }
 
@@ -85,10 +131,11 @@ uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     // 处理 LPM resume 事件（Deep 唤醒后恢复灯效）
     if (events & OUTPUT_LPM_RESUME_EVT) {
         dprintf("Output: LPM resume start\r\n");
-        /* Deep 唤醒后：根据当前无线状态恢复指示灯显示 */
-        /* 例如：当前未连接则显示"未连接"指示，已连接则显示连接指示 */
-        /* 具体指示灯状态由 wireless_state 决定，此处触发一次状态同步 */
-        // indicator_update_from_wireless_state();
+        for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
+            if (ind_pending[i].effect != NULL) {
+                indicator_set(i, ind_pending[i].effect);
+            }
+        }
 
 #ifdef RGB_MATRIX_ENABLE
         // rgb_matrix_enable_noeeprom();

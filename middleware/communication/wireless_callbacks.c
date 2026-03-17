@@ -15,7 +15,7 @@
  */
 
 #include "wireless.h"
-#include "indicator.h"
+#include "output_service.h"
 #include "battery.h"
 #include "print.h"
 #include "debug.h"
@@ -40,13 +40,6 @@ void access_ble_cancel_deep_sleep_evt(void);
 
 extern uint8_t commu_taskID;
 extern wireless_event_t event;
-
-static uint8_t wireless_cb_indicator_led(uint8_t host_idx) {
-    if (host_idx >= 1 && host_idx <= 3) {
-        return (uint8_t)(host_idx - 1);
-    }
-    return 0;
-}
 
 /*********************************************************************
  * @fn      wireless_enter_reset_kb
@@ -73,8 +66,7 @@ void wireless_enter_reset_kb(uint8_t reason) {
  *********************************************************************/
 void wireless_enter_discoverable_kb(uint8_t host_idx) {
     dprintf("Wireless: Entering discoverable mode\r\n");
-    // 设置指示灯为配对状态
-    indicator_set(wireless_cb_indicator_led(host_idx), &IND_BLINK_SLOW);
+    output_service_request_indicator(IND_REQ_BT_PAIRING, host_idx);
 }
 
 /*********************************************************************
@@ -88,8 +80,7 @@ void wireless_enter_discoverable_kb(uint8_t host_idx) {
  *********************************************************************/
 void wireless_enter_reconnecting_kb(uint8_t host_idx) {
     dprintf("Wireless: Entering reconnecting mode\r\n");
-    // 设置指示灯为重连状态
-    indicator_set(wireless_cb_indicator_led(host_idx), &IND_BLINK_FAST);
+    output_service_request_indicator(IND_REQ_BT_RECONNECTING, host_idx);
 }
 
 /*********************************************************************
@@ -115,8 +106,7 @@ void wireless_enter_connected_kb(uint8_t host_idx) {
     // 更新电池电量到模块
     // wireless_update_battery_level(battery_get_percentage());
 
-    // 设置指示灯为连接状态
-    indicator_set(wireless_cb_indicator_led(host_idx), &IND_ON);
+    output_service_request_indicator(IND_REQ_BT_CONNECTED, host_idx);
 }
 
 /*********************************************************************
@@ -131,9 +121,8 @@ void wireless_enter_connected_kb(uint8_t host_idx) {
  *********************************************************************/
 void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason) {
     dprintf("Wireless: Disconnected from host");
-
-    // 设置指示灯为断开状态
-    indicator_set(wireless_cb_indicator_led(host_idx), &IND_OFF);
+    (void)reason;
+    output_service_request_indicator(IND_REQ_BT_DISCONNECTED, host_idx);
 }
 
 /*********************************************************************
