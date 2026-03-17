@@ -55,6 +55,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 set(SOURCES
     # Application Layer
     ./application/system/system_init.c
+    ./application/system/indicator_test.c
     ./application/service/communication_service.c
     ./application/service/input_service.c
     ./application/service/output_service.c

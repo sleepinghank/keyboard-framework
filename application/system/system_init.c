@@ -14,6 +14,7 @@
 //  application
 #include "system_init.h"
 #include "sys_config.h"
+#include "indicator_test.h"
 
 // drivers
 #include "timer.h"
@@ -162,7 +163,7 @@ void system_init_drivers(void) {
     // battery_init();
 
     // 3. 指示灯初始化
-    // indicator_init();
+    indicator_init();
 
 
     // 标记Driver init完成
@@ -197,6 +198,7 @@ void system_init_application(void) {
     input_service_init();   // 启动矩阵扫描定时器
     output_service_init();
     commu_service_init();
+    indicator_test();
 
     // 标记Application init完成
     g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;

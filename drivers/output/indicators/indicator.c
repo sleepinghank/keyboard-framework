@@ -56,61 +56,73 @@ static bool ind_initialized = false;                // 初始化标志
 
 /* ============ 预定义灯效 ============ */
 
+// 熄灭：立即关闭 LED，并保持关闭状态
 const ind_effect_t IND_OFF = {
     .mode = IND_MODE_OFF,
     .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 0, .repeat = 0
 };
 
+// 常亮：立即点亮 LED，并持续保持点亮
 const ind_effect_t IND_ON = {
     .mode = IND_MODE_ON,
     .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 0, .repeat = 0
 };
 
+// 常亮 1 秒：立即点亮，1 秒后自动熄灭
 const ind_effect_t IND_ON_1S = {
     .mode = IND_MODE_ON,
     .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 1000, .repeat = 0
 };
 
+// 常亮 2 秒：立即点亮，2 秒后自动熄灭
 const ind_effect_t IND_ON_2S = {
     .mode = IND_MODE_ON,
     .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 2000, .repeat = 0
 };
 
+// 常亮 3 秒：立即点亮，3 秒后自动熄灭
 const ind_effect_t IND_ON_3S = {
     .mode = IND_MODE_ON,
     .on_ms = 0, .off_ms = 0, .delay_ms = 0, .duration_ms = 3000, .repeat = 0
 };
 
+// 慢闪：亮 1 秒、灭 1 秒，循环闪烁
 const ind_effect_t IND_BLINK_SLOW = {
+    .mode = IND_MODE_BLINK,
+    .on_ms = 1000, .off_ms = 1000, .delay_ms = 0, .duration_ms = 0, .repeat = 0
+};
+
+// 快闪：亮 500ms、灭 500ms，循环闪烁
+const ind_effect_t IND_BLINK_FAST = {
     .mode = IND_MODE_BLINK,
     .on_ms = 250, .off_ms = 250, .delay_ms = 0, .duration_ms = 0, .repeat = 0
 };
 
-const ind_effect_t IND_BLINK_FAST = {
-    .mode = IND_MODE_BLINK,
-    .on_ms = 50, .off_ms = 50, .delay_ms = 0, .duration_ms = 0, .repeat = 0
-};
-
+// 闪 1 次：亮 200ms、灭 200ms，完成 1 次后停止
 const ind_effect_t IND_BLINK_1 = {
     .mode = IND_MODE_BLINK,
     .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 1
 };
 
+// 闪 2 次：亮 200ms、灭 200ms，完成 2 次后停止
 const ind_effect_t IND_BLINK_2 = {
     .mode = IND_MODE_BLINK,
     .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 2
 };
 
+// 闪 3 次：亮 200ms、灭 200ms，完成 3 次后停止
 const ind_effect_t IND_BLINK_3 = {
     .mode = IND_MODE_BLINK,
     .on_ms = 200, .off_ms = 200, .delay_ms = 0, .duration_ms = 0, .repeat = 3
 };
 
+// 延迟常亮：先等待 500ms，再点亮并保持常亮
 const ind_effect_t IND_DELAY_ON = {
     .mode = IND_MODE_ON,
     .on_ms = 0, .off_ms = 0, .delay_ms = 500, .duration_ms = 0, .repeat = 0
 };
 
+// 延迟闪烁：先等待 500ms，再按 250ms 亮 / 250ms 灭循环闪烁
 const ind_effect_t IND_DELAY_BLINK = {
     .mode = IND_MODE_BLINK,
     .on_ms = 250, .off_ms = 250, .delay_ms = 500, .duration_ms = 0, .repeat = 0

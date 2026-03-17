@@ -16,6 +16,7 @@
 #include "sys_config.h"
 #include "debug.h"
 #include "input_service.h"
+#include "indicator.h"
 #include "keyboard.h"
 #include "gpio.h"
 
@@ -42,6 +43,8 @@ int main(void)
             keyboard_task();
             input_clear_matrix_scan_flag();
         }
+
+        indicator_task();
 
         /* OSAL 单次处理（BLE 协议栈等） */
         OSAL_SystemProcessOnce();

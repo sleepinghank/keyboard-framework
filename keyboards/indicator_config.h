@@ -42,7 +42,7 @@ typedef struct {
  *
  * 根据产品实际 LED 数量修改
  */
-#define IND_LED_COUNT   5
+#define IND_LED_COUNT   2
 
 /**
  * @brief LED 硬件配置表
@@ -51,64 +51,36 @@ typedef struct {
  * 索引顺序与业务别名对应
  */
 static const ind_led_def_t ind_led_table[IND_LED_COUNT] = {
-    /* 索引 0 */ {0, true },   // BT1 / CAPS 共用
-    /* 索引 1 */ {1, true },   // BT2
-    /* 索引 2 */ {2, true },   // BT3
-    /* 索引 3 */ {3, true },   // 电量灯
-    /* 索引 4 */ {4, true },   // 充电灯
+    /* 索引 0 */ {A15, true},   // 白灯：大小写 / 蓝牙状态
+    /* 索引 1 */ {B23, true},   // 红灯：电源 / 电量状态
 };
 
 /* ============ 业务别名 ============ */
 
-/**
- * @brief 蓝牙通道指示灯
- *
- * 3 个独立 LED 分别指示 3 个蓝牙通道
- */
-#define LED_BT1         0
-#define LED_BT2         1
-#define LED_BT3         2
+/* N0046 实际只有两颗指示灯 */
+#define LED_WHITE       0
+#define LED_RED         1
 
 /**
  * @brief 大小写指示灯
  *
- * 与 BT1 共用同一个 LED
- * 后设置的状态会覆盖前面的
+ * N0046 白灯：A15
  */
-#define LED_CAPS        LED_BT1
+#define LED_CAPS        LED_WHITE
 
 /**
  * @brief 电量指示灯
  *
- * 正常时熄灭，低电时闪烁
+ * N0046 红灯：B23
  */
-#define LED_BAT         3
+#define LED_BAT         LED_RED
 
 /**
  * @brief 充电指示灯
  *
- * 充电中点亮，充满熄灭
+ * N0046 红灯：B23
  */
-#define LED_CHARGE      4
-
-/* ============ 多灯电量指示（可选）============ */
-
-#if 0  // 如需启用多灯电量显示，将 0 改为 1
-
-/**
- * @brief 多灯电量显示配置
- *
- * 4 个 LED 分段显示电量：25% / 50% / 75% / 100%
- */
-#define LED_BAT_25      5
-#define LED_BAT_50      6
-#define LED_BAT_75      7
-#define LED_BAT_100     8
-
-// 需要将 IND_LED_COUNT 修改为 9
-// 并在 ind_led_table 中添加对应的引脚配置
-
-#endif
+#define LED_CHARGE      LED_RED
 
 /* ============ 使用示例 ============ */
 
@@ -121,16 +93,16 @@ static const ind_led_def_t ind_led_table[IND_LED_COUNT] = {
  * // 初始化
  * indicator_init();
  *
- * // 蓝牙连接成功，通道 1 亮 2 秒
- * indicator_set(LED_BT1, &IND_ON_2S);
+ * // 白灯常亮 2 秒
+ * indicator_set(LED_WHITE, &IND_ON_2S);
  *
- * // 蓝牙配对中，通道 2 慢闪
- * indicator_set(LED_BT2, &IND_BLINK_SLOW);
+ * // 白灯慢闪
+ * indicator_set(LED_WHITE, &IND_BLINK_SLOW);
  *
- * // 蓝牙重连中，通道 3 快闪
- * indicator_set(LED_BT3, &IND_BLINK_FAST);
+ * // 红灯快闪
+ * indicator_set(LED_RED, &IND_BLINK_FAST);
  *
- * // 大小写开启（会覆盖 BT1 状态）
+ * // 大小写开启（白灯）
  * indicator_set(LED_CAPS, &IND_ON);
  *
  * // 大小写关闭

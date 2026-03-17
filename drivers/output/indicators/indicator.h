@@ -158,10 +158,10 @@ extern const ind_effect_t IND_ON_2S;
 /** 常亮 3 秒后熄灭 */
 extern const ind_effect_t IND_ON_3S;
 
-/** 慢闪 (500ms 周期) */
+/** 慢闪 (亮 1s + 灭 1s) */
 extern const ind_effect_t IND_BLINK_SLOW;
 
-/** 快闪 (100ms 周期) */
+/** 快闪 (亮 500ms + 灭 500ms) */
 extern const ind_effect_t IND_BLINK_FAST;
 
 /** 闪烁 1 次 */

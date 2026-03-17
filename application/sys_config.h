@@ -35,6 +35,8 @@ typedef enum {
 #define PRINTF_ENABLE    TRUE
 //## END
 
+#define INDICATOR_TEST_ENABLE
+
 #if(PRINTF_ENABLE == TRUE)
 
 //##定义打印等级
