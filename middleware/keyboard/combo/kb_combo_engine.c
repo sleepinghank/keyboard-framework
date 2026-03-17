@@ -1,5 +1,6 @@
 // middleware/keyboard/combo/process_combo.c
 #include "kb_combo_engine.h"
+#include "kb_fn_action.h"
 #include "linkedlist.h"
 #include <string.h>
 #include "wireless.h"
@@ -31,6 +32,8 @@ uint8_t active_event = 0;
 uint8_t active_fn_combo = 0;
 // Fn 键状态
 uint8_t FN_st = 0;
+// Fn 功能键是否被激活（如 F1, F2 等，而非 S_FN_KEY 本身）
+static uint8_t fn_function_fired = 0;
 
 // 内部函数声明
 static void button_ticks(combo_t *combo);
@@ -203,6 +206,7 @@ void combo_task(key_update_st_t _keyUpdateSt) {
     del_all_child(_key_code_list_extend);
     active_event = 0;
     active_fn_combo = 0;
+    fn_function_fired = 0;
 
     // 循环所有事件，逐个进行处理
     for (uint8_t i = 0; i < number_of_combos; ++i) {
@@ -221,6 +225,10 @@ void combo_task(key_update_st_t _keyUpdateSt) {
             active_event = 1;
             del_combo_keys(combo->keys);
             add_combo_result(combo, buf);
+            // 如果 FN_st == 1 且不是单纯的 S_FN_KEY 按键事件，则标记 Fn 功能键被触发
+            if (FN_st == 1 && combo->fn_combo == 1) {
+                fn_function_fired = 1;
+            }
             combo->event = (uint8_t)NONE_PRESS;
         } else if (combo->active_status == 1) {
             del_combo_keys(combo->keys);
@@ -235,4 +243,7 @@ void combo_task(key_update_st_t _keyUpdateSt) {
     if (active_fn_combo == 1) {
         combinations_flag = 0;
     }
+
+    // Earth 状态机后处理决策
+    earth_post_loop_decision(fn_function_fired, _key_code_list,_key_code_list_extend);
 }
