@@ -1,0 +1,589 @@
+ ▐▛███▜▌   Claude Code v2.1.76
+▝▜█████▛▘  Sonnet 4.6 · API Usage Billing
+  ▘▘ ▝▝    ~/claude_hank/keyboard-framework
+
+❯ 请使用skills feature-brainstorming                                            
+请阅读DOCS/plans/2026-03-17-shared-fn-earth-key-requirements.md，需求描述了S_FN 
+_KEY和M_EARTH共用按键的设计需求。请根据文档中的需求分析，设计一个详细的实现方案 
+。                                                                              
+
+● Skill(feature-brainstorming)
+  ⎿  Successfully loaded skill
+
+● Read 1 file (ctrl+o to expand)
+
+● 【步骤 1/9 — 探索项目上下文】
+
+  已读取需求文档。现在探索与本需求直接相关的代码模块。
+
+● Searched for 3 patterns, read 3 files (ctrl+o to expand)
+
+● 现在读取更多关键文件：
+
+● Searched for 7 patterns, read 5 files (ctrl+o to expand)
+
+● 已完成代码探索，整理 Step 1 摘要如下。
+
+  ---
+  【步骤 1/9 — 探索项目上下文】完成
+
+  探索摘要
+
+  与本需求直接相关的模块
+
+  ┌──────────────────────────────────────┬──────────────────────────────────┐
+  │                 文件                 │             当前角色             │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/keyboard/combo/kb_combo_m │ combo 注册表，定义所有组合键绑定 │
+  │ ap.c                                 │                                  │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/keyboard/combo/kb_combo_e │ combo 状态机引擎，维护 FN_st/com │
+  │ ngine.c                              │ binations_flag/active_fn_combo   │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/keyboard/combo/kb_fn_acti │ Fn 相关回调函数，含              │
+  │ on.c                                 │ FN_DOWN_KEY/FN_UP_KEY/Earth()    │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/keyboard/combo/kb_sys_act │ 系统级回调，含被注释的旧版       │
+  │ ion.c                                │ Earth_PRESS_UP_Handler           │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/keyboard/report.c         │ report_update_proc()，最终组装并 │
+  │                                      │ 发送 HID 报告                    │
+  ├──────────────────────────────────────┼──────────────────────────────────┤
+  │ middleware/communication/wireless.h  │ 定义 host_system_type（MAC/IOS/W │
+  │                                      │ IN/ANDROID）                     │
+  └──────────────────────────────────────┴──────────────────────────────────┘
+
+  关键现状
+
+  1. S_FN_KEY 当前行为：按下触发 FN_DOWN_KEY（FN_st=1, 
+  combinations_flag=1），释放触发 FN_UP_KEY（FN_st=0, 
+  combinations_flag=0）。纯粹作为层修饰键使用，不发送任何 HID 报告。
+  2. M_EARTH 当前位置：只存在于 Earth() 回调中，仅在 FN_st==0 时通过
+  Fn+F5（FN_F5_ID combo）触发，没有独立按 Fn 键发 Earth 的逻辑。
+  3. 旧版注释代码：kb_sys_action.c 第 147-186 行有注释掉的
+  Earth_PRESS_UP_Handler 和
+  Earth_LONG_PRESS_START_UP_Handler，逻辑与本次需求基本吻合（判断
+  combinations_flag==1 再按平台发 Earth），但未启用。
+  4. 已有基础设施：
+    - FN_st / combinations_flag / active_fn_combo 三个标志位完整
+    - COMBO2 / COMBO3 宏支持单个 combo entry 绑定多个事件回调
+    - COMBO_ALL 宏支持 system_type 过滤（按平台触发）
+    - host_system_type 全局变量可区分 Apple / 非 Apple 平台
+  5. 规模判断：中等，涉及 2-3 个文件的修改，不需要新增文件，核心逻辑集中在 combo
+   层。
+
+  ---
+  步骤 1 完成。是否继续步骤 2（需求澄清）？
+
+✻ Sautéed for 1m 32s
+
+❯ 继续步骤 2                                                                    
+
+● 【步骤 2/9 — 需求澄清与 Agent 评审】
+
+  需求文档已基本清晰，但有几个细节需要确认。每次问一个问题。
+
+  ---
+  问题 1
+
+  需求中单按共用键时，非 Apple 平台的行为是：
+  - Windows → Win + Space
+  - Android → Shift + Space
+
+  这两个组合键的"发送方式"是什么？
+
+  - 选项 A：模拟"同时按下后释放"（一次性发 key down + key
+  up，主机收到一个组合键事件）
+  - 选项 B：持续保持按住状态，直到共用键释放才抬起（与 Apple M_EARTH 行为一致）
+
+❯ A                                                                             
+
+● 问题 2
+
+  需求中"长按共用键"只在 Apple 平台有明确语义（支持系统侧 Earth
+  长按行为，即持续维持 M_EARTH 按住状态）。
+
+  非 Apple 平台长按共用键时：
+  - 选项 A：只发送一次 Win+Space / Shift+Space（长按等同单按，不重复发送）
+  - 选项 B：重复发送 Win+Space / Shift+Space（跟随长按阈值不断触发）
+  - 选项 C：非 Apple 平台不处理长按，长按与单按行为完全相同
+
+❯ c                                                                             
+
+● 问题 3
+
+  场景 C（共用键 + 普通键）中，需求要求"先补发 M_EARTH，当按键抬起时再抬起
+  Earth"。
+
+  "Earth 抬起"的时机是指：
+  - 选项 A：普通键释放时，同步释放 Earth（Earth 与普通键生命周期绑定）
+  - 选项 B：共用键（S_FN_KEY）释放时，才释放 Earth
+  - 选项 C：补发 Earth down 后立即发 Earth up（Earth 作为一次性脉冲，不持续
+  hold）
+
+❯ B                                                                             
+
+● 问题 4
+
+  场景 C 补发 M_EARTH 的实现位置，需求时序图标注在 report_update_proc 中处理。
+
+  请确认偏好：
+  - 选项 A：在 report_update_proc 中检测 FN_st==1 && active_fn_combo==0 时插入
+  Earth 报告（时序图方案）
+  - 选项 B：在 combo 层统一处理，report_update_proc 不感知 Earth 逻辑（combo
+  回调负责补发）
+
+❯ B                                                                             
+
+● 已收集全部问题答案。现在进行多角色 Agent 评审。
+
+  ---
+  需求摘要（含确认项）
+
+  已确认需求：
+
+  场景: 单按共用键
+  Apple（macOS/iOS/iPadOS）: 发 M_EARTH
+  Windows: 一次性发 Win+Space
+  Android: 一次性发 Shift+Space
+  ────────────────────────────────────────
+  场景: 共用键 + Fn 功能组合
+  Apple（macOS/iOS/iPadOS）: 执行 Fn 功能，不发 Earth
+  Windows: 同左
+  Android: 同左
+  ────────────────────────────────────────
+  场景: 共用键 + 普通键（非 Fn 组合）
+  Apple（macOS/iOS/iPadOS）: 补发 M_EARTH down，S_FN_KEY 释放时发 up
+  Windows: 补发 Win+Space（一次性），S_FN_KEY 释放时无额外动作
+  Android: 补发 Shift+Space，同 Windows
+  ────────────────────────────────────────
+  场景: 长按共用键
+  Apple（macOS/iOS/iPadOS）: 持续维持 M_EARTH
+  Windows: 等同单按
+  Android: 等同单按
+
+  确认决策：
+  - 非 Apple 长按：C（等同单按）
+  - 场景 C Earth UP 时机：B（S_FN_KEY 释放时）
+  - 实现位置：B（combo 层统一处理，report_update_proc 不感知 Earth 逻辑）
+
+  ---
+  Agent 评审
+
+  用户/产品视角
+
+  需求覆盖了四个明确场景，符合需求文档 §2.3。有一点需要确认：场景 C 中"补发
+  Win+Space / Shift+Space（一次性）"后，S_FN_KEY
+  释放时不再发额外报告——这意味着非 Apple 平台场景 C 的 Earth 生命周期是"立即
+  down+up"，与 Apple 的"down 持续到 S_FN_KEY 释放"不同，这与问题 3 选项 B 在非
+  Apple 上的表现一致（非 Apple 本来就是一次性脉冲）。行为正确性优先的原则满足。
+
+  架构/编码视角
+
+  当前 combo 引擎已有 FN_st、combinations_flag、active_fn_combo
+  三个标志位，可以直接复用。旧版注释代码 Earth_PRESS_UP_Handler
+  的逻辑框架与目标行为一致，需要恢复并扩展。关键挑战在于：
+
+  1. FN_DOWN_combo 需要从单事件 combo 改为多事件 combo（同时注册
+  PRESS_DOWN/PRESS_UP/LONG_PRESS_START/LONG_PRESS_HOLD），现有 COMBO3_LONG_TICKS
+   宏最多支持 3 个事件，需要确认是否够用（需要 PRESS_DOWN + PRESS_UP +
+  LONG_PRESS_START/HOLD = 3-4 个）。
+  2. 场景 C 的触发点：combo 引擎的 combo_task
+  当前只在组合键被识别时回调，普通键出现时不触发。需要在 FN_DOWN_combo 的
+  PRESS_DOWN 或 LONG_PRESS_HOLD 状态下，检测 _key_code_list 中是否有非 S_FN_KEY
+  的键，并据此决定补发 Earth。
+
+  测试/质量视角
+
+  核心验证场景：
+  - 单按后立即释放 → 收到正确 Earth 报告
+  - 按下 + 再按 Fn 功能键 → 收到 Fn 功能，不收到 Earth
+  - 按下 + 再按普通键 → 先收到 Earth，再收到普通键，S_FN_KEY 释放后收到 Earth up
+  - 按住超长按阈值（仅 Apple）→ 持续收到 M_EARTH hold
+  - 快速连续单按 → 不出现重复 Earth
+
+  边界条件：Apple 平台与非 Apple 平台切换时，host_system_type
+  变化是否影响进行中的 Earth 状态机（需注意重置）。
+
+  ---
+  步骤 2 完成，需求摘要已整理。是否继续步骤 3（代码现状分析）？
+
+❯ 澄清一下，场景 C 中"补发 Win+Space / Shift+Space（一次性）"                   
+只有抬起才发，长按过程中不发。共用键 + 普通键（非 Fn 组合）在Windows 和Android  
+下不进行任何动作。                                                              
+
+● 明白，更新需求摘要如下：
+
+  ---
+  需求摘要（修订版）
+
+  已确认需求：
+
+  ┌──────────────────┬─────────────────┬─────────────────┬─────────────────┐
+  │       场景       │ Apple（macOS/iO │     Windows     │     Android     │
+  │                  │   S/iPadOS）    │                 │                 │
+  ├──────────────────┼─────────────────┼─────────────────┼─────────────────┤
+  │ 单按共用键（无其 │ 发 M_EARTH      │ 一次性发        │ 一次性发        │
+  │ 他键参与）       │                 │ Win+Space       │ Shift+Space     │
+  ├──────────────────┼─────────────────┼─────────────────┼─────────────────┤
+  │ 共用键 + Fn      │ 执行 Fn         │                 │                 │
+  │ 功能组合         │ 功能，不发      │ 同左            │ 同左            │
+  │                  │ Earth           │                 │                 │
+  ├──────────────────┼─────────────────┼─────────────────┼─────────────────┤
+  │ 共用键 +         │ 补发 M_EARTH    │                 │                 │
+  │ 普通键（非 Fn    │ down，S_FN_KEY  │ 不发任何动作    │ 不发任何动作    │
+  │ 组合）           │ 释放时发 up     │                 │                 │
+  ├──────────────────┼─────────────────┼─────────────────┼─────────────────┤
+  │ 长按共用键       │ 持续维持        │ 等同单按，仅抬  │ 等同单按，仅抬  │
+  │                  │ M_EARTH         │ 起时发一次      │ 起时发一次      │
+  └──────────────────┴─────────────────┴─────────────────┴─────────────────┘
+
+  关键约束补充：
+  - 场景 C 的"补发 Earth"仅在 Apple 平台生效；Windows/Android
+  下共用键与普通键同时出现时，共用键透明（不产生任何额外报告）。
+
+  ---
+  需求是否已准确反映你的意图？确认后继续步骤 3（代码现状分析）。
+
+❯ 准确，请按照feature-brainstorming继续                                         
+
+● 【步骤 3/9 — 代码现状分析】
+
+  结论先行：
+  - 当前代码缺少"单按 S_FN_KEY 发 Earth"逻辑
+  - 需要修改 kb_combo_map.c（改造 FN_DOWN/UP combo 为多事件）、kb_fn_action.c 或
+   kb_sys_action.c（实现 Earth 回调）
+  - report_update_proc 无需修改
+
+  ---
+  现在逐层分析支撑依据。
+
+  1. 数据流与调用链
+
+  matrix_scan()
+      → update_key_code_list()     // 更新 _key_code_list
+      → combo_task()               // 遍历所有 combo，运行状态机，触发回调
+          → apply_combo()          // 检测组合键是否激活
+          → button_ticks()         // 状态机推进（PRESS_DOWN/UP/LONG_PRESS_*）
+          → cb[event]()            // 触发回调，结果写入 _key_code_list_extend
+      → report_update_proc()       // 合并两个链表，组装 HID 报告并发送
+
+  2. FN_DOWN/UP combo 当前结构
+
+  kb_combo_map.c 中定义：
+
+  // 两个独立 combo，分别监听 PRESS_DOWN 和 PRESS_UP
+  [FN_DOWN_ID] = COMBO(FN_DOWN_combo, PRESS_DOWN, FN_DOWN_KEY),
+  [FN_UP_ID]   = COMBO(FN_UP_combo,   PRESS_UP,   FN_UP_KEY),
+
+  两个 combo 共用同一个 FN_DOWN_combo[]（{ S_FN_KEY, COMBO_END 
+  }），但分别注册不同事件。按下时只触发 FN_DOWN_KEY（设标志位，不发
+  HID）。释放时只触发 FN_UP_KEY（清标志位，不发 HID）。
+
+  3. 旧版注释代码分析
+
+  kb_sys_action.c 第 147-186 行有完整的注释实现：
+
+  // Earth_PRESS_UP_Handler：检查 combinations_flag==1，按平台发对应报告
+  // Earth_LONG_PRESS_START_UP_Handler：Apple 平台发 M_EARTH（长按开始）
+
+  旧代码缺陷：
+  - 未处理 Android 平台（逻辑坑：else 分支用了 KB_L_GUI + KB_SPACEBAR，Android
+  应为 Shift+Space）
+  - 长按只在 LONG_PRESS_START（开始时）发一次，未处理
+  LONG_PRESS_HOLD（持续维持）
+  - 场景 C（共用键 + 普通键，Apple）未实现
+
+  4. combo_t 多事件支持能力
+
+  kb_combo_engine.h 中的宏：
+
+  COMBO2(ck, e1,cb1, e2,cb2)                   // 2 个事件
+  COMBO3(ck, e1,cb1, e2,cb2, e3,cb3)           // 3 个事件
+  COMBO3_LONG_TICKS(ck,ticks, e1,cb1, ...)     // 3 个事件 + 自定义长按阈值
+
+  combo_t.cb 数组大小为 number_of_event（=
+  7），理论上支持所有事件都注册回调，但宏定义最多 3 个。本次需要 4
+  个事件（PRESS_DOWN / PRESS_UP / LONG_PRESS_START / LONG_PRESS_HOLD），需要新增
+   COMBO4_LONG_TICKS 宏，或拆分为两个 combo entry（目前已是两个，继续沿用）。
+
+  5. combinations_flag 标志位语义（关键）
+
+  // kb_sys_action.c
+  uint8_t combinations_flag = 1;   // 初始为1
+
+  // kb_fn_action.c
+  FN_DOWN_KEY: combinations_flag = 1
+  FN_UP_KEY:   combinations_flag = 0
+
+  // kb_combo_engine.c
+  active_fn_combo == 1 时: combinations_flag = 0
+
+  combinations_flag == 1 意味着：S_FN_KEY 已按下，且尚未命中 Fn 
+  功能组合。这正是判断"是否应该发 Earth"的条件。
+
+  6. 场景 C 在 combo 层的实现路径
+
+  combo_task() 每次 KEY_UPDATE 都会被调用。当 S_FN_KEY 按住（FN_st==1）时，若
+  _key_code_list 中出现非 S_FN_KEY 的普通键，且 active_fn_combo==0，则应在 Apple
+   平台补发 Earth。
+
+  这个检测需要在 FN_DOWN combo 的 LONG_PRESS_HOLD 回调中（持续被调用）判断
+  _key_code_list 内容，或在 combo_task 的主循环中增加一个独立的"Earth 监控
+  combo"。
+
+  最简路径：利用 FN_DOWN_combo 的 LONG_PRESS_HOLD
+  回调持续检查是否有普通键进入，根据 host_system_type 和 combinations_flag
+  决定是否发 Earth。
+
+  7. 现状分析总结
+
+  当前缺失                需要添加/修改的位置
+  ──────────────────────────────────────────
+  单按发 Earth           FN_UP_KEY 回调中增加平台判断后发 Earth
+  长按维持 Earth（Apple） FN_DOWN_combo 新增 LONG_PRESS_HOLD 回调
+  场景 C Apple 补发 Earth FN_DOWN_combo LONG_PRESS_HOLD 中检测普通键
+  场景 C Earth UP        FN_UP_KEY 中：若曾发过 Earth，需补发 up
+  Windows/Android 单按   FN_UP_KEY 中增加平台判断发 Win+Space / Shift+Space
+
+  ---
+  阶段一（需求确认）完成。是否进入阶段二（方案设计）？
+
+✻ Churned for 36s
+
+❯ 进入阶段二（方案设计）                                                        
+
+● 【步骤 4/9 — 差距分析与方案制定】
+
+  核心矛盾
+
+  S_FN_KEY 当前是"立即生效的修饰键"，而新需求要求"延迟决策"——按下时不知道最终是
+  Fn 组合还是 Earth，必须等到后续按键或释放才能确定行为。
+
+  差距一览：
+
+  ┌────────────────────────────┬───────────────────┬───────────────────────┐
+  │          缺失能力          │     当前状态      │       目标状态        │
+  ├────────────────────────────┼───────────────────┼───────────────────────┤
+  │ 单按发 Earth/Win+Space/Shi │ FN_UP_KEY         │ 抬起时按平台发对应报  │
+  │ ft+Space                   │ 只清标志位        │ 告                    │
+  ├────────────────────────────┼───────────────────┼───────────────────────┤
+  │                            │ 无                │                       │
+  │ 长按维持 M_EARTH（Apple）  │ LONG_PRESS_HOLD   │ 持续发 M_EARTH        │
+  │                            │ 回调              │                       │
+  ├────────────────────────────┼───────────────────┼───────────────────────┤
+  │ 场景 C Apple 补发 Earth    │ 无检测机制        │ FN_st                 │
+  │                            │                   │ 期间出现普通键时补发  │
+  ├────────────────────────────┼───────────────────┼───────────────────────┤
+  │ 场景 C Earth UP（Apple）   │ 无                │ S_FN_KEY 释放时发     │
+  │                            │                   │ Earth up              │
+  ├────────────────────────────┼───────────────────┼───────────────────────┤
+  │ 场景 C 非 Apple 静默       │ 无需修改（已静默  │ 保持不动              │
+  │                            │ ）                │                       │
+  └────────────────────────────┴───────────────────┴───────────────────────┘
+
+  ---
+  候选方案
+
+  方案一（推荐）：扩展现有 FN combo，在回调中集中处理 Earth 逻辑
+
+  核心思路： 在 FN_DOWN_combo 上新增 LONG_PRESS_HOLD 回调，在 FN_UP 回调中增加
+  Earth/Win+Space 发送逻辑。引入一个模块内状态变量 earth_sent，记录"Earth down
+  是否已发出"，供 FN_UP 决定是否需要发 Earth up。
+
+  改动点：
+  - kb_combo_map.c：FN_DOWN_ID 改用 COMBO2_LONG_TICKS 同时注册 PRESS_DOWN +
+  LONG_PRESS_HOLD；FN_UP_ID 改用 COMBO2 同时注册 PRESS_UP（已有）
+  - kb_fn_action.c：FN_UP_KEY 中增加平台判断和 Earth 逻辑；新增 FN_LONG_HOLD
+  回调
+  - 引入 earth_sent 标志位（在 kb_fn_action.c 模块内部）
+
+  优点： 改动最小，完全在现有 combo 框架内，不新增文件，不修改 combo 引擎
+  缺点： FN_UP_KEY 承担了发报告的职责，与"回调只操作标志位"的现有风格略有偏差
+
+  ---
+  方案二：新增独立的 Earth 状态机 combo
+
+  核心思路： 保持现有 FN_DOWN_ID/FN_UP_ID 不变，新增一个
+  EARTH_COMBO_ID，专门监听 S_FN_KEY
+  的完整生命周期（DOWN/UP/LONG_PRESS_HOLD），在回调中处理全部 Earth 逻辑。
+
+  改动点：
+  - kb_combo_map.c：新增 EARTH_COMBO_ID entry，使用 COMBO3_LONG_TICKS 绑定 3
+  个事件
+  - kb_sys_action.c：重新启用并修订注释代码，实现 Earth_DOWN/Earth_UP/Earth_HOLD
+   三个回调
+
+  优点： 职责分离清晰，Earth 逻辑与 Fn 标志位逻辑完全隔离
+  缺点： 同一个物理键（S_FN_KEY）绑定了两个 combo entry，apply_combo
+  会对同一个键计算两次状态，需确认引擎对此无副作用；新增 combo entry 增加了
+  number_of_combos
+
+  ---
+  方案三：修改 combo 引擎，支持 hook 机制
+
+  核心思路： 在 combo_task 末尾增加一个 process_fn_earth_hook()，由 keyboard
+  层调用，感知 FN_st 和当前按键列表，统一处理 Earth 逻辑。
+
+  优点： 扩展性最强
+  缺点： 改动层级高，修改 combo 引擎本身，超出本次需求范围，YAGNI
+
+  ---
+  推荐：方案一
+
+  理由：
+  1. 改动范围最小，风险最低
+  2. earth_sent 标志位语义清晰，生命周期与 FN_st 完全对齐
+  3. 现有 FN_DOWN_combo 已绑定两个事件（DOWN/UP 分两个 entry），只需为 DOWN
+  entry 追加 HOLD 回调
+  4. 旧注释代码的逻辑框架可以直接复用，修正其缺陷后启用
+
+  ---
+  步骤 4 完成，方案已提出。请确认方向后进入步骤 5（方案展示）？
+
+❯ 有一个问题，如果使用方案一，如何判断Fn共用键按下时，是否有其他 Fn             
+功能组合键或者普通键被按下。如果这个不能判断的话，发键逻辑就会错误              
+
+● 这是个很好的问题，你指出了一个真实的架构缺陷。让我分析清楚。
+
+  ---
+  核心问题：combo 顺序执行的时序困境
+
+  combo_task 按 combo 数组索引顺序逐个处理。每次处理 combo
+  时，都会立即触发回调：
+
+  combo_task 单次执行顺序：
+    → active_fn_combo = 0  (重置)
+    → [0] FN_DOWN_ID: LONG_PRESS_HOLD 回调触发 ← 此刻根本不知道后面会发生什么
+    → [1] FN_UP_ID: ...
+    → [2] FN_F1_ID: Bringhness_Down 触发，KC_F1 被消费
+    → ...
+    → 末尾: active_fn_combo → 0 (F1-F12 是单键
+  combo，fn_combo=0，根本不设此标志)
+           combinations_flag 根本没有被清零
+
+  还有第二个问题：combinations_flag 对 F1-F12 类 Fn 
+  功能键完全失效。active_fn_combo 只对包含 S_FN_KEY 的多键 combo（如
+  FN+DEL）生效，F1-F12 是单键 combo，fn_combo=0，所以 combinations_flag 即使
+  Fn+F1 触发了也不会被清零。
+
+  结论：现有 combinations_flag 机制无法可靠判断"是否有 Fn 
+  功能键被激活"，方案一和方案二都有此问题。
+
+  ---
+  修订方案：post-loop Earth 状态机
+
+  核心思路： combo 回调不直接发送 Earth 报告，只维护标志位。在 combo_task
+  主循环结束之后，所有 combo 都处理完毕，再做 Earth 决策。
+
+  需要两个新机制：
+
+  ① 检测"Fn 功能键是否激活"
+
+  在 combo_task 主循环中，额外追踪一个 fn_function_fired 标志：
+
+  uint8_t fn_function_fired = 0;
+  for (uint8_t i = 0; i < number_of_combos; ++i) {
+      ...
+      if (combo->event触发 && i != FN_DOWN_ID && i != FN_UP_ID) {
+          if (FN_st == 1) fn_function_fired = 1;  // Fn 功能键触发了
+      }
+  }
+  // 此时 fn_function_fired 已准确反映本 tick 内是否有 Fn 功能被使用
+
+  ② post-loop Earth 决策
+
+  主循环结束后，Earth 状态机：
+
+  earth_state = PENDING:
+    - fn_function_fired → earth_state = FN_TAKEN（屏蔽 Earth）
+    - Apple平台 && _key_code_list 有普通键 → 立即发 Earth down，earth_state =
+  EARTH_DOWN
+    - （保持 PENDING，等待 FN_UP）
+
+  FN_UP 触发时（FN_st 从1→0）:
+    - earth_state == PENDING：发 Earth tap（单按场景）或 Win+Space / Shift+Space
+    - earth_state == EARTH_DOWN：发 Earth up（场景C释放）
+    - 复位 earth_state = IDLE
+
+  这样：
+  - 当 Fn+F1 按下时，fn_function_fired=1 在主循环末尾已被正确设置，post-loop
+  看到后设 FN_TAKEN，不发 Earth ✓
+  - 当 Fn+普通键（Apple）按下时，fn_function_fired=0，_key_code_list
+  有普通键，立即发 Earth ✓
+  - 单按释放时，earth_state==PENDING，FN_UP 回调发 Earth tap ✓
+
+  ---
+  方案一保持不变（改动在现有文件内，不新增文件），但核心机制升级为 post-loop 
+  Earth 状态机 + fn_function_fired 检测，替换原来不可靠的 combinations_flag。
+
+  ---
+  这个修订方向你认为可行吗？确认后进入步骤 5（方案展示）。
+
+✻ Sautéed for 3m 33s
+
+❯ 确认                                                                          
+
+● 【步骤 5/9 — 方案展示与用户确认】
+
+  逐节展示，每节确认后继续。
+
+  ---
+  【架构设计节】
+
+  整体设计原则
+
+  不修改：kb_combo_engine.c（引擎主体逻辑）、report.c（报告层）、keyboard.c
+
+  修改范围：kb_combo_map.c、kb_fn_action.c、kb_sys_action.c
+
+  新增状态与标志位
+
+  在 kb_fn_action.c 中引入：
+
+  // Earth 状态机状态
+  typedef enum {
+      EARTH_IDLE = 0,     // 初始态，FN 未按下
+      EARTH_PENDING,      // FN 已按下，等待决策
+      EARTH_DOWN,         // Apple：已发 Earth down，等待 UP
+      EARTH_FN_TAKEN,     // 命中 Fn 功能键，Earth 被屏蔽
+  } earth_state_t;
+
+  static earth_state_t earth_state = EARTH_IDLE;
+
+  combo_task 执行流修改示意
+
+  combo_task() 新流程：
+
+  1. 重置：active_fn_combo=0, fn_function_fired=0
+  2. 主循环（逐个 combo）：
+     ├── apply_combo → button_ticks → 触发回调
+     └── 记录：若非 FN_DOWN/FN_UP combo 触发 && FN_st==1
+                → fn_function_fired = 1
+  3. [新增] post-loop Earth 决策：
+     ├── fn_function_fired==1 → earth_state = EARTH_FN_TAKEN
+     ├── Apple && earth_state==PENDING && 有普通键 → 发 Earth down，earth_state
+  = EARTH_DOWN
+     └── 其余保持
+
+  模块职责边界
+
+  ┌───────────────────┬──────────────────────────────────────────────────────┐
+  │       模块        │                         职责                         │
+  ├───────────────────┼──────────────────────────────────────────────────────┤
+  │ kb_combo_map.c    │ 注册 FN_DOWN 的 LONG_PRESS_HOLD 回调                 │
+  ├───────────────────┼──────────────────────────────────────────────────────┤
+  │ kb_fn_action.c    │ 维护 earth_state；实现 FN_DOWN/UP/HOLD               │
+  │                   │ 回调；post-loop 决策函数                             │
+  ├───────────────────┼──────────────────────────────────────────────────────┤
+  │ kb_sys_action.c   │ 无需修改（fn_function_fired 由引擎统一设置）         │
+  ├───────────────────┼──────────────────────────────────────────────────────┤
+  │ kb_combo_engine.c │ 新增 fn_function_fired 追踪；在主循环末尾调用 Earth  │
+  │                   │ 决策函数                                             │
+  └───────────────────┴──────────────────────────────────────────────────────┘
+
+  ---
+  这节是否符合预期？确认后展示【组件/接口设计节】。
+
+❯ 符合预期                                                                      
+  ⎿  Credit balance too low · Add funds: 
