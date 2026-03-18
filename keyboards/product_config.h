@@ -7,7 +7,7 @@
 #define NO_PIN 0xFF
 #endif
 // Test product configuration - simplified version
-#define PRODUCT_ID 0x0001
+#define PRODUCT_ID 0x0904
 #define VENDOR_ID 0x0002
 #define MANUFACTURER "Test Manufacturer"
 #define PRODUCT "Test Keyboard"

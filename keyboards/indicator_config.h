@@ -25,7 +25,19 @@
 #pragma once
 
 #include "gpio.h"
+#include "product_config.h"
 #include <stdbool.h>
+
+/* ============ 配置加载 ============ */
+/* 根据产品 ID 加载对应的硬件配置和覆盖值 */
+#if PRODUCT_ID == 0x0904
+#include "kb904/config_hw.h"
+/* 产品覆盖值 - 在 defaults 之前定义 */
+#define IND_LED_COUNT   4
+#endif
+
+/* ============ 默认配置（使用 #ifndef 保护，上述覆盖值生效） ============ */
+#include "defaults/indicator_defaults.h"
 
 /* ============ LED 硬件定义 ============ */
 
@@ -36,6 +48,36 @@ typedef struct {
     pin_t pin;          /**< GPIO 引脚 */
     bool  active_high;  /**< true=高电平亮, false=低电平亮 */
 } ind_led_def_t;
+
+/* ============ 产品 LED 配置表 ============ */
+
+#if PRODUCT_ID == 0x0904
+
+/**
+ * @brief LED 硬件配置表
+ * @note 引脚定义来自 config_hw.h
+ */
+static const ind_led_def_t ind_led_table[IND_LED_COUNT] = {
+    /* 0 */ {LED_CAPS_PIN,   true},   // 白灯：大写锁定
+    /* 1 */ {LED_BT_PIN,     true},   // 蓝灯：蓝牙状态
+    /* 2 */ {LED_POWER_PIN,  true},   // 红灯：电源 / 低电量
+    /* 3 */ {LED_CHARGE_PIN, true},   // 绿灯：充满电（只读）
+};
+
+/* ============ 业务别名 ============ */
+
+#define LED_CAPS        0
+#define LED_BT          1
+#define LED_POWER_RED   2
+#define LED_POWER_GRN   3
+
+/* 兼容别名 */
+#define LED_WHITE       LED_CAPS
+#define LED_RED         LED_POWER_RED
+#define LED_BAT         LED_POWER_RED
+#define LED_CHARGE      LED_POWER_RED
+
+#else
 
 /**
  * @brief LED 数量
@@ -81,6 +123,8 @@ static const ind_led_def_t ind_led_table[IND_LED_COUNT] = {
  * N0046 红灯：B23
  */
 #define LED_CHARGE      LED_RED
+
+#endif
 
 /* ============ 使用示例 ============ */
 

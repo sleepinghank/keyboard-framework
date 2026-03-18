@@ -21,6 +21,7 @@ add_executable(keyboard-framework test_main.c)
 # 包含目录（保持与 Keil 项目一致）
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/keyboards
+        ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/defaults
         ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/keymaps
         ${CMAKE_CURRENT_SOURCE_DIR}/hal
         ${CMAKE_CURRENT_SOURCE_DIR}/hal/platforms/test
