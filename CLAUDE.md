@@ -234,7 +234,7 @@ _post_task();  // task 之后
 
 - Context7 MCP - 用于获取库/API 文档
 - cmake-build-tester agent - 构建验证
-- `/feature-brainstorming` skill - 功能开发前的需求分析与方案设计（金字塔原理 + MECE），位于 `.claude/skills/feature-brainstorming/`
+- `/pyramid-design` skill - 功能开发前的需求分析与方案设计（金字塔原理 + MECE），位于 `.claude/skills/pyramid-design/`
 
 ## Agent Working Rules
 
