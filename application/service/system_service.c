@@ -17,12 +17,19 @@
 #include "communication_service.h"
 #include "output_service.h"
 #include "indicator.h"
+#include "indicator_config.h"
+#include "backlight.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 uint8_t system_taskID = 0xFF;
+static bool g_factory_reset_pending = false;
+
+#ifndef FACTORY_RESET_REBOOT_DELAY_MS
+#define FACTORY_RESET_REBOOT_DELAY_MS  2000
+#endif
 
 /**
  * @brief 系统服务事件处理器
@@ -102,14 +109,45 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理恢复出厂设置事件
     if (events & SYSTEM_FACTORY_RESET_EVT) {
-        println("System: Factory reset");
-        // 恢复出厂设置:
-        // 1. 断开所有连接
-        wireless_disconnect();
-        // 2. 重置存储配置
-        storage_factory_reset();
-        // 3. 执行系统复位
-        system_hal_reset();
+        if (!g_factory_reset_pending) {
+            println("System: Factory reset requested");
+            g_factory_reset_pending = true;
+
+            // 1. 断开无线连接
+            wireless_disconnect();
+
+            // 1. 指示灯反馈（至少 CAPS 闪 3 次；若有 BT 则一起闪）
+            indicator_set(LED_CAPS, &IND_BLINK_3);
+#ifdef LED_BT
+            indicator_set(LED_BT, &IND_BLINK_3);
+#endif
+
+            // 2. 清除蓝牙配对记录
+            bt_driver_clear_bonding();
+
+            // 3. 重置存储配置
+            storage_factory_reset();
+
+            // 4. 背光重置为白光中档
+            backlight_set_preset_color(BL_COLOR_WHITE);
+            backlight_set_preset_level(BL_LEVEL_MEDIUM);
+
+            // 5. 二阶段复位：等待灯效跑完后再执行系统复位
+            if (OSAL_SetDelayedEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT,
+                                     FACTORY_RESET_REBOOT_DELAY_MS) != NO_ERROR) {
+                dprintf("System: Factory reset delay scheduling failed, resetting now\r\n");
+                g_factory_reset_pending = false;
+                system_hal_reset();
+            }
+        } else {
+            if (OSAL_GetTaskTimer(system_taskID, SYSTEM_FACTORY_RESET_EVT) > 0) {
+                dprintf("System: Factory reset already pending\r\n");
+                return (events ^ SYSTEM_FACTORY_RESET_EVT);
+            }
+            println("System: Factory reset reboot");
+            g_factory_reset_pending = false;
+            system_hal_reset();
+        }
         return (events ^ SYSTEM_FACTORY_RESET_EVT);
     }
 

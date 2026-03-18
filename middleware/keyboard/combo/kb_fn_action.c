@@ -1,14 +1,23 @@
 // middleware/keyboard/combo/FN_Combo.c
 #include "kb_fn_action.h"
+#include "keyboard.h"
 #include "keycode.h"
 #include "kb_combo_engine.h"
 #include "wireless.h"
 #include "linkedlist.h"
+#include "backlight.h"
+#include "battery.h"
+#include "indicator.h"
+#include "indicator_config.h"
 #include <stddef.h>
 
 // 外部变量
 extern uint8_t FN_st;
 extern uint8_t combinations_flag;
+
+#ifndef M_SIRI
+#define M_SIRI (M_KEY_TYPE | 0x00CF)
+#endif
 
 // ============================================================================
 // Earth 状态机定义
@@ -74,11 +83,29 @@ static uint8_t has_normal_key_in_list(list_t* key_list) {
     return 0;
 }
 
+/**
+ * @brief 计算电池检测闪烁次数
+ * @param percentage 电量百分比
+ * @return 1~4 次闪烁
+ */
+static uint8_t battery_blink_count(uint8_t percentage) {
+    if (percentage >= 75) {
+        return 4;
+    }
+    if (percentage >= 50) {
+        return 3;
+    }
+    if (percentage >= 25) {
+        return 2;
+    }
+    return 1;
+}
+
 // ============================================================================
 // Earth 状态机接口实现
 // ============================================================================
 
-void earth_post_loop_decision(uint8_t fn_fired, list_t* key_list,list_t* key_list_extend) {
+void earth_post_loop_decision(uint8_t fn_fired, list_t* key_list, list_t* key_list_extend) {
     if (earth_state != EARTH_PENDING) {
         return;
     }
@@ -321,5 +348,66 @@ uint8_t Earth(uint16_t* add_keys) {
 uint8_t FN_ESC_button(uint16_t* add_keys) {
     uint8_t idx = 0;
     add_keys[idx++] = KC_ESCAPE;
+    return idx;
+}
+
+/**
+ * @brief 背光亮度档位切换
+ *
+ * Fn+右Shift: 在 OFF→LOW→MEDIUM→HIGH→OFF 之间循环切换
+ * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
+ */
+uint8_t Backlight_Level_Up(uint16_t* add_keys) {
+    (void)add_keys;
+    backlight_level_step();
+    keyboard_note_backlight_activity();
+    return 0;
+}
+
+/**
+ * @brief 背光颜色切换
+ *
+ * Fn+右Enter: 在 13 色之间循环切换
+ * 仅当背光开启时才切换颜色
+ * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
+ */
+uint8_t Backlight_Color_Next(uint16_t* add_keys) {
+    (void)add_keys;
+    if (backlight_is_enabled()) {
+        backlight_color_step();
+    }
+    keyboard_note_backlight_activity();
+    return 0;
+}
+
+/**
+ * @brief 电量检查
+ *
+ * Fn+右Cmd: 根据电量百分比显示闪烁次数
+ * - 75-100%: 闪 4 次
+ * - 50-74%: 闪 3 次
+ * - 25-49%: 闪 2 次
+ * - 0-24%: 闪 1 次
+ */
+uint8_t Battery_Check(uint16_t* add_keys) {
+    (void)add_keys;
+
+    uint8_t percentage = battery_get_percentage();
+    uint8_t blink_count = battery_blink_count(percentage);
+    ind_effect_t effect = IND_BLINK_CUSTOM(200, 200, blink_count);
+
+    indicator_set(LED_BAT, &effect);
+    return 0;
+}
+
+/**
+ * @brief Siri 调用
+ *
+ * 自定义键: 发送 Consumer 键码 M_SIRI (0x00CF)
+ * 触发设备的语音命令功能
+ */
+uint8_t Siri_Invoke(uint16_t* add_keys) {
+    uint8_t idx = 0;
+    add_keys[idx++] = M_SIRI;
     return idx;
 }

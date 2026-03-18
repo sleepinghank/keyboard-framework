@@ -1,6 +1,7 @@
 // middleware/keyboard/combo/Special_Combo.c
 #include "kb_sys_action.h"
 #include "event_manager.h"
+#include "system_service.h"
 
 // 组合键触发标志位
 uint8_t combinations_flag = 1;
@@ -64,7 +65,7 @@ uint8_t Touch_Locked(uint16_t* add_keys) {
 
 // 恢复出厂设置
 uint8_t Factory_Reset(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_FACTORY_RESET);
+    OSAL_SetEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT);
     return 0;
 }
 

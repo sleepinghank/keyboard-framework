@@ -8,6 +8,7 @@
 #include "CH58x_common.h"
 #include "HAL.h"
 #include "debug.h"
+#include "event_manager.h"
 
 static bool g_bt_driver_initialized = false;
 
@@ -190,6 +191,19 @@ void bt_driver_disconnect(void)
 {
     dprintf("[BT] disconnect\n");
     hidEmu_disconnect();
+}
+
+/*********************************************************************
+ * @fn      bt_driver_clear_bonding
+ *
+ * @brief   Clear BLE bonding records
+ *
+ * @return  none
+ */
+void bt_driver_clear_bonding(void)
+{
+    dprintf("[BT] clear_bonding\n");
+    hidEmu_delete_ble_bonded();
 }
 
 /*********************************************************************

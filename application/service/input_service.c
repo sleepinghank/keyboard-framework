@@ -21,7 +21,7 @@
 
 /* 低电量阈值 */
 #ifndef LOW_BATTERY_THRESHOLD
-#define LOW_BATTERY_THRESHOLD  10  /* 10% 触发低电量警告 */
+#define LOW_BATTERY_THRESHOLD  20  /* 20% 触发低电量警告 */
 #endif
 
 #ifndef CRITICAL_BATTERY_THRESHOLD
@@ -49,6 +49,7 @@ static volatile bool g_matrix_scan_flag = false;
 
 /* 唤醒原因（由 GPIO ISR 锁存） */
 static volatile lpm_wakeup_source_t g_last_wakeup_source = LPM_WAKEUP_NONE;
+static uint8_t g_last_battery_power_state = 0xFF;
 
 lpm_wakeup_source_t input_get_last_wakeup_source(void) {
     return g_last_wakeup_source;
@@ -134,6 +135,8 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理电量检测事件
     if (events & INPUT_BATTERY_DETE_EVT) {
+        battery_task();
+
         // 读取电池电量
         uint8_t battery_level = battery_get_percentage();
         xprintf("Input: Battery level = %d%%\r\n", battery_level);
@@ -141,15 +144,39 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         // 更新蓝牙电池服务上报
         bt_driver_update_bat_level(battery_level);
 
-        // 检查低电量状态
-        if (battery_level <= CRITICAL_BATTERY_THRESHOLD) {
-            // 电量极低，触发关机事件
+        // 基于 power state 做迁移，避免重复触发
+        uint8_t current_power_state = battery_get_power_state();
+
+        if (g_last_battery_power_state == 0xFF) {
+            g_last_battery_power_state = current_power_state;
+
+            if (current_power_state == BAT_POWER_LOW) {
+                println("Input: Low battery warning");
+                output_service_request_indicator(IND_REQ_LOW_BATTERY, 0);
+            } else if ((current_power_state == BAT_POWER_CRITICAL_LOW) ||
+                       (current_power_state == BAT_POWER_SHUTDOWN)) {
+                println("Input: Critical battery, triggering shutdown");
+                OSAL_SetEvent(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
+            }
+        } else if (current_power_state != g_last_battery_power_state) {
+            g_last_battery_power_state = current_power_state;
+
+            if (current_power_state == BAT_POWER_LOW) {
+                println("Input: Low battery warning");
+                output_service_request_indicator(IND_REQ_LOW_BATTERY, 0);
+            } else if (current_power_state == BAT_POWER_NORMAL) {
+                println("Input: Battery normal");
+                output_service_request_indicator(IND_REQ_BATTERY_NORMAL, 0);
+            } else if ((current_power_state == BAT_POWER_CRITICAL_LOW) ||
+                       (current_power_state == BAT_POWER_SHUTDOWN)) {
+                println("Input: Critical battery, triggering shutdown");
+                OSAL_SetEvent(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
+            }
+        } else if ((current_power_state == BAT_POWER_CRITICAL_LOW) ||
+                   (current_power_state == BAT_POWER_SHUTDOWN)) {
+            // 保持原有 critical shutdown 语义
             println("Input: Critical battery, triggering shutdown");
             OSAL_SetEvent(system_taskID, SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
-        } else if (battery_level <= LOW_BATTERY_THRESHOLD) {
-            // 低电量警告，闪烁指示灯
-            println("Input: Low battery warning");
-            output_service_request_indicator(IND_REQ_LOW_BATTERY, 0);
         }
 
         return (events ^ INPUT_BATTERY_DETE_EVT);
@@ -238,11 +265,13 @@ void input_service_init(void) {
     /* 注册任务并获取任务ID */
     input_taskID = OSAL_ProcessEventRegister(input_process_event);
     dprintf("Input: Service initialized with task ID %d\r\n", input_taskID);
+    battery_init();
+    g_last_battery_power_state = 0xFF;
     /* 启动硬件定时器驱动的矩阵扫描 */
     matrix_scan_timer_start();
     dprintf("Input: Matrix scan timer started\r\n");
     /* 启动电量检测定时任务 */
-    // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
+    OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
 
 #ifdef TOUCH_EN
     /* 初始化触控板 */

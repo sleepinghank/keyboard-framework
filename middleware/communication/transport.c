@@ -18,6 +18,7 @@
 #include "indicator.h"
 #include "lpm.h"
 #include "transport.h"
+#include "timer.h"
 #include "host_driver.h"
 #include "keycode_config.h"
 #include "host.h"

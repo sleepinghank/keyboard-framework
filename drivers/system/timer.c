@@ -4,7 +4,8 @@
 #include <stdint.h>
 
 #if(CHIP_TYPE == CHIP_CH584M)
-    // #include "CH58x_common.h"
+    #include "CH58x_common.h"
+    #include "CH58x_clk.h"
 #endif
 
 // RTC频率：32kHz = 32768 Hz

@@ -43,14 +43,25 @@ typedef struct {
  */
 typedef enum {
     BL_COLOR_RED = 0,
-    BL_COLOR_GREEN,
+    BL_COLOR_DARK_RED,
+    BL_COLOR_PINK,
+    BL_COLOR_PURPLE,
+    BL_COLOR_INDIGO,
+    BL_COLOR_DARK_BLUE,
     BL_COLOR_BLUE,
-    BL_COLOR_YELLOW,
-    BL_COLOR_CYAN,
-    BL_COLOR_MAGENTA,
+    BL_COLOR_CYAN_BLUE,
+    BL_COLOR_CYAN_GREEN,
+    BL_COLOR_GREEN,
+    BL_COLOR_LIGHT_YELLOW,
+    BL_COLOR_ORANGE,
     BL_COLOR_WHITE,
     BL_COLOR_COUNT
 } bl_preset_color_t;
+
+/* 旧枚举兼容别名 */
+#define BL_COLOR_YELLOW  BL_COLOR_LIGHT_YELLOW
+#define BL_COLOR_CYAN    BL_COLOR_CYAN_GREEN
+#define BL_COLOR_MAGENTA BL_COLOR_PURPLE
 
 /**
  * @brief 预设亮度枚举

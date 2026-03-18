@@ -26,13 +26,19 @@
 /* ============ 预设颜色表 ============ */
 
 static const bl_rgb_t preset_colors[BL_COLOR_COUNT] = {
-    [BL_COLOR_RED]     = {100,   0,   0},
-    [BL_COLOR_YELLOW]  = {100, 100,   0},
-    [BL_COLOR_CYAN]    = {  0, 100, 100},
-    [BL_COLOR_BLUE]    = {  0,   0, 100},
-    [BL_COLOR_GREEN]   = {  0, 100,   0},
-    [BL_COLOR_WHITE]   = {100, 100, 100},
-    [BL_COLOR_MAGENTA] = {100,   0, 100},
+    [BL_COLOR_RED]           = {100,   0,   0},
+    [BL_COLOR_DARK_RED]      = { 50,   0,   0},
+    [BL_COLOR_PINK]          = {100,  50,  80},
+    [BL_COLOR_PURPLE]        = { 60,   0, 100},
+    [BL_COLOR_INDIGO]        = { 30,   0, 100},
+    [BL_COLOR_DARK_BLUE]     = {  0,   0,  80},
+    [BL_COLOR_BLUE]          = {  0,   0, 100},
+    [BL_COLOR_CYAN_BLUE]     = {  0,  50, 100},
+    [BL_COLOR_CYAN_GREEN]    = {  0, 100, 100},
+    [BL_COLOR_GREEN]         = {  0, 100,   0},
+    [BL_COLOR_LIGHT_YELLOW]  = { 80,  80,   0},
+    [BL_COLOR_ORANGE]        = {100,  50,   0},
+    [BL_COLOR_WHITE]         = {100, 100, 100},
 };
 
 /* ============ 预设亮度表 ============ */
@@ -48,7 +54,7 @@ static const uint8_t preset_levels[BL_LEVEL_COUNT] = {
 
 static bl_state_t bl_state;
 static bl_preset_color_t bl_current_color_index = BL_COLOR_WHITE;
-static bl_preset_level_t bl_current_level_index = BL_LEVEL_HIGH;
+static bl_preset_level_t bl_current_level_index = BL_LEVEL_MEDIUM;
 static bool bl_initialized = false;
 
 /* ============ 内部函数 ============ */
@@ -86,8 +92,10 @@ void backlight_init(const bl_state_t* state) {
         bl_state = *state;
     } else {
         bl_state.enable = BACKLIGHT_DEFAULT_ON;
-        bl_state.brightness = BACKLIGHT_DEFAULT_BRIGHTNESS;
+        bl_state.brightness = BACKLIGHT_LEVEL_MEDIUM;
         bl_state.color = preset_colors[BL_COLOR_WHITE];
+        bl_current_color_index = BL_COLOR_WHITE;
+        bl_current_level_index = BL_LEVEL_MEDIUM;
     }
 
     apply_output();

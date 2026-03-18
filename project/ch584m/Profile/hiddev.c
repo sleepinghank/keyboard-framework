@@ -897,7 +897,7 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
         if(status == SUCCESS)
         {
             // 配对连接成功
-            if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+            if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/)
             {
                 tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
                 tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);
@@ -917,7 +917,7 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
     else if(state == GAPBOND_PAIRING_STATE_BOND_SAVED)
     {
         // 配对连接成功
-        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) || (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT) )
+        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/)
         {
             tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
             tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);

@@ -25,6 +25,7 @@
 #include "event_manager.h"
 #include "debug.h"
 #include "wireless.h"
+#include "keyboard.h"
 #include <string.h>
 
 #ifdef dprint

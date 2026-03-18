@@ -121,7 +121,7 @@ read: docs/plans/<topic>-phase2.md
 
 ### Part B：并行 Spec 评审
 
-文档写入后，同时派发 3 个 Spec Reviewer Subagent 并行检查：
+文档写入后，同时派发 3 个 Spec Reviewer Agent Team 并行检查：
 
 | Reviewer | 检查内容 | 输出格式 |
 |----------|---------|---------|
@@ -176,7 +176,7 @@ read: docs/plans/<topic>-phase2.md
 
 | 文件 | 用途 | 消费者 |
 |------|------|--------|
-| `<topic>-requirements.md` | 需求+现状分析（含 Agent 评审） | Phase 2 参考 |
+| `<topic>-requirements.md` | 需求+现状分析（含 Agent Team 评审） | Phase 2 参考 |
 | `<topic>-phase1.md` | Phase 1 结论交接 | Phase 2 主输入 |
 | `<topic>-phase2.md` | Phase 2 结论交接 | Phase 3 主输入 |
 | `<topic>-design.md` | 完整设计文档 | 实施参考 |

@@ -20,6 +20,10 @@ enum combos {
     FN_F10_ID,
     FN_F11_ID,
     FN_F12_ID,
+    FN_RIGHT_SHIFT_ID,
+    FN_RIGHT_ENTER_ID,
+    FN_RIGHT_CMD_ID,
+    CUSTOM_KEY_ID,
     FN_DEL_ID,
     Reset_factory_ID,
     COMBOS_END,
@@ -43,6 +47,10 @@ const uint16_t PROGMEM FN_F9_combo[]  = { KC_F9,  COMBO_END };
 const uint16_t PROGMEM FN_F10_combo[] = { KC_F10, COMBO_END };
 const uint16_t PROGMEM FN_F11_combo[] = { KC_F11, COMBO_END };
 const uint16_t PROGMEM FN_F12_combo[] = { KC_F12, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_SHIFT_combo[] = { S_FN_KEY, KC_RSFT, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_ENTER_combo[] = { S_FN_KEY, KC_ENTER, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_CMD_combo[]   = { S_FN_KEY, KC_RCMD, COMBO_END };
+const uint16_t PROGMEM CUSTOM_KEY_combo[]     = { KC_APPLICATION, COMBO_END };
 
 const uint16_t PROGMEM FN_DEL_combo[]       = { S_FN_KEY, KC_DELETE, COMBO_END };
 const uint16_t PROGMEM Reset_factory_combo[] = { KC_ESCAPE, KC_EQUAL, COMBO_END };
@@ -66,6 +74,12 @@ combo_t key_combos[] = {
     [FN_F10_ID] = COMBO_LONG_TICKS(FN_F10_combo, 5, LONG_PRESS_HOLD, Volume_Down),
     [FN_F11_ID] = COMBO_LONG_TICKS(FN_F11_combo, 5, LONG_PRESS_HOLD, Volume_Up),
     [FN_F12_ID] = COMBO_LONG_TICKS(FN_F12_combo, 5, PRESS_DOWN,      Lock_Screen),
+
+    // 新增 Fn 组合键
+    [FN_RIGHT_SHIFT_ID] = COMBO(FN_RIGHT_SHIFT_combo, PRESS_DOWN, Backlight_Level_Up),
+    [FN_RIGHT_ENTER_ID] = COMBO(FN_RIGHT_ENTER_combo, PRESS_DOWN, Backlight_Color_Next),
+    [FN_RIGHT_CMD_ID]   = COMBO(FN_RIGHT_CMD_combo,   PRESS_DOWN, Battery_Check),
+    [CUSTOM_KEY_ID]     = COMBO(CUSTOM_KEY_combo,     PRESS_DOWN, Siri_Invoke),
 
     // 特殊组合键
     [FN_DEL_ID]        = COMBO_LONG_TICKS(FN_DEL_combo,        3000, LONG_PRESS_START, Pair_button),

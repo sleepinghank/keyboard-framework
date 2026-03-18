@@ -44,7 +44,7 @@ Do NOT invoke any implementation skill, write any code, scaffold any project, or
 
 ---
 
-## 架构设计：三阶段隔离 + Subagent 并行
+## 架构设计：三阶段隔离 + Agent Team 并行
 
 ```
 Phase 1                    Phase 2                    Phase 3
@@ -54,7 +54,7 @@ Phase 1                    Phase 2                    Phase 3
   步骤1: 探索上下文          步骤4: 差距分析            步骤7: 制定实施计划
   步骤2: 需求澄清            步骤5: 方案展示            步骤8: 编写设计文档
   步骤3: 代码分析 ────►     步骤6: 多角度评审 ────►    步骤9: Handoff
-    [并行 subagent×N]          [并行 subagent×5]
+    [并行 agent×N]          [并行 agent×5]
         |                          |                          |
         ▼                          ▼                          ▼
  <topic>-phase1.md  ────►   <topic>-phase2.md  ────►    <topic>-design.md
@@ -63,7 +63,7 @@ Phase 1                    Phase 2                    Phase 3
 **核心设计原则：**
 - 每个阶段结束时将结论写入标准化交接文档
 - 下一阶段**只读交接文档，不依赖对话历史**
-- 步骤 3（代码分析）和步骤 6（方案评审）使用并行 Subagent
+- 步骤 3（代码分析）和步骤 6（方案评审）使用并行 Agent Team
 
 ---
 
@@ -112,7 +112,7 @@ Every project goes through this process. "Simple" projects are where unexamined 
 - **金字塔原理** — 结论先行，再展示支撑依据
 - **MECE 原则** — 分析和方案必须相互独立、完全穷尽
 - **阶段隔离** — 每阶段通过文档交接，不依赖对话历史
-- **真并行 Subagent** — 步骤 3、6 派发独立 subagent 并行执行
+- **真并行 Agent Team** — 步骤 3、6 派发独立 Agent Team 并行执行
 - **只传结论** — 交接文档只写结论，过程信息不跨阶段传递
 - **一次问一个** — 不要同时抛出多个问题
 - **优先给选项** — 比开放式问题更容易回答
@@ -127,8 +127,8 @@ Every project goes through this process. "Simple" projects are where unexamined 
 详见 [references/phase1-workflow.md](references/phase1-workflow.md)
 
 1. **探索项目上下文** — 检查文件、文档、近期提交
-2. **需求澄清与 Agent 评审** — 逐一提问，多角色评审
-3. **代码现状分析** — Subagent 并行按模块拆解
+2. **需求澄清与 Agent Team 评审** — 逐一提问，多角色评审
+3. **代码现状分析** — Agent Team 并行按模块拆解
 
 **输出：** `docs/plans/<topic>-requirements.md` → `docs/plans/<topic>-phase1.md`
 
@@ -138,7 +138,7 @@ Every project goes through this process. "Simple" projects are where unexamined 
 
 4. **差距分析与方案制定** — 对比现状与目标，提出 2-3 个方案
 5. **方案展示与用户确认** — 逐节展示设计，获得用户认可
-6. **方案多角度评审** — 5 个 Subagent 并行评审
+6. **方案多角度评审** — 5 个 Agent Team 并行评审
 
 **输入：** `docs/plans/<topic>-phase1.md`
 **输出：** `docs/plans/<topic>-phase2.md`

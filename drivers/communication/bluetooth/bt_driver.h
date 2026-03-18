@@ -85,6 +85,16 @@ void bt_driver_pairing_ex(uint8_t host_idx, void *param);
 void bt_driver_disconnect(void);
 
 /*********************************************************************
+ * @fn      bt_driver_clear_bonding
+ *
+ * @brief   清除蓝牙配对记录
+ *          删除已保存的 BLE bonding 信息
+ *
+ * @return  none
+ */
+void bt_driver_clear_bonding(void);
+
+/*********************************************************************
  * @fn      bt_driver_send_keyboard
  *
  * @brief   发送标准键盘报告（6键滚动）

@@ -91,6 +91,14 @@ void bt_driver_disconnect(void) {
 }
 
 /**
+ * @brief 清除蓝牙配对记录（测试模拟）
+ */
+void bt_driver_clear_bonding(void) {
+    printf("[BT_TEST] bt_driver_clear_bonding() called\n");
+    printf("[BT_TEST] Clearing BLE bonding records (mock)\n");
+}
+
+/**
  * @brief 发送标准键盘报告（测试模拟）
  *
  * @param report 键盘报告数据（20字节）

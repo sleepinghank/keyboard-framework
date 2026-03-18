@@ -26,8 +26,8 @@
  * 原col16 -> 新col9
  */
 
-// 自定义键码
-#define S_FN_KEY    0x5220  // MO(1) - 切换到 Fn 层
+// 自定义键码（使用不同的宏名避免与 keycode.h 中的 S_FN_KEY 冲突）
+#define KEYMAP_FN_KEY    0x5220  // MO(1) - 切换到 Fn 层
 #define TOUCH_BUTTON KC_NO  // 触摸板按钮，暂不映射
 
 const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
@@ -44,7 +44,7 @@ const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
         /* Row 3 */  KC_ESC, KC_NO,  KC_NO,  KC_G,   KC_H,   KC_F6,  KC_NO,  KC_UP,  KC_QUOT,KC_NO,  KC_NO,  KC_LGUI,KC_QUOT,KC_NO,  KC_NO,  KC_NO,
         /* Row 4 */  KC_Z,   KC_X,   KC_C,   KC_V,   KC_M,   KC_COMM,KC_DOT, KC_NO,  KC_NO,  KC_ENT, KC_RALT,KC_NO,  KC_NO,  KC_NO,  KC_NO,  KC_NO,
         /* Row 5 */  KC_NO,  KC_NO,  KC_NO,  KC_B,   KC_N,   KC_NO,  KC_NO,  KC_LEFT,KC_SLSH,KC_NO,  KC_NO,  KC_RGUI,KC_SLSH,KC_NO,  KC_F11, KC_DOWN,
-        /* Row 6 */  KC_GRV, KC_F1,  KC_F2,  KC_5,   KC_6,   KC_EQL, KC_F8,  KC_NO,  KC_MINS,KC_F9,  S_FN_KEY,KC_NO,  KC_MINS,KC_F9,  KC_NO,  KC_NO,
+        /* Row 6 */  KC_GRV, KC_F1,  KC_F2,  KC_5,   KC_6,   KC_EQL, KC_F8,  KC_NO,  KC_MINS,KC_F9,  KEYMAP_FN_KEY,KC_NO,  KC_MINS,KC_F9,  KC_NO,  KC_NO,
         /* Row 7 */  KC_1,   KC_2,   KC_3,   KC_4,   KC_7,   KC_8,   KC_9,   KC_NO,  KC_0,   KC_NO,  KC_F5,  KC_F12, KC_0,   KC_NO,  KC_F10, KC_NO,
     },
 

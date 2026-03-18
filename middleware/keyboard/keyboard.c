@@ -24,6 +24,9 @@ static matrix_row_t matrix_debounced[MATRIX_ROWS];
 // 上一次更新状态
 static key_update_st_t last_update_state = NO_KEY_UPDATE;
 
+// 输出服务背光活动通知
+extern void output_service_note_backlight_activity(void);
+
 // 内部函数声明
 static key_update_st_t scan_and_debounce(void);
 static void update_key_code_list(void);
@@ -79,8 +82,26 @@ void keyboard_task(void) {
     del_all_child(_key_code_list_extend);
 }
 
+/**
+ * @brief 获取上一次按键矩阵更新状态
+ * @return 上一次更新的状态（NO_KEY_UPDATE/KEY_UPDATE/GHOST_KEY）
+ */
 key_update_st_t keyboard_get_last_update_state(void) {
     return last_update_state;
+}
+
+/**
+ * @brief 通知背光服务有按键活动发生
+ *
+ * 此函数供 Middleware 层（如 kb_fn_action.c）调用，通知
+ * Application 层的 output_service 有活动发生，以便：
+ * 1. 重置 5 秒背光休眠定时器
+ * 2. 如果背光处于休眠状态，则唤醒背光
+ *
+ * @note 此函数内部调用 output_service_note_backlight_activity()
+ */
+void keyboard_note_backlight_activity(void) {
+    output_service_note_backlight_activity();
 }
 
 // 矩阵扫描 + 驱动层防抖处理
