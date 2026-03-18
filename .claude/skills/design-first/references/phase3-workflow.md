@@ -1,24 +1,21 @@
----
-name: design-first-phase3
-description: "Phase 3 of design-first: Plan Output (步骤7-9). Reads phase2-output.md as its sole context input. Covers implementation plan (SMART), design document writing with parallel spec review, and handoff to writing-plans skill."
----
+# Phase 3 Workflow — 计划输出（步骤 7-9）
 
-# Phase 3 — 计划输出（步骤 7-9）
+> 本文件是 design-first skill 的阶段三详细流程。
 
 ## 本阶段启动规则
 
 **读取上下文：**
 ```
-read: docs/plans/YYYY-MM-DD-<topic>-phase2-output.md
+read: docs/plans/<topic>-phase2.md
 ```
 
-本阶段**只从 phase2-output.md 读取上下文**，不依赖任何前序对话历史。
+本阶段**只从 phase2.md 读取上下文**，不依赖任何前序对话历史。
 如果文件不存在，停止并提示用户先完成 Phase 2。
 
 **本阶段上下文已大幅压缩：**
-- Phase 1 上下文：phase1-output.md（结论文件，≤50行）
-- Phase 2 上下文：phase2-output.md（结论文件，≤60行）
-- 不含任何过程信息，上下文清洁，质量有保障
+- Phase 1 上下文：phase1.md（结论文件，≤50行）
+- Phase 2 上下文：phase2.md（结论文件，≤60行）
+- 不含任何过程信息，上下文清洁
 
 ---
 
@@ -26,7 +23,7 @@ read: docs/plans/YYYY-MM-DD-<topic>-phase2-output.md
 
 声明：`【步骤 7/9 — 制定实施计划】`
 
-**从 phase2-output.md 读取：**
+**从 phase2.md 读取：**
 - 选定方案
 - 架构变更
 - 关键接口
@@ -79,7 +76,7 @@ read: docs/plans/YYYY-MM-DD-<topic>-phase2-output.md
 
 ### Part A：写入设计文档
 
-将以下内容写入 `docs/plans/YYYY-MM-DD-<topic>-design.md`：
+将以下内容写入 `docs/plans/<topic>-design.md`：
 
 ```markdown
 # <topic> 设计文档
@@ -87,69 +84,66 @@ read: docs/plans/YYYY-MM-DD-<topic>-phase2-output.md
 状态：待实施
 
 ## 一、需求摘要
-<来自 phase1-output.md 的需求摘要>
+<来自 phase1.md 的需求摘要>
 
 ## 二、范围边界
 在范围内：[...]
 不在范围内：[...]
 
 ## 三、现状分析
-<来自 phase1-output.md 的代码现状结论>
+<来自 phase1.md 的代码现状结论>
 
 ## 四、方案设计
 ### 选定方案
 <方案描述>
 
 ### 架构变更
-<来自 phase2-output.md>
+<来自 phase2.md>
 
 ### 关键接口
-<来自 phase2-output.md>
+<来自 phase2.md>
 
 ### 数据流
-<来自 phase2-output.md>
+<来自 phase2.md>
 
 ### 错误处理
-<来自 phase2-output.md>
+<来自 phase2.md>
 
 ## 五、测试策略
-<来自 phase2-output.md 的测试要点>
+<来自 phase2.md 的测试要点>
 
 ## 六、实施计划
 <来自步骤7的完整实施计划>
 
 ## 七、风险与规避
-<来自 phase2-output.md 的评审结论中的主要风险>
+<来自 phase2.md 的评审结论中的主要风险>
 ```
 
 ### Part B：并行 Spec 评审
 
 文档写入后，同时派发 3 个 Spec Reviewer Subagent 并行检查：
 
-```
-Reviewer 1 — 完整性检查
-  检查：七个章节是否都有内容？是否有空白或占位符？
-  输出：✅通过 / ❌缺失列表
-
-Reviewer 2 — 一致性检查
-  检查：实施计划的步骤是否与方案设计对齐？接口定义是否一致？
-  输出：✅通过 / ❌不一致列表
-
-Reviewer 3 — 可执行性检查
-  检查：实施步骤的验证命令是否具体可执行？完成标准是否可判定？
-  输出：✅通过 / ❌模糊项列表
-```
+| Reviewer | 检查内容 | 输出格式 |
+|----------|---------|---------|
+| 1 - 完整性 | 七个章节是否都有内容？是否有空白或占位符？ | 通过 / 缺失列表 |
+| 2 - 一致性 | 实施计划的步骤是否与方案设计对齐？接口定义是否一致？ | 通过 / 不一致列表 |
+| 3 - 可执行性 | 实施步骤的验证命令是否具体可执行？完成标准是否可判定？ | 通过 / 模糊项列表 |
 
 **评审循环规则：**
 1. 收集三个 Reviewer 结论
-2. 如有 ❌ 问题：修正文档，重新并行派发评审，直至全部 ✅
-3. 循环超过 5 次：升级给用户处理，说明卡点
+2. 如有问题：修正文档，重新并行派发评审，直至全部通过
+3. 循环超过 5 次：升级给用户处理
+   - 输出当前问题列表
+   - 询问用户："自动修复尝试 5 次仍未通过，请选择：
+     A. 手动修正文档
+     B. 跳过此检查项
+     C. 查看详细错误后继续自动修复"
 
 > **[CHECKPOINT 8 — 必须暂停]**
 >
 > 文档写入并通过全部评审后，展示评审通过报告，告知用户文档路径。
 >
-> 明确说："设计文档已完成，路径：`docs/plans/YYYY-MM-DD-<topic>-design.md`。是否继续步骤 9（转入实施）？"
+> 明确说："设计文档已完成，路径：`docs/plans/<topic>-design.md`。是否继续步骤 9（转入实施）？"
 >
 > **在此停止，等待用户确认后才能继续。**
 
@@ -160,26 +154,21 @@ Reviewer 3 — 可执行性检查
 声明：`【步骤 9/9 — 转入实施】`
 
 **执行检查：**
-- [ ] phase1-output.md 已存在
-- [ ] phase2-output.md 已存在
+- [ ] phase1.md 已存在
+- [ ] phase2.md 已存在
 - [ ] design.md 已存在且通过评审
 - [ ] 用户已确认进入实施
 
-**调用下一个 skill：**
+**流程完成宣告：**
 ```
-read: docs/skills/writing-plans.md
-```
+设计流程已全部完成。设计文档位于：
+  docs/plans/<topic>-design.md
 
-并告知用户：
-```
-阶段一至三已全部完成。设计文档位于：
-  docs/plans/YYYY-MM-DD-<topic>-design.md
-
-现在移交 writing-plans skill 创建详细实施计划。
+现在可以开始实施。请告知具体要实施的内容。
 ```
 
 **禁止调用：** frontend-design、mcp-builder 或其他任何实现类 skill。
-writing-plans 是本流程结束后唯一调用的 skill。
+设计完成后，等待用户明确指示下一步行动。
 
 ---
 
@@ -187,18 +176,18 @@ writing-plans 是本流程结束后唯一调用的 skill。
 
 | 文件 | 用途 | 消费者 |
 |------|------|--------|
-| `requirements.md` | 需求+现状分析（含 Agent 评审） | Phase 2 参考 |
-| `phase1-output.md` | Phase 1 结论交接 | Phase 2 主输入 |
-| `phase2-output.md` | Phase 2 结论交接 | Phase 3 主输入 |
-| `design.md` | 完整设计文档 | writing-plans 输入 |
+| `<topic>-requirements.md` | 需求+现状分析（含 Agent 评审） | Phase 2 参考 |
+| `<topic>-phase1.md` | Phase 1 结论交接 | Phase 2 主输入 |
+| `<topic>-phase2.md` | Phase 2 结论交接 | Phase 3 主输入 |
+| `<topic>-design.md` | 完整设计文档 | 实施参考 |
 
 ---
 
 ## 上下文管理总结
 
 本阶段上下文组成：
-- phase2-output.md（≤60行，仅结论）
+- phase2.md（≤60行，仅结论）
 - 步骤7实施计划（本阶段产生，约30行）
 - design.md（汇总文档，引用前两者内容）
 
-**整个三阶段流程中，任意单阶段的对话上下文峰值 ≤ 当前阶段内容 + 两个交接文档（≤110行）**，相比原始单线程方案（所有过程堆积在同一对话）减少约 70-80% 的上下文占用。
+**整个三阶段流程中，任意单阶段的对话上下文峰值 ≤ 当前阶段内容 + 两个交接文档（≤110行）**，相比原始单线程方案减少约 70-80% 的上下文占用。

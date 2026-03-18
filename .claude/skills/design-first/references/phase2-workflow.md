@@ -1,18 +1,15 @@
----
-name: design-first-phase2
-description: "Phase 2 of design-first: Solution Design (步骤4-6). Reads phase1-output.md as its sole context input. Covers gap analysis, solution presentation with incremental user confirmation, and parallel multi-perspective review. Outputs phase2-output.md as handoff to Phase 3."
----
+# Phase 2 Workflow — 方案设计（步骤 4-6）
 
-# Phase 2 — 方案设计（步骤 4-6）
+> 本文件是 design-first skill 的阶段二详细流程。
 
 ## 本阶段启动规则
 
 **读取上下文：**
 ```
-read: docs/plans/YYYY-MM-DD-<topic>-phase1-output.md
+read: docs/plans/<topic>-phase1.md
 ```
 
-本阶段**只从 phase1-output.md 读取上下文**，不依赖 Phase 1 的对话历史。
+本阶段**只从 phase1.md 读取上下文**，不依赖 Phase 1 的对话历史。
 如果文件不存在，停止并提示用户先完成 Phase 1。
 
 ---
@@ -21,7 +18,7 @@ read: docs/plans/YYYY-MM-DD-<topic>-phase1-output.md
 
 声明：`【步骤 4/9 — 差距分析与方案制定】`
 
-**从 phase1-output.md 读取：**
+**从 phase1.md 读取：**
 - 需求摘要
 - 代码现状结论（缺失能力、需修改模块）
 
@@ -104,34 +101,18 @@ read: docs/plans/YYYY-MM-DD-<topic>-phase1-output.md
 5 个维度完全独立，派发 5 个 Subagent 同时执行，主线程汇总：
 
 **Subagent 输入：**
-```
-- phase1-output.md（需求和现状）
-- 步骤5确认的方案设计内容
-```
+- phase1.md（需求和现状）
+- 步骤 5 确认的方案设计内容
 
 **各 Subagent 任务和输出格式：**
 
-```
-Subagent A — 功能完整性
-  检查：需求是否全部覆盖？有无遗漏场景？
-  输出：✅通过 / ⚠️问题列表（每条一行）
-
-Subagent B — 技术可行性
-  检查：目标平台可否实现？依赖是否合理？
-  输出：✅通过 / ⚠️问题列表（每条一行）
-
-Subagent C — 可维护性
-  检查：代码结构是否清晰？接口是否稳定？
-  输出：✅通过 / ⚠️问题列表（每条一行）
-
-Subagent D — 可测试性
-  检查：每个功能单元是否可独立验证？
-  输出：✅通过 / ⚠️问题列表（每条一行）
-
-Subagent E — 风险识别
-  检查：潜在风险有哪些？如何规避？
-  输出：风险列表（风险+规避措施，每条一行）
-```
+| Subagent | 检查内容 | 输出格式 |
+|----------|---------|---------|
+| A - 功能完整性 | 需求是否全部覆盖？有无遗漏场景？ | 通过 / 问题列表 |
+| B - 技术可行性 | 目标平台可否实现？依赖是否合理？ | 通过 / 问题列表 |
+| C - 可维护性 | 代码结构是否清晰？接口是否稳定？ | 通过 / 问题列表 |
+| D - 可测试性 | 每个功能单元是否可独立验证？ | 通过 / 问题列表 |
+| E - 风险识别 | 潜在风险有哪些？如何规避？ | 风险+规避措施列表 |
 
 **主线程汇总格式：**
 ```
@@ -139,16 +120,16 @@ Subagent E — 风险识别
 
 | 维度 | 结论 | 关键问题 |
 |------|------|---------|
-| 功能完整性 | ✅/⚠️ | ... |
-| 技术可行性 | ✅/⚠️ | ... |
-| 可维护性   | ✅/⚠️ | ... |
-| 可测试性   | ✅/⚠️ | ... |
+| 功能完整性 | 通过/问题 | ... |
+| 技术可行性 | 通过/问题 | ... |
+| 可维护性   | 通过/问题 | ... |
+| 可测试性   | 通过/问题 | ... |
 | 风险识别   | - | ... |
 
 总体结论：通过 / 需修订（返回步骤4）
 ```
 
-如有 ⚠️ 问题：明确说明需要返回步骤 4 修订哪些部分。
+如有问题：明确说明需要返回步骤 4 修订哪些部分。
 
 > **[CHECKPOINT 6 — 阶段二完成，必须暂停]**
 >
@@ -162,12 +143,12 @@ Subagent E — 风险识别
 
 ## 阶段二交接文档
 
-步骤 6 评审通过后，将以下内容写入 `docs/plans/YYYY-MM-DD-<topic>-phase2-output.md`：
+步骤 6 评审通过后，将以下内容写入 `docs/plans/<topic>-phase2.md`：
 
 ```markdown
 # Phase 2 Output — <topic>
 生成时间：<timestamp>
-依赖文件：docs/plans/YYYY-MM-DD-<topic>-phase1-output.md
+依赖文件：docs/plans/<topic>-phase1.md
 
 ## 选定方案
 方案名称：<方案N>
@@ -190,25 +171,11 @@ Subagent E — 风险识别
 <关键测试场景列表>
 
 ## 评审结论
-功能完整性：✅
-技术可行性：✅
-可维护性：✅
-可测试性：✅
+功能完整性：通过
+技术可行性：通过
+可维护性：通过
+可测试性：通过
 主要风险：[风险 + 规避措施]
-
-## Phase 3 启动指令
-读取本文件后，执行 design-first-phase3.md
-需求文档：docs/plans/YYYY-MM-DD-<topic>-requirements.md
 ```
 
 **此文件是 Phase 3 的唯一上下文输入。Phase 3 不依赖 Phase 1 或 Phase 2 的对话历史。**
-
----
-
-## 上下文卸载规则
-
-步骤完成并写入文件后：
-- **不再**在对话中重复步骤4的完整差距矩阵细节
-- **不再**在对话中重复步骤5的逐节展示过程
-- **不再**在对话中重复步骤6的 Subagent 评审过程
-- 后续引用只使用文件路径 + 关键结论（单句）

@@ -1,9 +1,6 @@
----
-name: design-first-phase1
-description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Triggered by design-first main skill. Covers context exploration, requirements clarification with Agent review team, and parallel code analysis. Outputs phase1-output.md as handoff to Phase 2."
----
+# Phase 1 Workflow — 需求确认（步骤 1-3）
 
-# Phase 1 — 需求确认（步骤 1-3）
+> 本文件是 design-first skill 的阶段一详细流程。
 
 ## 本阶段目标
 
@@ -25,7 +22,7 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 - 识别与需求相关的现有模块（仅标记路径，不深入阅读）
 - 评估请求规模：
   - 单一功能 → 正常推进
-  - 多个独立子系统 → 立即标记，协助用户拆解为子项目，明确边界和构建顺序；每个子项目独立走完整流程
+  - 多个独立子系统 → 立即标记，协助用户拆解为子项目
 
 **输出格式（精简）：**
 ```
@@ -36,7 +33,7 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 > **[CHECKPOINT 1 — 必须暂停]**
 >
-> 将探索结果以上述格式展示给用户（不超过 20 行）。
+> 将探索结果以上述格式展示给用户。
 >
 > 明确说："步骤 1 完成。是否继续步骤 2（需求澄清）？"
 >
@@ -57,31 +54,31 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 ### Part B：Agent 需求评审团（并行输出）
 
-所有问题回答完毕后，以下三个角色**同时**输出评审意见（不分先后，一次性呈现）：
+所有问题回答完毕后，以下三个角色**同时**输出评审意见：
 
 | Agent 角色 | 关注点 | 输出格式 |
 |-----------|--------|---------|
-| 🎯 产品视角 | 功能是否满足使用场景？有无遗漏的用户期望？ | 风险点列表（≤3条） |
-| 🏗️ 架构视角 | 技术可行性、与现有架构兼容性、潜在技术风险 | 风险点列表（≤3条） |
-| 🧪 质量视角 | 如何验证完整性？边界条件和异常路径 | 验证点列表（≤3条） |
+| 产品视角 | 功能是否满足使用场景？有无遗漏的用户期望？ | 风险点列表（≤3条） |
+| 架构视角 | 技术可行性、与现有架构兼容性、潜在技术风险 | 风险点列表（≤3条） |
+| 质量视角 | 如何验证完整性？边界条件和异常路径 | 验证点列表（≤3条） |
 
 **评审输出示例：**
 ```
-🎯 产品视角：[风险1], [风险2]
-🏗️ 架构视角：[风险1], [风险2]
-🧪 质量视角：[验证点1], [验证点2]
+产品视角：[风险1], [风险2]
+架构视角：[风险1], [风险2]
+质量视角：[验证点1], [验证点2]
 ```
 
 ### Part C：写入文件
 
-将以下内容写入 `docs/plans/YYYY-MM-DD-<topic>-requirements.md`：
+将以下内容写入 `docs/plans/<topic>-requirements.md`：
 - 已确认需求点（含用户回答）
 - Agent 评审意见汇总
 - 范围边界（在范围内 / 不在范围内）
 
 > **[CHECKPOINT 2 — 必须暂停]**
 >
-> 展示文件内容摘要（不超过 30 行）。
+> 展示文件内容摘要，聚焦于：需求点、风险点、范围边界。
 >
 > 明确说："步骤 2 完成，需求文件已保存至 `<文件路径>`。是否继续步骤 3（代码现状分析）？"
 >
@@ -95,7 +92,7 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 ### 并行执行策略
 
-根据步骤1识别的相关模块，将分析任务拆分给多个 Subagent 并行执行：
+根据步骤 1 识别的相关模块，将分析任务拆分给多个 Subagent 并行执行：
 
 **Subagent 分配规则：**
 - 每个 Subagent 负责一个独立模块/子系统
@@ -104,7 +101,7 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 **每个 Subagent 的任务：**
 ```
-输入：模块路径 + 需求文件路径（从 requirements.md 读取需求背景）
+输入：模块路径 + 需求文件路径
 执行：
   1. 读取模块接口定义
   2. 识别与需求相关的关键函数/类
@@ -142,11 +139,11 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 ### 写入文件
 
-将汇总输出追加至 `docs/plans/YYYY-MM-DD-<topic>-requirements.md`
+将汇总输出追加至 `docs/plans/<topic>-requirements.md`
 
 > **[CHECKPOINT 3 — 阶段一完成，必须暂停]**
 >
-> 展示现状分析汇总（仅结论部分，不超过 40 行）。
+> 展示现状分析汇总（仅结论部分）。
 >
 > 明确说："阶段一（需求确认）完成，分析结果已追加至需求文档。是否进入阶段二（方案设计）？"
 >
@@ -156,7 +153,7 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 
 ## 阶段一交接文档
 
-步骤 3 完成后，将以下内容写入 `docs/plans/YYYY-MM-DD-<topic>-phase1-output.md`：
+步骤 3 完成后，将以下内容写入 `docs/plans/<topic>-phase1.md`：
 
 ```markdown
 # Phase 1 Output — <topic>
@@ -175,23 +172,13 @@ description: "Phase 1 of design-first: Requirements Confirmation (步骤1-3). Tr
 关键接口：[接口列表]
 
 ## Agent 评审关键风险
-🎯 产品：[...]
-🏗️ 架构：[...]
-🧪 质量：[...]
+产品：[...]
+架构：[...]
+质量：[...]
 
 ## Phase 2 启动指令
-读取本文件后，执行 design-first-phase2.md
-需求文档：docs/plans/YYYY-MM-DD-<topic>-requirements.md
+读取本文件后，执行 Phase 2 流程
+需求文档：docs/plans/<topic>-requirements.md
 ```
 
 **此文件是 Phase 2 的唯一上下文输入。Phase 2 不依赖当前对话历史。**
-
----
-
-## 上下文卸载规则
-
-步骤完成并写入文件后：
-- **不再**在对话中重复步骤1的文件结构细节
-- **不再**在对话中重复步骤2的完整问答记录
-- **不再**在对话中重复步骤3的 Subagent 分析过程
-- 后续引用只使用文件路径 + 关键结论（单句）
