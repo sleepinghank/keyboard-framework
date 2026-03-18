@@ -1,6 +1,6 @@
 # Phase 2 Workflow — 方案设计（步骤 4-6）
 
-> 本文件是 design-first skill 的阶段二详细流程。
+> 本文件是 pyramid-design skill 的阶段二详细流程。
 
 ## 本阶段启动规则
 

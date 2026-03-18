@@ -1,9 +1,25 @@
 ---
-name: design-first
-description: "MUST USE before any feature development. Uses Pyramid Principle and MECE analysis for requirements confirmation, solution design, and implementation planning. Trigger on: '新增功能', '修改功能', '方案设计', '需求分析', 'implement feature', 'design solution', or any request to build/change behavior."
+name: pyramid-design
+description: "Use when analyzing or designing a new feature, behavior change, or multi-step implementation where requirements, scope, and architecture must be validated before coding. Not for: typo fixes, content-only changes, mechanical config updates, or single-line edits."
 ---
 
-# Design First — 金字塔原理驱动的需求设计流程
+# Pyramid Design — 金字塔原理驱动的需求设计流程
+
+## 何时使用
+
+**适用场景：**
+- 新增功能或模块
+- 修改现有行为逻辑
+- 涉及多文件、多模块的变更
+- 需要架构决策的实现
+- 用户需求不明确或需要澄清
+
+**不适用场景（无需触发此 skill）：**
+- 纯文案/注释修改
+- 单点 typo 修复
+- 机械性配置更新（如改端口号、版本号）
+- 单文件 ≤20 行的简单修改且无架构影响
+- 已有明确设计文档的纯实现任务
 
 ## 核心目标
 
@@ -16,23 +32,15 @@ description: "MUST USE before any feature development. Uses Pyramid Principle an
 Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it.
 </HARD-GATE>
 
----
+## 术语表
 
-## 流程规模判断（步骤 0）
-
-收到需求后，首先评估规模：
-
-| 规模 | 判断标准 | 流程选择 |
-|------|---------|---------|
-| 简单 | 单文件、≤20行改动、无架构影响 | 快速通道（3步） |
-| 标准 | 多文件、新接口、有架构变更 | 完整流程（9步） |
-
-**快速通道：** 将 9 步合并为 3 个阶段确认，每阶段一次 checkpoint。
-- 阶段一：需求确认（合并步骤 1-3）
-- 阶段二：方案设计（合并步骤 4-6）
-- 阶段三：计划输出（合并步骤 7-9）
-
-**标准流程：** 继续执行下方的完整 9 步。
+| 术语 | 文件名 | 说明 |
+|------|--------|------|
+| 需求文档 | `<topic>-requirements.md` | 步骤 2 输出，记录澄清后的需求 |
+| 阶段一交接文档 | `<topic>-phase1.md` | 阶段一输出，含需求 + 代码现状分析 |
+| 阶段二交接文档 | `<topic>-phase2.md` | 阶段二输出，含选定方案 + 评审结论 |
+| 设计文档 | `<topic>-design.md` | 最终输出，含实施计划，可直接 handoff |
+| `<topic>` | — | 步骤 2 确定的功能/主题简称，全流程共用 |
 
 ---
 
@@ -45,11 +53,11 @@ Phase 1                    Phase 2                    Phase 3
         ▼                          ▼                          ▼
   步骤1: 探索上下文          步骤4: 差距分析            步骤7: 制定实施计划
   步骤2: 需求澄清            步骤5: 方案展示            步骤8: 编写设计文档
-  步骤3: 代码分析 ────►     步骤6: 多角度评审 ────►    步骤9: 转入实施
+  步骤3: 代码分析 ────►     步骤6: 多角度评审 ────►    步骤9: Handoff
     [并行 subagent×N]          [并行 subagent×5]
         |                          |                          |
         ▼                          ▼                          ▼
- phase1-output.md  ────►   phase2-output.md  ────►    design.md (最终)
+ <topic>-phase1.md  ────►   <topic>-phase2.md  ────►    <topic>-design.md
 ```
 
 **核心设计原则：**
@@ -141,7 +149,13 @@ Every project goes through this process. "Simple" projects are where unexamined 
 
 7. **制定实施计划** — SMART 原则，含验证标准
 8. **编写设计文档** — 保存至 `docs/plans/<topic>-design.md`
-9. **转入实施阶段** — 准备实施
+9. **转入实施阶段** — 完成设计文档后，进入下一步 skill
+
+**步骤 9 Handoff：**
+设计文档完成后，根据任务性质选择后续 skill：
+- **代码实现** → `superpowers:executing-plans` 或 `superpowers:writing-plans`
+- **需要 TDD** → `superpowers:test-driven-development`
+- **需要创建 PR** → `engineering-workflow-skills:pr`
 
 **输入：** `docs/plans/<topic>-phase2.md`
 **输出：** `docs/plans/<topic>-design.md`
@@ -152,6 +166,5 @@ Every project goes through this process. "Simple" projects are where unexamined 
 
 收到功能需求时：
 
-1. **判断规模**（简单/标准）
-2. **声明**：`【启动 Design First 流程 — 规模：<简单/标准>】`
-3. **执行**：`【步骤 1/9 — 探索项目上下文】`
+1. **声明**：`【启动 Pyramid Design 流程】`
+2. **执行**：`【步骤 1/9 — 探索项目上下文】`

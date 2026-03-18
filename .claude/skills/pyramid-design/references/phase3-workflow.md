@@ -1,6 +1,6 @@
 # Phase 3 Workflow — 计划输出（步骤 7-9）
 
-> 本文件是 design-first skill 的阶段三详细流程。
+> 本文件是 pyramid-design skill 的阶段三详细流程。
 
 ## 本阶段启动规则
 
