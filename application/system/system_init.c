@@ -1,12 +1,12 @@
 /**
  * @file system_init.c
  * @brief 系统初始化协调器实现
- * @version 1.0.0
- * @date 2025-12-16
+ * @version 2.0.0
+ * @date 2026-03-19
  *
  * 设计说明:
  * - 按HAL → Driver → Middleware → Application的层级顺序初始化
- * - 每个层级按_setup → _init → _pre_task → _task → _post_task的生命周期
+ * - 简化的初始化流程: 删除空的_setup阶段
  * - 使用状态机管理初始化进度
  */
 
@@ -25,6 +25,7 @@
 #include "indicator.h"
 #include "event_manager.h"
 #include "bt_driver.h"
+#include "backlight.h"
 
 // middleware
 #include "report_buffer.h"
@@ -52,72 +53,12 @@
 // ch584
 #include "CONFIG.h"
 #include "hal.h"
-// 系统初始化状态
-typedef enum {
-    SYSTEM_INIT_STATUS_NOT_STARTED = 0,    // 未开始
-    SYSTEM_INIT_STATUS_HAL_SETUP,          // HAL setup完成
-    SYSTEM_INIT_STATUS_DRIVER_SETUP,       // Driver setup完成
-    SYSTEM_INIT_STATUS_MIDDLEWARE_SETUP,   // Middleware setup完成
-    SYSTEM_INIT_STATUS_APPLICATION_SETUP,  // Application setup完成
-    SYSTEM_INIT_STATUS_HAL_INIT,           // HAL init完成
-    SYSTEM_INIT_STATUS_DRIVER_INIT,        // Driver init完成
-    SYSTEM_INIT_STATUS_MIDDLEWARE_INIT,    // Middleware init完成
-    SYSTEM_INIT_STATUS_APPLICATION_INIT,   // Application init完成
-    SYSTEM_INIT_STATUS_COMPLETED           // 完全初始化完成
-} system_init_status_t;
 
 static volatile system_init_status_t g_system_init_status = SYSTEM_INIT_STATUS_NOT_STARTED;
 static volatile bool g_system_initialized = false;
 
 /*==========================================
- * 早期启动阶段 - 在_init之前运行
- * =========================================*/
-
-void system_setup_hal(void) {
-    // HAL层基础初始化
-
-    // 首先初始化所有GPIO为安全状态，防止悬空漏电
-    // system_hal_gpio_init_all();
-
-    // i2c_bind_pins(SDA_PIN, SCL_PIN, I2C_CHANNEL_0);
-
-    // platform_uart_bind_pins(UART_TX_PIN, UART_RX_PIN, PLATFORM_UART_1);
-
-    // adc_bind_pin(ADC_PIN,ADC_CHANNEL);
-
-    // pwm_init();
-
-    // 标记HAL setup完成
-    g_system_init_status = SYSTEM_INIT_STATUS_HAL_SETUP;
-}
-
-void system_setup_drivers(void) {
-    // 驱动层setup阶段
-    // - 矩阵扫描setup
-    // matrix_setup();
-
-    // 标记Driver setup完成
-    g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_SETUP;
-}
-
-void system_setup_middleware(void) {
-    // 中间件setup阶段
-    // 目前中间件层在setup阶段无需特殊处理
-
-    // 标记Middleware setup完成
-    g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_SETUP;
-}
-
-void system_setup_application(void) {
-    // 应用层setup阶段
-    // 目前应用层在setup阶段无需特殊处理
-
-    // 标记Application setup完成
-    g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_SETUP;
-}
-
-/*==========================================
- * 初始化阶段 - 在主机协议、调试和MCU外设初始化后运行
+ * 初始化阶段
  * =========================================*/
 
 void system_init_hal(void) {
@@ -141,7 +82,7 @@ void system_init_hal(void) {
     PRINT("Hardware timer initialized\r\n");
 
     // 标记HAL init完成
-    g_system_init_status = SYSTEM_INIT_STATUS_HAL_INIT;
+    g_system_init_status = SYSTEM_INIT_STATUS_HAL;
 }
 
 void system_init_drivers(void) {
@@ -159,15 +100,17 @@ void system_init_drivers(void) {
     bt_driver_init(false);
 #endif
 
-    // 3. 电池管理初始化
-    // battery_init();
+    // 3. 电池管理初始化 (从 input_service 移入)
+    battery_init();
 
-    // 3. 指示灯初始化
+    // 4. 背光初始化 (从 output_service 移入)
+    backlight_init(NULL);
+
+    // 5. 指示灯初始化
     indicator_init();
 
-
     // 标记Driver init完成
-    g_system_init_status = SYSTEM_INIT_STATUS_DRIVER_INIT;
+    g_system_init_status = SYSTEM_INIT_STATUS_DRIVER;
 }
 
 void system_init_middleware(void) {
@@ -187,7 +130,7 @@ void system_init_middleware(void) {
     keyboard_init();
 
     // 标记Middleware init完成
-    g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE_INIT;
+    g_system_init_status = SYSTEM_INIT_STATUS_MIDDLEWARE;
 }
 
 
@@ -201,7 +144,7 @@ void system_init_application(void) {
     indicator_test();
 
     // 标记Application init完成
-    g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION_INIT;
+    g_system_init_status = SYSTEM_INIT_STATUS_APPLICATION;
 
     // 最后标记完全初始化完成
     g_system_init_status = SYSTEM_INIT_STATUS_COMPLETED;
@@ -214,22 +157,16 @@ void system_init_application(void) {
  * =========================================*/
 
 uint32_t system_init_coordinator(void) {
-    // 1. 系统硬件初始化（时钟、GPIO等）
+    // 1. 系统硬件初始化
     system_hal_init();
 
-    // // 阶段1: _setup 阶段 (早期启动)
-    system_setup_hal();
-    system_setup_drivers();
-    system_setup_middleware();
-    system_setup_application();
-
-    // // 阶段2: _init 阶段 (主机协议初始化后)
+    // init 阶段
     system_init_hal();
     system_init_drivers();
     system_init_middleware();
     system_init_application();
 
-    return 0;  // 成功
+    return 0;
 }
 
 /*==========================================

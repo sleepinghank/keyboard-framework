@@ -1,13 +1,13 @@
 /**
  * @file system_init.h
  * @brief 系统初始化协调器
- * @version 1.0.0
- * @date 2025-12-16
+ * @version 2.0.0
+ * @date 2026-03-19
  *
  * 设计说明:
  * - 基于TMOS事件系统的统一初始化协调
  * - 按HAL → Driver → Middleware → Application的层级顺序初始化
- * - 遵循_setup → _init → _task的生命周期模式
+ * - 简化的初始化流程: 仅_init阶段，删除空的_setup阶段
  */
 
 #pragma once
@@ -20,24 +20,31 @@ extern "C" {
 #endif
 
 /*==========================================
- * 系统初始化阶段定义
+ * 系统初始化状态枚举
  * =========================================*/
 
 /**
- * @brief 早期启动阶段 - 在_init之前运行
- * 主要任务:
- * - HAL层基础初始化 (GPIO、Platform抽象)
- * - 系统核心驱动初始化 (Timer、基础驱动)
+ * @brief 系统初始化状态
  */
-void system_setup_hal(void);
-void system_setup_drivers(void);
-void system_setup_middleware(void);
-void system_setup_application(void);
+typedef enum {
+    SYSTEM_INIT_STATUS_NOT_STARTED = 0,    // 未开始
+    SYSTEM_INIT_STATUS_HAL,                // HAL init 完成
+    SYSTEM_INIT_STATUS_DRIVER,             // Driver init 完成
+    SYSTEM_INIT_STATUS_MIDDLEWARE,         // Middleware init 完成
+    SYSTEM_INIT_STATUS_APPLICATION,        // Application init 完成
+    SYSTEM_INIT_STATUS_TASK,               // 进入主循环
+    SYSTEM_INIT_STATUS_COMPLETED           // 完全初始化完成
+} system_init_status_t;
+
+/*==========================================
+ * 系统初始化函数声明
+ * =========================================*/
 
 /**
- * @brief 初始化阶段 - 在主机协议、调试和MCU外设初始化后运行
+ * @brief 初始化阶段 - 按层级顺序执行
  * 主要任务:
- * - 设备驱动初始化 (Matrix、Storage、Battery、Indicator)
+ * - HAL层初始化 (UART、GPIO、硬件定时器)
+ * - 设备驱动初始化 (Timer、Storage、Battery、Backlight、Indicator)
  * - 中间件初始化 (Keyboard、Communication、Transport)
  * - 应用服务初始化 (Input/Output/Communication/Storage服务)
  */
