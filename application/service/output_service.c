@@ -299,7 +299,7 @@ void output_service_init(void) {
     PRINT("Output service init start\r\n");
 
     output_taskID = OSAL_ProcessEventRegister(output_process_event);
-    backlight_init(NULL);
+    // backlight_init(NULL);  // 已移至 system_init_drivers() - 驱动层初始化应在驱动层完成
     backlight_set_preset_color(BL_COLOR_WHITE);
     backlight_set_preset_level(BL_LEVEL_MEDIUM);
     output_service_ready = (output_taskID != 0xFF);
