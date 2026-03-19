@@ -51,7 +51,7 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理无线模块初始化事件
     if (events & WL_INIT_EVT) {
-        wireless_init();
+        // wireless_init();  // 已在 system_init_middleware() 调用，此处无需重复
         // 选择默认传输通道
         system_select_default_transport();
         dprintf("Communication: Wireless module initialization\r\n");
