@@ -26,6 +26,9 @@ system_result_t system_hal_init(void)
         return SYSTEM_ERROR_NOT_SUPPORTED;
     }
 
+    // 首先初始化所有GPIO为安全状态，防止悬空漏电
+    system_hal_gpio_init_all();
+
     //电源相关
 #if(defined(DCDC_ENABLE)) && (DCDC_ENABLE == TRUE)
     PWR_DCDCCfg(ENABLE);
