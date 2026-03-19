@@ -78,7 +78,7 @@
 #define BACKLIGHT_PIN_G       A12  /* PA12_PWM_G - U2.46 */
 #define BACKLIGHT_PIN_B       A13  /* PA13_PWM_B - U2.45 */
 
-/* ========== 指示灯 ==========
+/* ========== 指示灯 GPIO 映射 ==========
  * 网络名: PA15_LED1, PB22_LED2, PB23_LED3, PA14_LED4
  * 对应原理图: 4颗独立LED
  */
@@ -90,6 +90,24 @@
 /* 兼容别名 */
 #define LED_POWER_RED_PIN     LED_POWER_PIN
 #define LED_POWER_GRN_PIN     LED_CHARGE_PIN
+
+/* ========== 指示灯业务别名（供应用层使用）========== */
+#define LED_CAPS          0    /* 白灯：大写锁定 */
+#define LED_BT            1    /* 蓝灯：蓝牙状态 */
+#define LED_POWER_RED     2    /* 红灯：电源 / 低电量 */
+#define LED_POWER_GRN     3    /* 绿灯：充满电 */
+
+/* ========== 指示灯硬件表类型 ============ */
+#include <stdbool.h>
+#include "gpio.h"
+
+typedef struct {
+    pin_t pin;          /**< GPIO 引脚 */
+    bool  active_high;  /**< true=高电平亮, false=低电平亮 */
+} ind_led_def_t;
+
+/* extern 声明（实现在 kb904/indicator.c）*/
+extern const ind_led_def_t ind_led_table[IND_LED_COUNT];
 
 /* ========== 触控板 I2C ==========
  * 芯片: PCT1336QN

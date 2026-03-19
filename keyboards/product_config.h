@@ -1,165 +1,44 @@
+/* Copyright 2025 @ keyboard-framework
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+/**
+ * @file product_config.h
+ * @brief [已废弃] 产品配置兼容层
+ *
+ * @deprecated 此文件已废弃，请直接使用：
+ *   - KB904 产品: #include "keyboards/kb904/config.h"
+ *   - 其他产品: 创建对应的 keyboards/<product>/config.h
+ *
+ * 迁移指南: docs/plans/2026-03-19-keyboards-config-refactor-design.md
+ */
+
 #pragma once
-#include "gpio.h"
-// Pin definitions
-#ifdef NO_PIN
-#define NO_PIN_DEFINED
-#else
-#define NO_PIN 0xFF
-#endif
-// Test product configuration - simplified version
-#define PRODUCT_ID 0x0904
-#define VENDOR_ID 0x0002
-#define MANUFACTURER "Test Manufacturer"
-#define PRODUCT "Test Keyboard"
-#define DEVICE_VER 0x0100
 
-// Matrix configuration
-#define MATRIX_ROWS 8
-#define MATRIX_COLS 16
-#define MATRIX_IO_DELAY 30
-#define DIODE_DIRECTION COL2ROW
-#define MATRIX_SCAN_TIMER 5 
+#warning "product_config.h is deprecated. Include keyboards/kb904/config.h instead."
 
-// Matrix pins
-#define MATRIX_ROW_PINS { A4,A5,A6,A0,A1,A8,A9,B9 }
-// #define MATRIX_COL_PINS { B5,B8,B17,B16,B15,B14,B13,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
-#define MATRIX_COL_PINS { B5,B8,B17,B16,B15,NO_PIN,NO_PIN,B12,B3,B4,B2,A7,B7,B18,B1,B6 }
+/* ========== 兼容层：转发到产品配置 ========== */
 
-// No direct pins for this test
-// #define DIRECT_PINS {}
-
-// Matrix input configuration
-#define MATRIX_INPUT_PRESSED_STATE 0
-// #define MATRIX_HAS_GHOST
-
-// Debounce configuration
-#define DEBOUNCE 5
-#define DEBOUNCE_ALGORITHM DEBOUNCE_SYM_DEFER_PK
-#define DEBOUNCE_DELAY 20
-#define MAX_MATRIX_ROWS 16
-
-#define DEBUG_DEBOUNCE
-
-// USB configuration
-#define USB_MAX_POWER_CONSUMPTION 500
-#define USB_POLLING_INTERVAL_MS 10
-#define USB_SUSPEND_WAKEUP_DELAY 0
-
-
-
-// Tap configuration
-#define TAPPING_TERM 200
-#define TAPPING_TOGGLE 2
-#define QUICK_TAP_TERM 100
-
-// Oneshot configuration
-#define ONESHOT_TIMEOUT 300
-#define ONESHOT_TAP_TOGGLE 2
-
-// Combo configuration
-#define COMBO_TERM 200
-#define COMBO_MOD_TERM 200
-
-// Code delay configuration
-#define TAP_CODE_DELAY 100
-#define TAP_HOLD_CAPS_DELAY 80
-
-// Key override configuration
-#define KEY_OVERRIDE_REPEAT_DELAY 500
-
-// Leader configuration
-#define LEADER_TIMEOUT 300
-
-// Feature toggles
-#define ENABLE_COMPILE_KEYCODE
-
-
-// #define NKRO_ENABLE
-#define EXTRAKEY_ENABLE
-
-/* Backlit disable timeout when keyboard is disconnected(unit: second) */
-#        define DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT 40
-
-/* Backlit disable timeout when keyboard is connected(unit: second) */
-#        define CONNECTED_BACKLIGHT_DISABLE_TIMEOUT 600
-
-#ifndef BT_HOST_DEVICES_COUNT
-#    define BT_HOST_DEVICES_COUNT 3
+/* KB904 产品 - 直接转发 */
+#ifndef PRODUCT_ID
+  /* 默认为 KB904（向后兼容）*/
+  #include "kb904/config.h"
 #endif
 
-#define P2P4G_HOST_DEVICES_COUNT 1
-
-#define BAT_LOW_LED_PIN 1
-#define BAT_LOW_LED_PIN_ON_STATE 1
-
-//  Uint: Second, the timer restarts on key activities.
-#ifndef CONNECTED_IDLE_TIME
-#    define CONNECTED_IDLE_TIME 7200
-#endif
-/* key code*/
-
-
-#define COMBO_ENABLE
-
-// 层切换键物理位置（Fn 键）
-// 优先检查此位置，解决层切换键与功能键同时按下的时序问题
-#define FN_KEY_ROW  6
-#define FN_KEY_COL  10
-
-//****touch *****/
-#define SDA_PIN A3
-#define SCL_PIN A2
-#define I2C_CHANNEL 0
-
-/* URAT */
-#define UART_TX_PIN B13
-#define UART_RX_PIN NO_PIN
-#define UART_CHANNEL 0
-
-/**ADC */
-#define ADC_PIN B1
-#define ADC_CHANNEL 1
-
-#define CHIP_TYPE_CH584
-
-/* EEPROM 配置 */
-#define EEPROM_CUSTOM
-
-#ifdef CHIP_TYPE_CH584
-    // CH584 平台配置
-    #define EEPROM_SIZE              512        // 分配 2 页 (2 × 256)
-    #define EEPROM_PAGE_SIZE         256        // CH584 页大小
-    #ifndef FLASH_ROM_MAX_SIZE
-        #define FLASH_ROM_MAX_SIZE   0x070000  // Flash-ROM 最大程序大小, 448KB
-    #endif
-    #define EEPROM_BASE_ADDR         (0x77000 - FLASH_ROM_MAX_SIZE)  // Data-Flash 起始地址
-#else
-    // Test 平台配置
-    #define EEPROM_SIZE 32
-#endif
-
-/*touch */
-
-// #define TOUCH_EN  /* 触摸板功能暂未集成 */
-
-// 触摸板引脚定义
-#define TOUCH_INT  A12
-#define TOUCH_SDA  A3
-#define TOUCH_SCL  A2
-
-// 触摸板尺寸配置 (根据 PCT1336 触控板实际尺寸)
-#define TOUCHPAD_MAX_X  2048
-#define TOUCHPAD_MAX_Y  1024
-
-// 键盘报告大小
-#define KEYBOARD_REPORT_SZ  8
-
-#define LK_WIRELESS_ENABLE
-//#define RGB_MATRIX_ENABLE
-
-#define DISABLE_REPORT_BUFFER
-
-/* Communication transport enable flags */
-// #define USB_ENABLE_FLAG          FALSE
-#define BLUETOOTH_ENABLE_FLAG    TRUE
-// #define P2P4G_ENABLE_FLAG        TRUE
+/*
+ * 注意：如果定义了 PRODUCT_ID 但不是 0x0904，
+ * 说明正在编译其他产品，需要在包含此文件前先定义 PRODUCT_ID，
+ * 或者直接包含对应产品的 config.h
+ */

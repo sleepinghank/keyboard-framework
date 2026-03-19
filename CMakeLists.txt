@@ -122,8 +122,9 @@ set(SOURCES
     ./middleware/keyboard/combo/Special_Combo.c
     ./middleware/keyboard/combo/media_combo.c
 
-    # Keyboards - Keymap
-    ./keyboards/default_keymap.c
+    # Keyboards - Product specific (KB904)
+    ./keyboards/kb904/indicator.c
+    ./keyboards/kb904/keymaps/default.c
 
     # Utils
     ./utils/AES128.c
