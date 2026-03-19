@@ -1,85 +1,90 @@
-# KB904 产品配置
+# KB904 键盘配置指南
 
-## 产品概述
+本档说明 KB904 产品的配置结构和定制方法。
 
-| 属性 | 值 |
-|------|-----|
-| **型号** | KB904 |
-| **产品名** | inateck NeoMagic Pro |
-| **主控** | WCH CH584M (RISC-V) |
-| **功能** | 蓝牙键盘 + 触控板 |
-
-## 配置特点
-
-### 与默认配置的差异
-
-| 配置项 | 默认值 | KB904 值 |
-|--------|--------|----------|
-| 蓝牙通道数 | 3 | 1 |
-| 背光颜色数 | 7 | 13 |
-| 背光类型 | 单色 | RGB |
-| 指示灯数量 | 2 | 4 |
-| 深度休眠 | 10分钟 | 10分钟（同默认） |
-
-### 功能开关
-
-| 功能 | 状态 |
-|------|------|
-| 蓝牙 | ✅ 启用 |
-| USB | ❌ 禁用 |
-| 触控板 | ✅ 启用 |
-| 组合键 | ✅ 启用 |
-
-## 硬件配置
-
-### 矩阵
-
-- **行数**: 8
-- **列数**: 16
-- **二极管方向**: COL2ROW
-- **总键数**: 128（实际使用约 80 键）
-
-### 背光
-
-- **类型**: RGB 三色
-- **颜色数**: 13
-- **亮度档位**: 4（无/1/2/3）
-- **休眠超时**: 5秒无操作熄灭
-
-### 指示灯
-
-| LED | 引脚 | 颜色 | 功能 |
-|-----|------|------|------|
-| CAPS | PA15 | 白 | 大写锁定 |
-| BT | PB22 | 蓝 | 蓝牙状态 |
-| POWER | PB23 | 红 | 电源/低电量 |
-| CHARGE | PA14 | 绿 | 充满电（只读）|
-
-### 触控板
-
-- **芯片**: PCT1336QN
-- **接口**: I2C (PB20/PB21)
-- **中断**: PA3（下降沿触发）
-- **分辨率**: 2048 × 1024
-
-## 文件结构
+## 目录结构
 
 ```
 keyboards/kb904/
-├── config.h        # 产品主配置（覆盖默认值）
-├── config_hw.h     # GPIO 硬件映射（对应原理图）
-└── README.md       # 本文件
+├── config.h          # 主配置入口（产品级覆盖值）
+├── config_hw.h       # GPIO 硬件映射 + LED 类型定义
+├── indicator.c       # LED 硬件表实现
+├── keymaps/
+│   └── default.c     # 默认键位表（4 层）
+└── README.md         # 本文档
 ```
 
-## 配置加载顺序
+## 配置层级
 
-1. `config.h` - 产品配置（定义覆盖项）
-2. `config_hw.h` - GPIO 映射
-3. `defaults/*.h` - 默认值（通过 #ifndef 保护）
-4. `config_check.h` - 编译时验证
+```
+┌─────────────────────────────────────────┐
+│  #include "keyboards/kb904/config.h"    │  ← 应用代码入口
+└──────────────────┬──────────────────────┘
+                   │
+┌──────────────────▼──────────────────────┐
+│  config.h                                │
+│  ├── 定义覆盖值（覆盖 defaults/）        │
+│  ├── #include "defaults/*.h"            │
+│  ├── #include "config_hw.h"             │
+│  └── #include "config_check.h"          │
+└──────────────────────────────────────────┘
+```
 
-## 参考文档
+## 快速定制
 
-- [KB904 原理图](../../docs/kb904/KB904_原理图.md)
-- [KB904 功能清单](../../docs/kb904/KB904_功能清单.md)
-- [配置架构设计](../../docs/plans/kb904-config-architecture-design.md)
+### 修改键位表
+编辑 `keymaps/default.c`：
+```c
+const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
+    [LAYER_BASE] = {
+        /* Row 0 */  KC_Q, KC_W, KC_E, KC_R, ...
+    },
+    // ...
+};
+```
+
+### 修改 LED 配置
+1. **LED 数量**：在 `config.h` 中修改 `IND_LED_COUNT`
+2. **LED 引脚**：在 `config_hw.h` 中修改 `LED_*_PIN` 定义
+3. **LED 硬件表**：在 `indicator.c` 中修改 `ind_led_table[]`
+
+### 修改矩阵配置
+在 `config_hw.h` 中修改：
+```c
+#define MATRIX_ROWS           8
+#define MATRIX_COLS           16
+#define MATRIX_ROW_PINS { B9, B8, B7, ... }
+#define MATRIX_COL_PINS { B17, B16, B15, ... }
+```
+
+## 产品配置清单
+
+| 配置项 | 文件 | 当前值 |
+|--------|------|--------|
+| `PRODUCT_ID` | config.h | 0x0904 |
+| `IND_LED_COUNT` | config.h | 4 |
+| `MATRIX_ROWS` | config_hw.h | 8 |
+| `MATRIX_COLS` | config_hw.h | 16 |
+| `BLE_HOST_COUNT` | config.h | 1 |
+
+## 兼容层
+以下旧文件仍可用，但会产生编译警告：
+- `#include "product_config.h"` → 自动转发到 `kb904/config.h`
+- `#include "indicator_config.h"` → 自动转发到 `kb904/config.h`
+
+建议直接使用新的 include 路径。
+
+## 迁移指南
+从旧的 `product_config.h` 迁移到新架构：
+1. 将 `#include "product_config.h"` 改为 `#include "keyboards/kb904/config.h"`
+2. 将 `#include "indicator_config.h"` 改为 `#include "keyboards/kb904/config_hw.h"`
+3. 编译验证
+详见：`docs/plans/2026-03-19-keyboards-config-refactor-design.md`
+
+## 硬件对照表
+| LED | GPIO | 网络名 | 功能 |
+|-----|------|--------|------|
+| CAPS | PA15 | LED1 | 大写锁定 |
+| BT | PB22 | LED2 | 蓝牙状态 |
+| POWER | PB23 | LED3 | 电源/低电量 |
+| CHARGE | PA14 | LED4 | 充满电 |
