@@ -114,6 +114,10 @@ void wireless_config_save(void) {
  * Wireless init.
  */
 void wireless_init(void) {
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+
     wireless_state = WT_INITIALIZED;
 
 #if defined(EECONFIG_BASE_WIRELESS_CONFIG)
