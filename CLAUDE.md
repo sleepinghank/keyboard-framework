@@ -32,7 +32,7 @@ cmake --build build -j4
 
 **环境要求:** MSYS2 MINGW64, CMake 3.29+, GCC 15.2.0+
 
-**注意:** `test_main.c` 为 **Windows 仿真入口**（桌面调试用，不烧录硬件），`application/main.c` 为 **CH584M 实际烧录入口**。
+**注意:** `test_main.c` 使用无限循环 (`OSAL_SystemProcess()`)，不是传统的单元测试框架。
 
 ### WCH RISC-V BLE 项目编译 (CH584M)
 
@@ -69,7 +69,7 @@ cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Application Layer (main.c / test_main.c, services)         │
+│  Application Layer (test_main.c, services)                  │
 ├─────────────────────────────────────────────────────────────┤
 │  Middleware Layer                                           │
 │  ├── keyboard/   按键处理、层级、组合键、HID报告            │
@@ -115,54 +115,12 @@ drivers/input  drivers/input  middleware/    middleware/
 - `report_buffer.c` - HID 报告队列
 - `lpm.c` - 低功耗管理
 
-### 无线初始化顺序
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  system_init_drivers()                                          │
-│  ├── storage_init()                                             │
-│  └── bt_driver_init(false)     // 具体驱动硬件/协议栈初始化    │
-│      └── CH58x_BLEInit() → HAL_Init() → GAPRole_PeripheralInit()│
-├─────────────────────────────────────────────────────────────────┤
-│  system_init_middleware()                                       │
-│  ├── lpm_init()                                                 │
-│  └── wireless_init()            // 无线状态机初始化            │
-│      └── 设置 WT_INITIALIZED, 加载配置, report_buffer_init()  │
-├─────────────────────────────────────────────────────────────────┤
-│  运行时 (用户按键/上电策略)                                     │
-│  └── set_transport(TRANSPORT_BLUETOOTH)  // 选择通道           │
-│      ├── bt_transport_enable(true)                              │
-│      │   ├── host_set_driver(&wireless_driver)                 │
-│      │   └── wireless_connect_ex(host_idx, 0)                  │
-│      └── wireless_switch_to_bt_driver()  // 绑定驱动函数表     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 职责边界
-
-| 层级 | 函数 | 职责 |
-|------|------|------|
-| Driver | `bt_driver_init()` | BLE 协议栈初始化（CH58x_BLEInit, HAL_Init 等） |
-| Middleware | `wireless_init()` | 状态机初始化、配置加载、事件队列初始化 |
-| Middleware | `set_transport()` | 通道切换、host_driver 设置、发起连接 |
-
 ### 无线状态机
 ```
 WT_RESET → WT_INITIALIZED → WT_DISCONNECTED ⇄ WT_PARING
                                 ↓↑              ↓
                           WT_RECONNECTING → WT_CONNECTED ⇄ WT_SUSPEND
 ```
-
-### 低功耗状态机 (LPM)
-```
-ACTIVE → IDLE_PENDING → IDLE_SLEEP ⇄ WAKE_RESUME → ACTIVE
-    ↓
-DEEP_PENDING → DEEP_SLEEP → WAKE_RESUME → ACTIVE
-```
-
-- **Idle**: 5秒无活动，BLE 保持连接，快速唤醒
-- **Deep**: 10分钟无活动，BLE 断连，需要重连
-- **唤醒源**: 按键扫描 (GPIO 中断) 或 USB 插入
 
 ## Configuration
 
@@ -234,7 +192,6 @@ _post_task();  // task 之后
 
 - Context7 MCP - 用于获取库/API 文档
 - cmake-build-tester agent - 构建验证
-- `/pyramid-design` skill - 功能开发前的需求分析与方案设计（金字塔原理 + MECE），位于 `.claude/skills/pyramid-design/`
 
 ## Agent Working Rules
 
@@ -247,8 +204,7 @@ _post_task();  // task 之后
 
 ## Critical Files
 
-- 烧录入口: `application/main.c`（CH584M 实际固件）
-- 仿真入口: `test_main.c`（Windows 桌面调试，不烧录）
+- 入口: `test_main.c`
 - 启动流程: `application/system/system_init.c`
 - 事件 API: `drivers/system/event_manager.h`
 - 键盘核心: `middleware/keyboard/keyboard.c`
@@ -260,5 +216,3 @@ _post_task();  // task 之后
 **开发流程要求:** 实现任何需求时，严禁直接修改代码。必须先理清需求、确认方案、编写详细设计文档，经过评审后才能动手编码。
 
 **Windows 注意:** 项目根目录存在名为 `nul` 的文件，在 Windows 上进行广度递归 grep 可能会失败。
-
-**PowerShell 要求:** 使用 PowerShell 7.x.x 及以上版本，禁止使用 Windows 自带 PowerShell 5.x.x。

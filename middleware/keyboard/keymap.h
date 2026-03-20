@@ -3,16 +3,13 @@
 #define __KEYMAP_H__
 
 #include <stdint.h>
-#include "product_config.h"
+#include "kb904/config.h"
 
 // 层类型
 typedef enum {
     LAYER_BASE = 0,
-    LAYER_FN,
     LAYER_MACOS,
     LAYER_WINDOWS,
-    LAYER_CUSTOM_1,
-    LAYER_CUSTOM_2,
     LAYER_MAX
 } layer_id_t;
 

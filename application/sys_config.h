@@ -48,7 +48,7 @@ typedef enum {
 //## END
 
 //## 打印波特率
-#define PRINTF_BAUDRATE  115200
+#define PRINTF_BAUDRATE  921600
 //## END
 
 //## 打印IO映射

@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "product_config.h"
+#include "kb904/config.h"
 #include "pwm.h"
 
 /* ============ 默认配置加载 ============ */

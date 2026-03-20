@@ -20,9 +20,10 @@
 #define DEVICE_VERSION       0x0100
 
 /* ========== 功能开关 ========== */
-#define BLE_ENABLE_FLAG      TRUE
-#define USB_ENABLE_FLAG      FALSE
-#define TOUCHPAD_ENABLE      TRUE
+#define BLUETOOTH_ENABLE_FLAG      TRUE
+// #define USB_ENABLE_FLAG      FALSE
+// #define P2P4G_ENABLE_FLAG    FALSE
+// #define TOUCHPAD_ENABLE      FALSE
 #define COMBO_ENABLE         TRUE
 
 /* ========== 覆盖背光默认值 ========== */
@@ -40,7 +41,12 @@
 #define POWER_DEEP_SLEEP_MS  (10 * 60 * 1000)  // 10分钟
 
 /* ========== 覆盖指示灯默认值 ========== */
-#define IND_LED_COUNT        4
+#define IND_LED_COUNT        3
+
+/* ========== EEPROM 存储配置 ========== */
+#define EEPROM_CUSTOM                          // 使用自定义 EEPROM 驱动
+#define EEPROM_SIZE          512               // EEPROM 大小（字节）
+#define EEPROM_BASE_ADDR     0x0000            // EEPROM 基地址
 
 /* ========== 包含默认配置（使用 #ifndef 保护，上述覆盖值生效） ========== */
 #include "defaults/backlight_defaults.h"

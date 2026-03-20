@@ -137,12 +137,12 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
         dprintf("Communication: Connection interval updated\r\n");
         return (events ^ WL_CONECTION_INTERVAL_EVT);
     }
-
+#ifdef USB_ENABLE_FLAG
     // 处理USB连接事件
     if (events & USB_CONNECT_EVT) {
-#ifdef USB_ENABLE_FLAG
+
         wireless_switch_to_usb_mode();
-#endif
+
         dprintf("Communication: USB connected\r\n");
         return (events ^ USB_CONNECT_EVT);
     }
@@ -155,7 +155,7 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
         dprintf("Communication: USB disconnected\r\n");
         return (events ^ USB_DISCONNECT_EVT);
     }
-
+#endif
     /*========================================
      * LPM prepare/resume 事件处理
      *========================================*/

@@ -41,13 +41,7 @@
     #error "MATRIX_COLS must be 1-32"
 #endif
 
-#if BACKLIGHT_LEVEL_COUNT < 1 || BACKLIGHT_LEVEL_COUNT > 10
-    #error "BACKLIGHT_LEVEL_COUNT must be 1-10"
-#endif
 
-#if BACKLIGHT_COLOR_COUNT < 1 || BACKLIGHT_COLOR_COUNT > 20
-    #error "BACKLIGHT_COLOR_COUNT must be 1-20"
-#endif
 
 #if BLE_HOST_COUNT < 1 || BLE_HOST_COUNT > 5
     #error "BLE_HOST_COUNT must be 1-5"
@@ -76,25 +70,13 @@
     #ifndef BACKLIGHT_PIN_B
         #error "BACKLIGHT_TYPE_RGB requires BACKLIGHT_PIN_B definition"
     #endif
-#endif
 
-/* ========== GPIO 冲突检测 ========== */
-/* 注意：C 预处理器无法直接比较宏值，以下检测需要在实际使用时实现 */
-#if defined(LED_CAPS_PIN) && defined(LED_BT_PIN)
-    #if LED_CAPS_PIN == LED_BT_PIN
-        #error "GPIO conflict: LED_CAPS_PIN and LED_BT_PIN use the same pin"
+    #if BACKLIGHT_LEVEL_COUNT < 1 || BACKLIGHT_LEVEL_COUNT > 10
+    #error "BACKLIGHT_LEVEL_COUNT must be 1-10"
     #endif
-#endif
 
-#if defined(LED_CAPS_PIN) && defined(LED_POWER_PIN)
-    #if LED_CAPS_PIN == LED_POWER_PIN
-        #error "GPIO conflict: LED_CAPS_PIN and LED_POWER_PIN use the same pin"
-    #endif
-#endif
-
-#if defined(LED_BT_PIN) && defined(LED_POWER_PIN)
-    #if LED_BT_PIN == LED_POWER_PIN
-        #error "GPIO conflict: LED_BT_PIN and LED_POWER_PIN use the same pin"
+    #if BACKLIGHT_COLOR_COUNT < 1 || BACKLIGHT_COLOR_COUNT > 20
+        #error "BACKLIGHT_COLOR_COUNT must be 1-20"
     #endif
 #endif
 

@@ -137,7 +137,7 @@ static void update_pwm_hardware(pwm_channel_t channel) {
                     default: period_cycles = 64; break;
                 }
                 duty_data = (pwm_channels[i].duty_cycle * period_cycles) / 100;
-                dprintf("PWM Channel %d: Setting 8-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
+                // dprintf("PWM Channel %d: Setting 8-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
                 /* 使用8位输出配置 */
                 PWMX_ACTOUT(channel, (uint8_t)duty_data,
                            pwm_channels[i].polarity ? Low_Level : High_Level,
@@ -432,7 +432,6 @@ bool pwm_bind_pin(pin_t pin, pwm_channel_t channel) {
 
             /* 将引脚绑定到此通道 */
             pwm_channels[i].pin = pin;
-            dprintf("pin:%d",pin);
             /* 配置GPIO引脚为PWM输出（推挽输出，最大5mA） */
             if (pin != NO_PIN) {
                 uint8_t port = GET_GPIO_PORT(pin);  /* 获取端口号：0=PORTA, 1=PORTB */

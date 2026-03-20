@@ -25,7 +25,7 @@
  * Note: 主机与从机的DEBUG接口需要同时打开或关闭，
  * 否则会产生时序问题。
  */
-// #define CONFIG_I2C_DEBUG
+#define CONFIG_I2C_DEBUG
 
 #ifdef CONFIG_I2C_DEBUG
 #define I2C_DBG(...)    PRINT(__VA_ARGS__)
@@ -84,12 +84,27 @@ typedef struct {
 /* I2C通道状态数组 - CH584有1个I2C控制器 */
 static i2c_channel_state_t i2c_channels[I2C_CHANNEL_MAX] = {0};
 
+/* ---------- I2C Slave：与官方完整示例一致的缓冲区与回调 ---------- */
+static uint8_t i2c_slave_txbuffer[I2C_BUFFER_LENGTH];
+static uint8_t i2c_slave_txbuffer_index = 0;
+static uint8_t i2c_slave_txbuffer_length = 0;
+
+static uint8_t i2c_slave_rxbuffer[I2C_BUFFER_LENGTH];
+static uint8_t i2c_slave_rxbuffer_index = 0;
+
+static const i2c_slave_callbacks_t *i2c_slave_cb = NULL;
+
+void i2c_slave_set_callbacks(const i2c_slave_callbacks_t *cb)
+{
+    i2c_slave_cb = cb;
+}
+
 /*==========================================
  * 内部辅助函数（完全参照官方例程）
  *=========================================*/
 
 /**
- * @brief 配置I2C引脚（完全参照app_i2c.c）
+ * @brief 配置I2C引脚（完全参照app_i2c.c）将绑定到通道的引脚（i2c_bind_pins）配置gpio模式
  * @param channel I2C通道号
  */
 static void i2c_configure_pins(i2c_channel_t channel) {
@@ -326,10 +341,97 @@ void I2C_IRQHandler(void) {
         }
 
     } else {
-    /* I2C slave - 在此HAL实现中不处理从机模式 */
+    /* I2C slave — 与官方完整示例一致 */
+        i2c_channel_state_t *ch0 = &i2c_channels[0];
+
         /* addressed, returned ack */
         if (event & RB_I2C_ADDR) {
-            I2C_DBG("Slave address matched (not used in this HAL)\n");
+
+            if (event & ((RB_I2C_TRA << 16) | RB_I2C_TxE)) {
+                I2C_DBG("Slave transmitter address matched\n");
+
+                ch0->state = I2C_STX;
+                i2c_slave_txbuffer_index = 0;
+                i2c_slave_txbuffer_length = 0;
+
+                if (i2c_slave_cb && i2c_slave_cb->on_transmit) {
+                    i2c_slave_cb->on_transmit(i2c_slave_txbuffer, &i2c_slave_txbuffer_length);
+                }
+            } else {
+                I2C_DBG("Slave reveiver address matched\n");
+
+                ch0->state = I2C_SRX;
+                i2c_slave_rxbuffer_index = 0;
+            }
+        }
+
+        if (event & (RB_I2C_TRA << 16)) { /* TODO: STOP? */
+            /* Slave transmintter */
+            I2C_AcknowledgeConfig(ENABLE);
+            I2C_DBG("Slave transmitter:\n");
+
+            if (event & RB_I2C_AF) {
+                /* Nack received */
+                I2C_ClearFlag(I2C_FLAG_AF);
+                I2C_AcknowledgeConfig(ENABLE);
+                I2C_DBG("  Nack received\n");
+
+                /* leave slave receiver state */
+                ch0->state = I2C_READY;
+                /* clear status */
+                event = 0;
+            }
+
+            if (event & (RB_I2C_BTF | RB_I2C_TxE)) {
+                /* if there is more to send, ack, otherwise send 0xff */
+                if (i2c_slave_txbuffer_index < i2c_slave_txbuffer_length) {
+                    /* copy data to output register */
+                    I2C_SendData(i2c_slave_txbuffer[i2c_slave_txbuffer_index++]);
+                    I2C_DBG("  send (%#x)\n",
+                            i2c_slave_txbuffer[i2c_slave_txbuffer_index - 1]);
+                } else {
+                    I2C_SendData(0xff);
+                    I2C_DBG("  no more data, send 0xff\n");
+                }
+            }
+        } else {
+            /* Slave receiver */
+            I2C_DBG("Slave receiver:\n");
+
+            if (event & RB_I2C_RxNE) {
+                /* if there is still room in the rx buffer */
+                if (i2c_slave_rxbuffer_index < I2C_BUFFER_LENGTH) {
+                    /* put byte in buffer and ack */
+                    i2c_slave_rxbuffer[i2c_slave_rxbuffer_index++] = I2C_ReceiveData();
+                    I2C_AcknowledgeConfig(ENABLE);
+                    I2C_DBG("  received (%#x)\n",
+                            i2c_slave_rxbuffer[i2c_slave_rxbuffer_index - 1]);
+                } else {
+                    /* otherwise nack */
+                    I2C_AcknowledgeConfig(DISABLE);
+                }
+            }
+
+            if (event & RB_I2C_STOPF) {
+                /* ack future responses and leave slave receiver state */
+                R16_I2C_CTRL1 |= RB_I2C_PE; /* clear flag */
+
+                I2C_DBG("  reveive stop\n");
+
+                /* callback to user defined callback */
+                if (i2c_slave_cb && i2c_slave_cb->on_receive) {
+                    i2c_slave_cb->on_receive(i2c_slave_rxbuffer, i2c_slave_rxbuffer_index);
+                }
+                /* since we submit rx buffer , we can reset it */
+                i2c_slave_rxbuffer_index = 0;
+            }
+
+            if (event & RB_I2C_AF) {
+                I2C_ClearFlag(I2C_FLAG_AF);
+
+                /* ack future responses */
+                I2C_AcknowledgeConfig(ENABLE);
+            }
         }
     }
 
@@ -381,9 +483,10 @@ void I2C_IRQHandler(void) {
 
 /*==========================================
  * I2C通道基础函数（完全参照官方例程）
+ * 软实现，软件状态结构体初始化/清零
  *=========================================*/
 
-void i2c_init_channel(i2c_channel_t channel) {
+void soft_i2c_init_channel(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
         return;
     }
@@ -457,14 +560,15 @@ static int i2c_write_to_channel(i2c_channel_t channel, uint8_t addr_7bit, const 
         } while(R16_I2C_STAR1 & RB_I2C_BTF);
 
         /* Disabled in IRS */
+        I2C_ITConfig(I2C_IT_BUF, ENABLE);
+        I2C_ITConfig(I2C_IT_EVT, ENABLE);
+        I2C_ITConfig(I2C_IT_ERR, ENABLE);
     } else {
         I2C_GenerateSTART(ENABLE);
     }
 
     while(wait && (ch->state == I2C_MTX)) {
-        /* 在中断模式下，这里会等待中断处理完成 */
-        /* 可以添加延时或者让出CPU时间片 */
-        for(volatile int i = 0; i < 100; i++);  /* 简单延时 */
+        continue;
     }
 
     if (ch->error) {
@@ -524,6 +628,9 @@ static int i2c_read_from_channel(i2c_channel_t channel, uint8_t addr_7bit, uint8
         } while(R16_I2C_STAR1 & RB_I2C_BTF);
 
         /* Disabled in IRS */
+        I2C_ITConfig(I2C_IT_BUF, ENABLE);
+        I2C_ITConfig(I2C_IT_EVT, ENABLE);
+        I2C_ITConfig(I2C_IT_ERR, ENABLE);
     } else {
         I2C_GenerateSTART(ENABLE);
     }
@@ -734,6 +841,7 @@ i2c_status_t i2c_readReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint1
 
 /*==========================================
  * GPIO引脚绑定函数
+ * 将引脚绑定通道，外部操作以通道作为参数
  *=========================================*/
 
 i2c_status_t i2c_bind_pins(pin_t sda_pin, pin_t scl_pin, i2c_channel_t channel) {
@@ -790,7 +898,7 @@ bool i2c_is_bound(i2c_channel_t channel) {
 }
 
 /*==========================================
- * I2C初始化（调用绑定引脚后使用）
+ * I2C初始化（包含引脚通道保存）真正的结合硬件的初始化
  *=========================================*/
 
 i2c_status_t i2c_init_channel_with_pins(i2c_channel_t channel, pin_t sda_pin, pin_t scl_pin, uint32_t clock_speed) {
@@ -807,6 +915,17 @@ i2c_status_t i2c_init_channel_with_pins(i2c_channel_t channel, pin_t sda_pin, pi
     /* 保存时钟速度 */
     i2c_channels[channel].clock_speed = clock_speed;
     i2c_channels[channel].own_address = 0x00;  /* 不使用双地址模式 */
+
+    /* 若使用 PB20/PB21 作 SDA/SCL，须使能 I2C 引脚重映射（默认在 PB12/PB13） */
+    if (sda_pin == B20 && scl_pin == B21) {
+        GPIOPinRemap(ENABLE, RB_PIN_I2C);
+    }
+    else if(sda_pin == B12 && scl_pin == B13) {
+        GPIOPinRemap(DISABLE, RB_PIN_I2C);
+    }
+    else {
+        return I2C_STATUS_ERROR;
+    }
 
     /* 初始化I2C控制器（完全参照app_i2c.c i2c_app_init） */
     I2C_Init(I2C_Mode_I2C, clock_speed, I2C_DutyCycle_16_9, I2C_Ack_Enable,
@@ -825,4 +944,60 @@ i2c_status_t i2c_init_channel_with_pins(i2c_channel_t channel, pin_t sda_pin, pi
     i2c_channels[channel].initialized = true;
 
     return I2C_STATUS_SUCCESS;
+}
+
+/*==========================================
+ * PCT1336 I2C通信测试
+ *=========================================*/
+void PCT1336_Communication_Test(void)
+{
+    uint8_t test_val = 0;
+    uint8_t retry_count = 0;
+    uint8_t test_success = 0;
+    const i2c_channel_t ch = I2C_CHANNEL_0;
+    const uint8_t dev_addr = 0x33; /* PCT1336 7-bit I2C 地址 */
+
+    PRINT("=== PCT1336 I2C test ===\r\n");
+
+    /* 测试1: 读取状态寄存器 0x70 */
+    for (retry_count = 0; retry_count < 3; retry_count++) {
+        if (i2c_readReg_channel(ch, dev_addr, 0x70, &test_val, 1, I2C_TIMEOUT_INFINITE) == I2C_STATUS_SUCCESS) {
+            PRINT("reg0x70 success: 0x%02X\r\n", test_val);
+            test_success = 1;
+            break;
+        } else {
+            PRINT("reg0x70 error %d/3\r\n", retry_count + 1);
+            mDelaymS(10);
+        }
+    }
+
+    /* 测试2: 读取设备ID寄存器 0x71 */
+    if (test_success) {
+        if (i2c_readReg_channel(ch, dev_addr, 0x71, &test_val, 1, I2C_TIMEOUT_INFINITE) == I2C_STATUS_SUCCESS) {
+            PRINT("reg0x71 success: 0x%02X\r\n", test_val);
+        } else {
+            PRINT("reg0x71 error\r\n");
+        }
+    }
+
+    /* 测试3: 写入测试寄存器 0x72 并回读 */
+    if (test_success) {
+        uint8_t write_val = 0xBB;
+        if (i2c_writeReg_channel(ch, dev_addr, 0x72, &write_val, 1, I2C_TIMEOUT_INFINITE) == I2C_STATUS_SUCCESS) {
+            PRINT("reg0x72 write success\r\n");
+            if (i2c_readReg_channel(ch, dev_addr, 0x72, &test_val, 1, I2C_TIMEOUT_INFINITE) == I2C_STATUS_SUCCESS) {
+                PRINT("reg0x72 readback success: 0x%02X\r\n", test_val);
+            } else {
+                PRINT("reg0x72 readback error\r\n");
+            }
+        } else {
+            PRINT("reg0x72 write error\r\n");
+        }
+    }
+
+    if (test_success) {
+        PRINT("=== PCT1336 I2C test success ===\r\n");
+    } else {
+        PRINT("=== PCT1336 I2C test error ===\r\n");
+    }
 }

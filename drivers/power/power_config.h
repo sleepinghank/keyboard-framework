@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "product_config.h"
+#include "kb904/config.h"
 
 /* ============ 默认配置加载 ============ */
 /* 如果使用新的配置系统，defaults 在产品 config.h 中已包含 */
@@ -73,3 +73,11 @@
 /* ============ 兼容旧命名 ============ */
 
 #define CONNECTED_IDLE_TIME  (LPM_DEEP_TIMEOUT_MS / 1000)
+
+#ifndef CONNECTED_BACKLIGHT_DISABLE_TIMEOUT
+#define CONNECTED_BACKLIGHT_DISABLE_TIMEOUT  60  // 连接状态下背光关闭超时（秒）
+#endif
+
+#ifndef DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT
+#define DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT  30  // 断开状态下背光关闭超时（秒）
+#endif

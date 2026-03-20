@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include "product_config.h"
+#include "kb904/config.h"
 #include "wireless_event_type.h"
 #include "bt_driver.h"
 #ifdef P2P4G_ENABLE_FLAG

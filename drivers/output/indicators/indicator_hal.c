@@ -20,7 +20,7 @@
  */
 
 #include "indicator_hal.h"
-#include "indicator_config.h"
+#include "kb904/config.h"
 #include "gpio.h"
 
 void ind_hal_init(void) {

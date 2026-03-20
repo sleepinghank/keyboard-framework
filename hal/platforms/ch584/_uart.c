@@ -69,11 +69,13 @@ static void configure_uart_pins(platform_uart_t uart, pin_t rx_pin, pin_t tx_pin
                 /* 检查是否为PA14 (TXD0_) */
                 if (GET_GPIO_PORT(tx_pin) == PORTA && GET_GPIO_PIN(tx_pin) == 14) {
                     GPIOPinRemap(ENABLE, RB_PIN_UART0);
+                    gpio_write_pin_high(tx_pin);
                     /* 配置PA14为推挽输出 */
                     gpio_set_pin_output_push_pull(tx_pin);
                 } else if (GET_GPIO_PORT(tx_pin) == PORTB && GET_GPIO_PIN(tx_pin) == 7) {
                     /* PB7是默认TXD0，无需映射 */
                     GPIOPinRemap(DISABLE, RB_PIN_UART0);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 }
             }
@@ -104,6 +106,7 @@ static void configure_uart_pins(platform_uart_t uart, pin_t rx_pin, pin_t tx_pin
                 } else if (GET_GPIO_PORT(tx_pin) == PORTA && GET_GPIO_PIN(tx_pin) == 9) {
                     /* PA9是默认TXD1，无需映射 */
                     GPIOPinRemap(DISABLE, RB_PIN_UART1);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 }
             }
@@ -129,10 +132,12 @@ static void configure_uart_pins(platform_uart_t uart, pin_t rx_pin, pin_t tx_pin
                 /* 检查是否为PB23 (TXD2_) */
                 if (GET_GPIO_PORT(tx_pin) == PORTB && GET_GPIO_PIN(tx_pin) == 23) {
                     GPIOPinRemap(ENABLE, RB_PIN_UART2);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 } else if (GET_GPIO_PORT(tx_pin) == PORTA && GET_GPIO_PIN(tx_pin) == 7) {
                     /* PA7是默认TXD2，无需映射 */
                     GPIOPinRemap(DISABLE, RB_PIN_UART2);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 }
             }
@@ -158,10 +163,12 @@ static void configure_uart_pins(platform_uart_t uart, pin_t rx_pin, pin_t tx_pin
                 /* 检查是否为PB21 (TXD3_) */
                 if (GET_GPIO_PORT(tx_pin) == PORTB && GET_GPIO_PIN(tx_pin) == 21) {
                     GPIOPinRemap(ENABLE, RB_PIN_UART3);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 } else if (GET_GPIO_PORT(tx_pin) == PORTA && GET_GPIO_PIN(tx_pin) == 5) {
                     /* PA5是默认TXD3，无需映射 */
                     GPIOPinRemap(DISABLE, RB_PIN_UART3);
+                    gpio_write_pin_high(tx_pin);
                     gpio_set_pin_output_push_pull(tx_pin);
                 }
             }
@@ -307,7 +314,7 @@ error_code_t platform_uart_init(platform_uart_t uart, uint32_t baudrate, uint8_t
  */
 error_code_t platform_uart_close(platform_uart_t uart) {
     /* 检查UART通道是否有效 */
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return ERROR_UART_INVALID_PORT;
     }
 
@@ -343,7 +350,7 @@ error_code_t platform_uart_close(platform_uart_t uart) {
  */
 error_code_t platform_uart_write_byte(platform_uart_t uart, uint8_t data) {
     /* 检查UART通道是否有效 */
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return ERROR_UART_INVALID_PORT;
     }
 
@@ -385,7 +392,7 @@ error_code_t platform_uart_write_byte(platform_uart_t uart, uint8_t data) {
  */
 error_code_t platform_uart_write(platform_uart_t uart, uint8_t *data, uint16_t len) {
     /* 检查UART通道是否有效 */
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return ERROR_UART_INVALID_PORT;
     }
 
@@ -426,7 +433,7 @@ error_code_t platform_uart_write(platform_uart_t uart, uint8_t *data, uint16_t l
  */
 error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uart_rx_callback_t callback) {
     /* 检查UART通道是否有效 */
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return ERROR_UART_INVALID_PORT;
     }
 
@@ -451,7 +458,7 @@ error_code_t platform_uart_register_rx_callback(platform_uart_t uart, uart_rx_ca
  */
 error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t uart) {
     /* 检查UART通道是否有效 */
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return ERROR_UART_INVALID_PORT;
     }
 
@@ -481,7 +488,7 @@ error_code_t platform_uart_bind_pins(pin_t rx_pin, pin_t tx_pin, platform_uart_t
  * @return RX引脚号（如果未绑定则返回NO_PIN）
  */
 pin_t platform_uart_get_rx_pin(platform_uart_t uart) {
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return NO_PIN;
     }
 
@@ -495,7 +502,7 @@ pin_t platform_uart_get_rx_pin(platform_uart_t uart) {
  * @return TX引脚号（如果未绑定则返回NO_PIN）
  */
 pin_t platform_uart_get_tx_pin(platform_uart_t uart) {
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return NO_PIN;
     }
 
@@ -509,7 +516,7 @@ pin_t platform_uart_get_tx_pin(platform_uart_t uart) {
  * @return true表示已绑定（至少有一个有效引脚），false表示未绑定
  */
 bool platform_uart_is_bound(platform_uart_t uart) {
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return false;
     }
 
@@ -523,7 +530,7 @@ bool platform_uart_is_bound(platform_uart_t uart) {
  * @return true表示已启用RX，false表示未启用
  */
 bool platform_uart_is_rx_enabled(platform_uart_t uart) {
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return false;
     }
 
@@ -537,7 +544,7 @@ bool platform_uart_is_rx_enabled(platform_uart_t uart) {
  * @return true表示已启用TX，false表示未启用
  */
 bool platform_uart_is_tx_enabled(platform_uart_t uart) {
-    if (uart >= PLATFORM_UART_3) {
+    if (uart >= PLATFORM_UART_END) {
         return false;
     }
 

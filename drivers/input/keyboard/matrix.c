@@ -106,7 +106,7 @@ void matrix_read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col,
     for (uint8_t row_index = 0; row_index < ROWS_PER_HAND; row_index++) {
         // Check row pin state
         if (readMatrixPin(row_pins[row_index]) == 0) {
-            dprintf("Col %d Row %d: Pressed\r\n", current_col, row_index);
+            dprintf("downkey:%d,%d\r\n", row_index, current_col);
             // Pin LO, set col bit
             current_matrix[row_index] |= row_shifter;
             key_pressed = true;
@@ -149,7 +149,6 @@ uint8_t matrix_scan(void) {
     bool changed = memcmp(raw_matrix, curr_matrix, sizeof(curr_matrix)) != 0;
     if (changed) {
         memcpy(raw_matrix, curr_matrix, sizeof(curr_matrix));
-        dprintf("Matrix scan: Detected changes in raw matrix\r\n");
     }
 
     changed = debounce(raw_matrix, matrix, ROWS_PER_HAND, changed);

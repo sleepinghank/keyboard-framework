@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include "gpio.h"
-#include "product_config.h"
+#include "kb904/config.h"
 
 /* diode directions */
 #define COL2ROW 0

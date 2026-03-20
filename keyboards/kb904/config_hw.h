@@ -30,45 +30,36 @@
 #endif
 
 #define MATRIX_ROWS           8
-#define MATRIX_COLS           16
+#define MATRIX_COLS           15
 #define DIODE_DIRECTION       COL2ROW
 
-/* 行线 (ROW) - 输出
- * 对应原理图 FPC1 连接器
- * 网络名: R0-R7 (U2.7-22)
- */
 #define MATRIX_ROW_PINS {     \
-    B9,  /* R0 - U2.7  */     \
-    B8,  /* R1 - U2.8  */     \
-    B7,  /* R2 - U2.17 */     \
-    B6,  /* R3 - U2.18 */     \
-    B5,  /* R4 - U2.19 */     \
-    B4,  /* R5 - U2.20 */     \
-    B3,  /* R6 - U2.21 */     \
-    B2   /* R7 - U2.22 */     \
+    A9,  /* R0 - U2.7  */     \
+    A8,  /* R1 - U2.8  */     \
+    A7,  /* R2 - U2.17 */     \
+    A1,  /* R3 - U2.18 */     \
+    A0,  /* R4 - U2.19 */     \
+    A6,  /* R5 - U2.20 */     \
+    A5,  /* R6 - U2.21 */     \
+    A4   /* R7 - U2.22 */     \
 }
 
-/* 列线 (COL) - 输入带上拉
- * 对应原理图 FPC1 连接器
- * 网络名: C0-C15
- */
 #define MATRIX_COL_PINS {     \
-    B17, /* C0  - U2.9  */    \
-    B16, /* C1  - U2.10 */    \
-    B15, /* C2  - U2.11 */    \
-    B14, /* C3  - U2.12 */    \
-    B13, /* C4  - U2.13 */    \
-    B12, /* C5  - U2.14 */    \
-    B11, /* C6  - U2.15 */    \
-    B10, /* C7  - U2.16 */    \
-    A7,  /* C8  - U2.4  */    \
-    A6,  /* C9  - U2.38 */    \
-    A5,  /* C10 - U2.37 */    \
-    A4,  /* C11 - U2.36 */    \
-    A1,  /* C12 - U2.40 */    \
-    A0,  /* C13 - U2.39 */    \
-    B1,  /* C14 - U2.23 */    \
-    A15  /* C15 - U2.43 */    \
+    B9, /* C0  - U2.9  */    \
+    B8, /* C1  - U2.10 */    \
+    B17, /* C2  - U2.11 */    \
+    B16, /* C3  - U2.12 */    \
+    B15, /* C4  - U2.13 */    \
+    B14, /* C5  - U2.14 */    \
+    B13, /* C6  - U2.15 */    \
+    B1, /* C7  - U2.16 */    \
+    B7,  /* C8  - U2.4  */    \
+    B12,  /* C9  - U2.38 */    \
+    B6,  /* C10 - U2.37 */    \
+    B5,  /* C11 - U2.36 */    \
+    B4,  /* C12 - U2.40 */    \
+    B3,  /* C13 - U2.39 */    \
+    B2  /* C14 - U2.23 */    \
 }
 
 /* ========== 背光 RGB ==========
@@ -85,17 +76,14 @@
 #define LED_CAPS_PIN          A15  /* 白灯 - 大写锁定 - U2.43 */
 #define LED_BT_PIN            B22  /* 蓝灯 - 蓝牙状态 - U2.30 */
 #define LED_POWER_PIN         B23  /* 红灯 - 电源/低电量 - U2.31 */
-#define LED_CHARGE_PIN        A14  /* 绿灯 - 充满电（只读）- U2.45 */
 
 /* 兼容别名 */
 #define LED_POWER_RED_PIN     LED_POWER_PIN
-#define LED_POWER_GRN_PIN     LED_CHARGE_PIN
 
 /* ========== 指示灯业务别名（供应用层使用）========== */
 #define LED_CAPS          0    /* 白灯：大写锁定 */
 #define LED_BT            1    /* 蓝灯：蓝牙状态 */
 #define LED_POWER_RED     2    /* 红灯：电源 / 低电量 */
-#define LED_POWER_GRN     3    /* 绿灯：充满电 */
 
 /* ========== 指示灯硬件表类型 ============ */
 #include <stdbool.h>
@@ -113,8 +101,8 @@ extern const ind_led_def_t ind_led_table[IND_LED_COUNT];
  * 芯片: PCT1336QN
  * 网络名: PB20_SDA, PB21_SCL, PA3_INT
  */
-#define TOUCHPAD_SDA          B20  /* PB20_SDA - U2.28 */
-#define TOUCHPAD_SCL          B21  /* PB21_SCL - U2.29 */
+#define TOUCHPAD_SDA          NO_PIN  /* PB20_SDA - U2.28 */
+#define TOUCHPAD_SCL          NO_PIN  /* PB21_SCL - U2.29 */
 #define TOUCHPAD_INT          A3   /* PA3_INT - 下降沿触发 - U2.42 */
 
 /* ========== 触控板尺寸 ========== */

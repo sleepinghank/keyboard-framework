@@ -23,7 +23,7 @@
 #include "host_driver.h"
 #include "report.h"
 #include "keyboard.h"
-#include "product_config.h"
+#include "kb904/config.h"
 #include "wait.h"
 #include "string.h"
 #include "print.h"

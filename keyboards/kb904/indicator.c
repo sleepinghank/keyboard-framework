@@ -35,8 +35,7 @@
  *   3: LED_POWER_GRN   - 绿灯，充满电（只读）
  */
 const ind_led_def_t ind_led_table[IND_LED_COUNT] = {
-    /* 0 */ { LED_CAPS_PIN,   true },   /* 白灯：大写锁定 */
-    /* 1 */ { LED_BT_PIN,     true },   /* 蓝灯：蓝牙状态 */
-    /* 2 */ { LED_POWER_PIN,  true },   /* 红灯：电源 / 低电量 */
-    /* 3 */ { LED_CHARGE_PIN, true },   /* 绿灯：充满电（只读） */
+    /* 0 */ { LED_CAPS_PIN,   false },   /* 白灯：大写锁定 */
+    /* 1 */ { LED_BT_PIN,     false },   /* 蓝灯：蓝牙状态 */
+    /* 2 */ { LED_POWER_PIN,  false },   /* 红灯：电源 / 低电量 */
 };

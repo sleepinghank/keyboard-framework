@@ -1,5 +1,6 @@
 {
 	"version": "1.0",
+	"hasAllParsed": true,
 	"isNormalMRSProject": true,
 	"basic": {
 		"chipInfo": {
@@ -9,6 +10,7 @@
 			"rtos": "NoneOS",
 			"mcu": "CH585M",
 			"description": "",
+			"tempratureScope": "",
 			"artifactType": "executable",
 			"link": "WCH-Link",
 			"peripheral_version": "1.0",
@@ -157,7 +159,8 @@
 					"${project}/port/ch584m/port_spi.c",
 					"${project}/port/ch584m/port_spi.h",
 					"${project}/drivers/communication/bluetooth/test",
-					"${project}/application/hidkbd.c"
+					"${project}/application/hidkbd.c",
+					"${project}/keyboards/n0046"
 				],
 				"optimization": {
 					"level": "size",
@@ -177,6 +180,7 @@
 					"code_generation_without_hardware_floating": false,
 					"use_pipelines": false,
 					"show_caret_indicating_the_column": false,
+					"calling_convention_variant": false,
 					"other_optimization_flags": ""
 				},
 				"warnings": {
@@ -236,7 +240,7 @@
 							"CLK_OSC32K=1",
 							"DCDC_ENABLE=1",
 							"DEBUG=1",
-							"HAL_SLEEP=1",
+							"HAL_SLEEP=0",
 							"FREQ_SYS=78000000"
 						],
 						"undefined_symbols": []
@@ -432,7 +436,8 @@
 					}
 				},
 				"archiver": {
-					"archiver_flags": "-r"
+					"archiver_flags": "-r",
+					"libOutputPrefix": "lib"
 				},
 				"createFlash": {
 					"enabled": true,
@@ -473,6 +478,7 @@
 					"extra_compressed_extension": false,
 					"bit_extension": true,
 					"multiplication_subset_of_the_M_extension": false,
+					"vector_cryptography_extensions": "",
 					"integer_ABI": "ilp32",
 					"floating_point_ABI": "none",
 					"tuning": "default",
@@ -500,7 +506,8 @@
 				"post_script_description": "",
 				"excludeResources": [
 					"${project}/CH584M",
-					"${project}/閺傛澘缂撻弬鍥︽婢剁畬Ld",
+					"${project}/新建文件夹",
+					"${project}/Ld",
 					"${project}/RVMSIS",
 					"${project}/StdPeriphDriver/CH59x_usbhostClass.c",
 					"${project}/StdPeriphDriver/CH59x_usbhostBase.c",
@@ -512,9 +519,7 @@
 					"${project}/StdPeriphDriver/CH59x_timer0.c",
 					"${project}/StdPeriphDriver/CH59x_spi0.c",
 					"${project}/StdPeriphDriver/CH59x_pwm.c",
-					"${project}/StdPeriphDriver/CH59x_adc.c",
-					"${project}/drivers/communication/bluetooth/test",
-					"${project}/application/hidkbd.c"
+					"${project}/StdPeriphDriver/CH59x_adc.c"
 				],
 				"optimization": {
 					"level": "size",
@@ -534,6 +539,7 @@
 					"code_generation_without_hardware_floating": false,
 					"use_pipelines": false,
 					"show_caret_indicating_the_column": false,
+					"calling_convention_variant": false,
 					"other_optimization_flags": ""
 				},
 				"warnings": {
@@ -744,7 +750,8 @@
 					}
 				},
 				"archiver": {
-					"archiver_flags": "-r"
+					"archiver_flags": "-r",
+					"libOutputPrefix": "lib"
 				},
 				"createFlash": {
 					"enabled": true,
@@ -785,6 +792,7 @@
 					"extra_compressed_extension": false,
 					"bit_extension": true,
 					"multiplication_subset_of_the_M_extension": false,
+					"vector_cryptography_extensions": "",
 					"integer_ABI": "ilp32",
 					"floating_point_ABI": "none",
 					"tuning": "default",

@@ -8,6 +8,7 @@ MCU=CH585M
 Link=WCH-Link
 PeripheralVersion=1.0
 Description=
+TempratureScope=
 ArtifactType=executable
 Mcu Type=CH584/5
 Address=0x00000000

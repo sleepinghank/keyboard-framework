@@ -17,7 +17,7 @@
 #include "atomic_util.h"
 #include "bt_driver.h"
 #include "debug.h"
-#include "product_config.h"
+#include "kb904/config.h"
 #include "util.h"
 #include "i2c_master.h"
 #include <math.h>

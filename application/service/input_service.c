@@ -8,7 +8,7 @@
 #include "system_service.h"
 #include "bt_driver.h"
 #include "hw_timer.h"
-#include "product_config.h"
+#include "kb904/config.h"
 #include "gpio.h"
 #include "system_hal.h"
 #include "lpm.h"
@@ -265,7 +265,6 @@ void input_service_init(void) {
     /* 注册任务并获取任务ID */
     input_taskID = OSAL_ProcessEventRegister(input_process_event);
     dprintf("Input: Service initialized with task ID %d\r\n", input_taskID);
-    // battery_init();  // 已移至 system_init_drivers() - 驱动层初始化应在驱动层完成
     g_last_battery_power_state = 0xFF;
     /* 启动硬件定时器驱动的矩阵扫描 */
     matrix_scan_timer_start();

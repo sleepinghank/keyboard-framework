@@ -6,7 +6,7 @@
 #include "report_buffer.h"
 #include "transport.h"
 #include "indicator.h"
-#include "indicator_config.h"
+#include "kb904/config.h"
 #include "backlight.h"
 #include "lpm.h"
 #include "system_service.h"
@@ -47,17 +47,12 @@ static const ind_req_map_t ind_req_map[] = {
     { IND_REQ_BT_RECONNECTING,   LED_BT,   &IND_BLINK_SLOW },
     { IND_REQ_BT_CONNECTED,      LED_BT,   &IND_OFF        },
     { IND_REQ_BT_DISCONNECTED,   LED_BT,   &IND_OFF        },
-#else
-    { IND_REQ_BT_PAIRING,        LED_WHITE, &IND_BLINK_SLOW },
-    { IND_REQ_BT_RECONNECTING,   LED_WHITE, &IND_BLINK_FAST },
-    { IND_REQ_BT_CONNECTED,      LED_WHITE, &IND_ON         },
-    { IND_REQ_BT_DISCONNECTED,   LED_WHITE, &IND_OFF        },
 #endif
     { IND_REQ_CAPS_ON,           LED_CAPS, &IND_ON         },
     { IND_REQ_CAPS_OFF,          LED_CAPS, &IND_OFF        },
     { IND_REQ_CAPS_DISCONNECTED, LED_CAPS, &IND_BLINK_SLOW },
-    { IND_REQ_LOW_BATTERY,       LED_BAT,  &IND_BLINK_SLOW },
-    { IND_REQ_BATTERY_NORMAL,    LED_BAT,  &IND_OFF        },
+    { IND_REQ_LOW_BATTERY,       LED_POWER_RED,  &IND_BLINK_SLOW },
+    { IND_REQ_BATTERY_NORMAL,    LED_POWER_RED,  &IND_OFF        },
 };
 
 /**

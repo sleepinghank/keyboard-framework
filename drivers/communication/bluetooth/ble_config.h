@@ -26,7 +26,7 @@
 
 #pragma once
 
-#include "product_config.h"
+#include "kb904/config.h"
 
 /* ============ 默认配置加载 ============ */
 /* 如果使用新的配置系统，defaults 在产品 config.h 中已包含 */
@@ -54,8 +54,8 @@
 
 /* ============ 功能开关 ============ */
 
-#ifndef BLE_ENABLE_FLAG
-#define BLE_ENABLE_FLAG      TRUE
+#ifndef BLUETOOTH_ENABLE_FLAG
+#define BLUETOOTH_ENABLE_FLAG      TRUE
 #endif
 
 /* ============ 连接参数 ============ */

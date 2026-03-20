@@ -20,6 +20,11 @@
 #define DIODE_DIRECTION      COL2ROW
 #endif
 
+/* ========== 矩阵输入状态 ========== */
+#ifndef MATRIX_INPUT_PRESSED_STATE
+#define MATRIX_INPUT_PRESSED_STATE  0  // 按键按下时的引脚状态（0 = 低电平）
+#endif
+
 /* ========== 防抖配置 ========== */
 #ifndef DEBOUNCE_ALGORITHM
 #define DEBOUNCE_ALGORITHM   DEBOUNCE_SYM_DEFER_PK

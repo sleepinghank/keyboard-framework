@@ -13,7 +13,8 @@ typedef enum {
     PLATFORM_UART_0 = 0,
     PLATFORM_UART_1,
     PLATFORM_UART_2,
-    PLATFORM_UART_3
+    PLATFORM_UART_3,
+    PLATFORM_UART_END
 } platform_uart_t;
 
 

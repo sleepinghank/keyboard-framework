@@ -48,7 +48,7 @@ typedef enum {
  * 基于通道号的I2C函数
  *=========================================*/
 
-void         i2c_init_channel(i2c_channel_t channel);
+void         soft_i2c_init_channel(i2c_channel_t channel);
 i2c_status_t i2c_start_channel(i2c_channel_t channel, uint8_t address, uint16_t timeout);
 i2c_status_t i2c_write_channel(i2c_channel_t channel, uint8_t data, uint16_t timeout);
 int16_t      i2c_read_ack_channel(i2c_channel_t channel, uint16_t timeout);
@@ -60,6 +60,21 @@ i2c_status_t i2c_writeReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint
 i2c_status_t i2c_readReg_channel(i2c_channel_t channel, uint8_t devaddr, uint8_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
 i2c_status_t i2c_readReg16_channel(i2c_channel_t channel, uint8_t devaddr, uint16_t regaddr, uint8_t* data, uint16_t length, uint16_t timeout);
 void         i2c_stop_channel(i2c_channel_t channel);
+i2c_status_t i2c_init_channel_with_pins(i2c_channel_t channel, pin_t sda_pin, pin_t scl_pin, uint32_t clock_speed);
+
+/* 调试: PCT1336 I2C通信测试 */
+void PCT1336_Communication_Test(void);
+
+/**
+ * @brief I2C 从机模式回调（与 WCH 官方完整示例一致；仅 CH584 单控制器）
+ * @note  不做从机时可传 NULL，中断仍会按示例路径处理 STOPF/RxNE，避免残留中断
+ */
+typedef struct i2c_slave_callbacks {
+    void (*on_transmit)(uint8_t *buf, uint8_t *len_out);
+    void (*on_receive)(uint8_t *buf, uint8_t len);
+} i2c_slave_callbacks_t;
+
+void i2c_slave_set_callbacks(const i2c_slave_callbacks_t *cb);
 
 /*==========================================
  * GPIO引脚绑定到I2C信道
@@ -98,7 +113,7 @@ bool i2c_is_bound(i2c_channel_t channel);
 
 /* 便捷宏 - 默认使用通道0 */
 
-#define i2c_init()                  i2c_init_channel(I2C_CHANNEL_0)
+#define i2c_init()                  soft_i2c_init_channel(I2C_CHANNEL_0)
 #define i2c_start(address, timeout) i2c_start_channel(I2C_CHANNEL_0, (address), (timeout))
 #define i2c_write(data, timeout)    i2c_write_channel(I2C_CHANNEL_0, (data), (timeout))
 #define i2c_read_ack(timeout)       i2c_read_ack_channel(I2C_CHANNEL_0, (timeout))

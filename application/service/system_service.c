@@ -17,7 +17,7 @@
 #include "communication_service.h"
 #include "output_service.h"
 #include "indicator.h"
-#include "indicator_config.h"
+#include "kb904/config_hw.h"
 #include "backlight.h"
 
 #ifdef __cplusplus

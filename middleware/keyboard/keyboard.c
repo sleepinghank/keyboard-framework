@@ -69,7 +69,6 @@ void keyboard_task(void) {
     }
 
     if (key_st == KEY_UPDATE) {
-        dprintf("Key update detected, updating key code list\r\n");
         // 4. 更新按键列表（基于防抖后的矩阵变化）
         update_key_code_list();
         // 5. 组合键处理
@@ -110,9 +109,9 @@ static key_update_st_t scan_and_debounce(void) {
     // 调用驱动层矩阵扫描（内部已完成防抖，返回防抖后是否有变化）
     bool debounced_changed = matrix_scan();
 
-    if (debounced_changed) {
-        dprintf("Matrix scan detected changes\r\n");
-    }
+    // if (debounced_changed) {
+    //     dprintf("Matrix scan detected changes\r\n");
+    // }
 
     // 获取已防抖的矩阵数据（matrix_scan 内部已调用 debounce）
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
@@ -141,24 +140,23 @@ static void update_key_code_list(void) {
         if (changes == 0) {
             continue;
         }
-        dprintf("Row %d changed: 0x%04X\r\n", row, changes);
         for (uint8_t col = 0; col < MATRIX_COLS; col++) {
             matrix_row_t col_mask = (matrix_row_t)1 << col;
             if (!(changes & col_mask)) continue;
 
-            uint16_t keycode = keymap_get_keycode(row, col-1);
-            dprintf("  Column %d changed, keycode: 0x%04X\r\n", col, keycode);
+            uint16_t keycode = keymap_get_keycode(row, col);
+            dprintf("Key change row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
             if (keycode == KC_NO) continue;
 
             if (current & col_mask) {
                 
                 // 按键按下：添加到列表
                 if (!find_key(_key_code_list, keycode)) {
-                    dprintf("Key pressed: row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
+                    dprintf("Key pressed\r\n");
                     add(keycode, _key_code_list);
                 }
             } else {
-                dprintf("Key released: row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
+                dprintf("Key released\r\n");
                 // 按键释放：从列表移除
                 del(keycode, _key_code_list);
             }

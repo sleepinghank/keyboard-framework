@@ -169,22 +169,22 @@ void lpm_task(void) {
 
     uint32_t elapsed = timer_elapsed32(g_last_activity_ms);
 
-    if (elapsed >= LPM_DEEP_TIMEOUT_MS) {
-        /* 直接推进到 Deep（跳过 Idle pending） */
-        dprintf("[LPM] Deep timeout reached (%lu ms), requesting deep sleep\r\n", elapsed);
-        g_lpm_mode        = LPM_MODE_DEEP;
-        g_prepare_pending = LPM_DEEP_PREPARE_MASK;
-        g_prepare_done    = 0;
-        g_lpm_state       = LPM_STATE_DEEP_PENDING;  /* 先推进状态，防止主循环重复投递 */
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
-    } else if (elapsed >= LPM_IDLE_TIMEOUT_MS) {
-        dprintf("[LPM] Idle timeout reached (%lu ms), requesting idle sleep\r\n", elapsed);
-        g_lpm_mode        = LPM_MODE_IDLE;
-        g_prepare_pending = LPM_IDLE_PREPARE_MASK;
-        g_prepare_done    = 0;
-        g_lpm_state       = LPM_STATE_IDLE_PENDING;  /* 先推进状态，防止主循环重复投递 */
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_IDLE_REQ_EVT);
-    }
+    // if (elapsed >= LPM_DEEP_TIMEOUT_MS) {
+    //     /* 直接推进到 Deep（跳过 Idle pending） */
+    //     dprintf("[LPM] Deep timeout reached (%lu ms), requesting deep sleep\r\n", elapsed);
+    //     g_lpm_mode        = LPM_MODE_DEEP;
+    //     g_prepare_pending = LPM_DEEP_PREPARE_MASK;
+    //     g_prepare_done    = 0;
+    //     g_lpm_state       = LPM_STATE_DEEP_PENDING;  /* 先推进状态，防止主循环重复投递 */
+    //     OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
+    // } else if (elapsed >= LPM_IDLE_TIMEOUT_MS) {
+    //     dprintf("[LPM] Idle timeout reached (%lu ms), requesting idle sleep\r\n", elapsed);
+    //     g_lpm_mode        = LPM_MODE_IDLE;
+    //     g_prepare_pending = LPM_IDLE_PREPARE_MASK;
+    //     g_prepare_done    = 0;
+    //     g_lpm_state       = LPM_STATE_IDLE_PENDING;  /* 先推进状态，防止主循环重复投递 */
+    //     OSAL_SetEvent(system_taskID, SYSTEM_LPM_IDLE_REQ_EVT);
+    // }
 }
 
 /*===========================================

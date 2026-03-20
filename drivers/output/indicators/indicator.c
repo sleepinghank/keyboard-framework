@@ -24,7 +24,7 @@
 
 #include "indicator.h"
 #include "indicator_hal.h"
-#include "indicator_config.h"
+#include "kb904/config.h"
 #include "timer.h"
 #include <string.h>
 

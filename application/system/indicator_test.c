@@ -1,12 +1,12 @@
 #include "indicator_test.h"
-
+#include "gpio.h"
 #ifdef INDICATOR_TEST_ENABLE
 
 #include <stdint.h>
 
 #include "event_manager.h"
 #include "indicator.h"
-#include "indicator_config.h"
+#include "kb904/config.h"
 
 typedef enum {
     TEST_PHASE_WHITE_ON = 0,
@@ -39,34 +39,34 @@ static void indicator_test_schedule_next(void) {
 
 static void indicator_test_apply_phase(ind_test_phase_t phase) {
     indicator_off_all();
-
+    togglePin(B13);
     switch (phase) {
         case TEST_PHASE_WHITE_ON:
-            indicator_set(LED_WHITE, &IND_ON);
+            indicator_set(LED_BT, &IND_ON);
             break;
 
         case TEST_PHASE_WHITE_OFF:
-            indicator_off(LED_WHITE);
+            indicator_off(LED_BT);
             break;
 
         case TEST_PHASE_RED_ON_2S:
-            indicator_set(LED_RED, &IND_ON_2S);
+            indicator_set(LED_POWER_RED, &IND_ON_2S);
             break;
 
         case TEST_PHASE_WHITE_BLINK_SLOW:
-            indicator_set(LED_WHITE, &IND_BLINK_SLOW);
+            indicator_set(LED_BT, &IND_BLINK_SLOW);
             break;
 
         case TEST_PHASE_RED_BLINK_FAST:
-            indicator_set(LED_RED, &IND_BLINK_FAST);
+            indicator_set(LED_POWER_RED, &IND_BLINK_FAST);
             break;
 
         case TEST_PHASE_WHITE_BLINK_3:
-            indicator_set(LED_WHITE, &IND_BLINK_3);
+            indicator_set(LED_BT, &IND_BLINK_3);
             break;
 
         case TEST_PHASE_RED_DELAY_ON:
-            indicator_set(LED_RED, &IND_DELAY_ON);
+            indicator_set(LED_POWER_RED, &IND_DELAY_ON);
             break;
 
         case TEST_PHASE_ALL_OFF:

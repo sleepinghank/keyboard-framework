@@ -43,30 +43,14 @@ system_result_t system_hal_init(void)
     //GPIO配置 0输入1输出
     R32_PA_DIR &= 0;
     R32_PB_DIR &= 0;//io方向
-    R32_PA_PU |= 0xFF7FFFFF;//去掉复位脚PB23配置
-    R32_PB_PU |= 0xFFF7F3FF;//上拉使能，除了usb的引脚PB11,PB10,去掉PB19
+    R32_PA_PU |= 0xFFFFFFFF;//去掉复位脚PB23配置
+    R32_PB_PU |= 0xfffff3ff;//上拉使能，除了usb的引脚PB11,PB10,去掉PB19
+
+    GPIOA_ModeCfg(GPIO_Pin_11, GPIO_ModeIN_PD);//触摸板供电使能
 
     g_system_initialized = true;
     // PWM 示例配置（可选）
-    // GPIOB_ModeCfg(GPIO_Pin_14, GPIO_ModeOut_PP_5mA); // PB14 - PWM10
-    // PWMX_CLKCfg(4);                                   // cycle = 4/Fsys
-    // PWMX_CycleCfg(PWMX_Cycle_64);                     // 周期 = 64*cycle
-    // PWMX_ACTOUT(CH_PWM10, 64 / 4, Low_Level, ENABLE); // 25% 占空比
 
-    // 串口示例配置
-    // GPIOPinRemap(ENABLE,RB_PIN_UART1);//串口带"_"的是映射引脚需要开启
-    // GPIOB_SetBits( GPIO_Pin_13 );
-    // GPIOB_ModeCfg( GPIO_Pin_13, GPIO_ModeOut_PP_5mA );
-    // UART1_DefInit( );
-    // UART1_BaudRateCfg( 115200 );
-    // PRINT("1");
-
-    // pwm_init();
-    // pwm_bind_pin(B14, CH_PWM_10);
-    // pwm_set_duty_cycle(CH_PWM_10, 25);  //
-    // pwm_start(CH_PWM_10);
-    
-    // 串口封装接口配置: UART1 仅发送模式，TX=PB13，波特率115200
 
 
 

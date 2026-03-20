@@ -37,3 +37,17 @@
 #ifndef BATTERY_CHECK_INTERVAL_MS
 #define BATTERY_CHECK_INTERVAL_MS  60000
 #endif
+
+/* ========== 背光关闭超时 ========== */
+#ifndef CONNECTED_BACKLIGHT_DISABLE_TIMEOUT
+#define CONNECTED_BACKLIGHT_DISABLE_TIMEOUT  60  // 连接状态下背光关闭超时（秒）
+#endif
+
+#ifndef DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT
+#define DISCONNECTED_BACKLIGHT_DISABLE_TIMEOUT  30  // 断开状态下背光关闭超时（秒）
+#endif
+
+/* ========== 兼容旧命名 ========== */
+#ifndef CONNECTED_IDLE_TIME
+#define CONNECTED_IDLE_TIME  (POWER_DEEP_SLEEP_MS / 1000)
+#endif

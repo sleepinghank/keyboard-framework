@@ -14,9 +14,7 @@
  * - connected
  * - suspend
  * - reconnect（带信道号，会自动判断）
- * - USB 连接
- * - USB 断开
- * - LPM prepare/resume（bits 14-15）
+ * - LPM prepare/resume（bits 12-13）
  */
 
 /* 无线事件定义 */
@@ -32,12 +30,12 @@
 #define WL_CONECTION_INTERVAL_EVT (1 << 9)
 #define WL_PAIR_EVT               (1 << 10)
 #define WL_RECONNECT_EVT          (1 << 11)
-#define USB_CONNECT_EVT           (1 << 12)
-#define USB_DISCONNECT_EVT        (1 << 13)
+// #define USB_CONNECT_EVT           (1 << 12)
+// #define USB_DISCONNECT_EVT        (1 << 13)
 
 /* LPM 调度事件（bits 14-15） */
-#define COMMU_LPM_PREPARE_EVT     (1 << 14)
-#define COMMU_LPM_RESUME_EVT      (1 << 15)
+#define COMMU_LPM_PREPARE_EVT     (1 << 12)
+#define COMMU_LPM_RESUME_EVT      (1 << 13)
 
 /* 配对参数结构体 */
 typedef struct {

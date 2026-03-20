@@ -39,7 +39,6 @@ int main(void)
     // 主循环：矩阵扫描 + OSAL 事件处理
     while (1) {
         if (input_get_matrix_scan_flag()) {
-            togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
             keyboard_task();
             input_clear_matrix_scan_flag();
         }

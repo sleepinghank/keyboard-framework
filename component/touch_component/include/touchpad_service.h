@@ -18,7 +18,7 @@
  * INCLUDES 头文件
  */
 #include "pct1336_driver.h"
-#include "product_config.h"
+#include "kb904/config.h"
 #ifdef MCS_GESTURE
 #include "mcs_gesture.h"
 #endif

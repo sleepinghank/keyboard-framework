@@ -127,42 +127,6 @@
 
 
 我现在正在测试蓝牙功能，上电后可以发起蓝牙广播，但是在主机断连后并未进入广播回连，而是重新开始广播，我需要分析为什么它没有进入回连广播。以下是串口输出的日志：
-B19 HAL initialized
-HW Timer: Initialized successfully
-hidEmuTaskId:d,centralTaskId:e
-Input: Service initialized with task ID 15
-HW Timer: Starting timer 0, interval=5ms, ticks=390000
-HW Timer: Starting TMR0 with 390000 ticks
-Output service init start
-Task registered, ID=16
-Output service init done
-System initialized successfullyInitialized..
-Advertising..
-Connected..int 18
-Pair state 2 ; status 0
-Phy update Rx:2 Tx:2 ..
-Send Security Req ...
-Update 1 - Int 0xc - Latency 4
-[DISC] res_num 0
-adv state 0
-IRK 86 2c 10 9c eb 10
-e4 66 e5 47 9c b8
-e4 67 e5 47 9c b8
-[BOND] check: idx=1 flag=1 bond_flag=1 result=1
-[ADV] enable=1 pairing=0 bonded=1 idx=1
-[ADV] WHITE LIST mode (reconnect)
-ADV timeout timer start 96000
-[DISC] save_bond(FALSE) from disconnect handler
-[BOND] save: mode=1 is_pairing=0 flag=1 before=1
-[BOND] save: after=1
-Disconnected.. Reason:13
-Advertising..
-SEND_DISCONNECT_EVT
-ADV timeout -> request deep sleep
-[BOND] check: idx=1 flag=1 bond_flag=1 result=1
-[ADV] enable=0 pairing=0 bonded=1 idx=1
-[ADV] GENERAL mode (pairing or not bonded)
-Wireless: ADV timeout, enter deep sleep
 可以参考demo工厂蓝牙流程：docs\knowledge\3mode-communication-flow.md
 
 
@@ -221,41 +185,6 @@ Wireless: ADV timeout, enter deep sleep
 
 重要：先深入分析问题，给出解决方法，禁止直接修改代码。
 按键后主机不出字符，怀疑是报告描述符和报告结构没有对应上，请检查一下是什么问题。打印日志如下：
-Col 3 Row 7: Pressed
-Matrix scan: Detected changes in raw matrix
-Debounce: Matrix changed
-  Row 7: 0x0008
-Matrix scan detected changes
-Key update detected, updating key code list
-Row 7 changed: 0x0008
-  Column 3 changed, keycode: 0x0020
-Key pressed: row 7, col 3, keycode 0x0020
-Processing keycode from _key_code_list: 0x0020
-  Regular keycode: 0x0020, adding to keys[0]
-Report: Keyboard report changed, sending update:32
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Col 3 Row 7: Pressed
-Matrix scan: Detected changes in raw matrix
-Debounce: Matrix changed
-Matrix scan detected changes
-Key update detected, updating key code list
-Row 7 changed: 0x0008
-  Column 3 changed, keycode: 0x0020
-Key released: row 7, col 3, keycode 0x0020
-Report: Keyboard report changed, sending update:0
-
 
 重要：先深入分析问题，给出解决方法，禁止直接修改代码。
 现在测试遇到一个关于休眠功耗的bug。
@@ -571,3 +500,9 @@ keyboards\product_config.h
 使用了agent 没有使用agent team，当前不可查看和管理各个agent
 最后实施时没有新开上下文，继续原有的上下文会导致上下文过大，影响效果和速度。应该以需求和实施文档作为入口，新开上下文来实施，避免带入过多无关信息。
 小问题：提问时没有使用特殊格式，
+
+当前项目我在更改串口打印脚更改为 B21 uart3后，MCU 芯片启动失败。请帮我排查一下可能的原因。如下是已知信息：
+1. 原来的串口脚是 A9 uart1，改成 B21 uart3 后芯片无法启动。
+2. DEBUG 是在编译时上下文注入的，改动串口时也同步从1改成了3。
+3. B21原本是触控板I2C 脚，现在没有接触控板，默认电压3.3v。
+4. 芯片启动失败表现为没有任何串口输出，无法进入正常的程序流程。

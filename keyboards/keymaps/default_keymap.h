@@ -9,11 +9,10 @@
 #include "progmem.h"
 #include <stdint.h>
 #include "combo.h"
-#include "product_config.h"
+#include "kb904/config.h"
 
 enum layers {
     MAC_BASE,
-    MAC_FN,
     WIN_BASE,
     WIN_FN,
 };

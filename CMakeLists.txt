@@ -21,7 +21,6 @@ add_executable(keyboard-framework test_main.c)
 # 包含目录（保持与 Keil 项目一致）
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/keyboards
-        ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/defaults
         ${CMAKE_CURRENT_SOURCE_DIR}/keyboards/keymaps
         ${CMAKE_CURRENT_SOURCE_DIR}/hal
         ${CMAKE_CURRENT_SOURCE_DIR}/hal/platforms/test
@@ -42,26 +41,23 @@ target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/communication
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard
-        ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/combo
         ${CMAKE_CURRENT_SOURCE_DIR}/middleware/keyboard/keymap_extras
         ${CMAKE_CURRENT_SOURCE_DIR}/application
         ${CMAKE_CURRENT_SOURCE_DIR}/application/system
         ${CMAKE_CURRENT_SOURCE_DIR}/utils
         ${CMAKE_CURRENT_SOURCE_DIR}/utils/logging
-        ${CMAKE_CURRENT_SOURCE_DIR}/component/touch_component/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/application/service
+        # ${CMAKE_CURRENT_SOURCE_DIR}/component/include
 )
 
 # 添加所有源文件 (Test Platform Only - 本机编译仅使用test平台实现)
 set(SOURCES
     # Application Layer
     ./application/system/system_init.c
-    ./application/system/indicator_test.c
     ./application/service/communication_service.c
     ./application/service/input_service.c
     ./application/service/output_service.c
     ./application/service/system_service.c
-    ./middleware/communication/wireless_callbacks.c
+    ./application/service/wireless_callbacks.c
 
     # Drivers - Communication (Test Platform Only)
     ./drivers/communication/bluetooth/test/_bt_driver.c
@@ -73,7 +69,7 @@ set(SOURCES
 
     # Drivers - Output
     ./drivers/output/backlight/backlight.c
-    ./drivers/output/backlight/backlight_hal.c
+    ./drivers/output/backlight/backlight_pwm.c
     ./drivers/output/indicators/indicator.c
     ./drivers/output/indicators/indicator_hal.c
     ./drivers/output/logging/debug.c
@@ -110,33 +106,28 @@ set(SOURCES
     ./middleware/communication/transport.c
     ./middleware/communication/wireless.c
 
-    # Middleware - Keyboard (精简版)
+    # Middleware - Keyboard
+    ./middleware/keyboard/action.c
+    ./middleware/keyboard/action_layer.c
+    ./middleware/keyboard/action_util.c
+    ./middleware/keyboard/combo.c
+    ./middleware/keyboard/custom_function.c
     ./middleware/keyboard/keyboard.c
-    ./middleware/keyboard/keymap.c
     ./middleware/keyboard/keycode_config.c
+    ./middleware/keyboard/keymap_common.c
+    ./middleware/keyboard/keymap_introspection.c
     ./middleware/keyboard/report.c
-
-    # Middleware - Keyboard - Combo (新增精简模块)
-    ./middleware/keyboard/combo/process_combo.c
-    ./middleware/keyboard/combo/FN_Combo.c
-    ./middleware/keyboard/combo/Special_Combo.c
-    ./middleware/keyboard/combo/media_combo.c
-
-    # Keyboards - Product specific (KB904)
-    ./keyboards/kb904/indicator.c
-    ./keyboards/kb904/keymaps/default.c
 
     # Utils
     ./utils/AES128.c
     ./utils/bitwise.c
     ./utils/crc16.c
-    ./utils/linkedlist.c
 
     # Component - Touchpad
-    ./component/touch_component/pct1336_driver.c
-    ./component/touch_component/touchpad_service.c
-    # ./component/touch_component/bayes_filtering.c   # 可选：贝叶斯防误触过滤
-    # ./component/touch_component/mcs_gesture.c       # 可选：手势识别
+    # ./component/bayes_filtering.c
+    # ./component/mcs_gesture.c
+    # ./component/pct1336_driver.c
+    # ./component/touchpad_service.c
 )
 
 # 将源文件添加到可执行目标

@@ -8,7 +8,7 @@
 #include "backlight.h"
 #include "battery.h"
 #include "indicator.h"
-#include "indicator_config.h"
+#include "kb904/config_hw.h"
 #include <stddef.h>
 
 // 外部变量
@@ -396,7 +396,7 @@ uint8_t Battery_Check(uint16_t* add_keys) {
     uint8_t blink_count = battery_blink_count(percentage);
     ind_effect_t effect = IND_BLINK_CUSTOM(200, 200, blink_count);
 
-    indicator_set(LED_BAT, &effect);
+    indicator_set(LED_POWER_RED, &effect);
     return 0;
 }
 

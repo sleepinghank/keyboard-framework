@@ -45,14 +45,14 @@ static i2c_channel_state_t i2c_channels[I2C_CHANNEL_MAX] = {0};
  * @param   channel I2C通道号
  * @return  none
  */
-void i2c_init_channel(i2c_channel_t channel) {
+void soft_i2c_init_channel(i2c_channel_t channel) {
     if (channel >= I2C_CHANNEL_MAX) {
-        I2C_DEBUG_PRINT("i2c_init_channel: Invalid channel %d", channel);
+        I2C_DEBUG_PRINT("soft_i2c_init_channel: Invalid channel %d", channel);
         return;
     }
 
     i2c_channels[channel].initialized = true;
-    I2C_DEBUG_PRINT("i2c_init_channel: Initialized channel %d", channel);
+    I2C_DEBUG_PRINT("soft_i2c_init_channel: Initialized channel %d", channel);   
 
     // TODO: In a real implementation, you would:
     // 1. Configure the GPIO pins as open-drain outputs
