@@ -23,22 +23,23 @@
 #include "backlight_hal.h"
 #include "backlight_config.h"
 #include "string.h"
+#include "debug.h"
 /* ============ 预设颜色表 ============ */
 
 static const bl_rgb_t preset_colors[BL_COLOR_COUNT] = {
-    [BL_COLOR_RED]           = {100,   0,   0},
-    [BL_COLOR_DARK_RED]      = { 50,   0,   0},
-    [BL_COLOR_PINK]          = {100,  50,  80},
-    [BL_COLOR_PURPLE]        = { 60,   0, 100},
-    [BL_COLOR_INDIGO]        = { 30,   0, 100},
-    [BL_COLOR_DARK_BLUE]     = {  0,   0,  80},
-    [BL_COLOR_BLUE]          = {  0,   0, 100},
-    [BL_COLOR_CYAN_BLUE]     = {  0,  50, 100},
-    [BL_COLOR_CYAN_GREEN]    = {  0, 100, 100},
-    [BL_COLOR_GREEN]         = {  0, 100,   0},
-    [BL_COLOR_LIGHT_YELLOW]  = { 80,  80,   0},
-    [BL_COLOR_ORANGE]        = {100,  50,   0},
-    [BL_COLOR_WHITE]         = {100, 100, 100},
+    [BL_COLOR_RED]           = {  0,   0, 100},//红
+    [BL_COLOR_DARK_RED]      = {  0,   0,  50},//暗红
+    [BL_COLOR_PINK]          = { 30,  50, 100},//粉红
+    [BL_COLOR_PURPLE]        = {  0, 100, 100},//紫
+    [BL_COLOR_INDIGO]        = {  100,  100, 0},//靛青
+    [BL_COLOR_DARK_BLUE]     = {  0,  100,  0},//深蓝
+    [BL_COLOR_BLUE]          = {  0,  50,   0},//蓝
+    [BL_COLOR_CYAN_BLUE]     = {  30,  80,  0},//青蓝
+    [BL_COLOR_CYAN_GREEN]    = {  80, 50, 0},//青绿
+    [BL_COLOR_GREEN]         = {100,   0,   0},//绿
+    [BL_COLOR_LIGHT_YELLOW]  = { 100, 0, 100},//浅黄
+    [BL_COLOR_ORANGE]        = {60,  0,  100},//橙
+    [BL_COLOR_WHITE]         = {100, 100, 100},//白
 };
 
 /* ============ 预设亮度表 ============ */
@@ -66,6 +67,7 @@ static void apply_output(void) {
 #else
         bl_hal_set_single(0);
 #endif
+    dprintf("backlight_set_rgb: 0, 0, 0\r\n");
         return;
     }
 
@@ -73,6 +75,7 @@ static void apply_output(void) {
     uint8_t r = (uint16_t)bl_state.color.r * bl_state.brightness / 100;
     uint8_t g = (uint16_t)bl_state.color.g * bl_state.brightness / 100;
     uint8_t b = (uint16_t)bl_state.color.b * bl_state.brightness / 100;
+    dprintf("r: %d, g: %d, b: %d\r\n", r, g, b);
     bl_hal_set_rgb(r, g, b);
 #else
     bl_hal_set_single(bl_state.brightness);
@@ -306,7 +309,7 @@ void backlight_color_step(void) {
     if (bl_current_color_index >= BL_COLOR_COUNT) {
         bl_current_color_index = BL_COLOR_RED;
     }
-
+    dprintf("backlight_color_step: %d\r\n", bl_current_color_index);
     backlight_set_preset_color(bl_current_color_index);
 }
 

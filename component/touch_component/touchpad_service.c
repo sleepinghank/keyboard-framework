@@ -13,7 +13,6 @@
 #include "pct1336_driver.h"
 #include "gpio.h"
 #include "wait.h"
-#include "event_manager.h"
 #include "atomic_util.h"
 #include "bt_driver.h"
 #include "debug.h"
@@ -94,8 +93,6 @@ static uint8_t touch_gesture_switch_bitmap = 0;
 /*********************************************************************
  * LOCAL VARIABLES 本地变量
  */
-static uint8_t touch_taskID = 0;  // OSAL 任务 ID
-
 static uint8_t _touch_button_repeat_count=0; // 按键重复次数
 static uint8_t _touch_button_repeat_flag=0; // 按键重复标志
 static uint8_t start_touch_flag = 0; // 触摸开始标志
@@ -140,13 +137,15 @@ uint16_t kb_break_cnt = 0;
 
 
 /******触控预设手势相关 */
+#ifdef MCS_GESTURE
 static Point touch_arr[100] = {0};
 static uint8_t touch_idx = 0;
-GestureType act_gesture = GESTURE_UNKNOWN; 
+gesture_type_t act_gesture = GESTURE_NONE;
+#endif 
 
 
 /*****鼠标报文*******/
-static uint8_t Touchkeybuf[KEYBOARD_REPORT_SZ];
+static uint8_t Touchkeybuf[KEYBOARD_REPORT_SIZE];
 static hid_mouse_report_t mouse_reports; // 鼠标报文
 static uint8_t mouse_button_flag = 0; // 鼠标按键状态
 /*********************************************************************
@@ -161,7 +160,7 @@ void gesture_judgment(){
     }
     result = recognize_gesture(touch_arr,touch_idx);
     TOUCHPAD_log("Recognized gesture: %d\n",result);
-    if (result != GESTURE_UNKNOWN){
+    if (result != GESTURE_NONE){
         act_gesture = result;
     }
 }
@@ -215,7 +214,7 @@ uint8_t ProcessMouseData(void)
     // TOUCHPAD_log("st:%x,button_st:%x,gesture_st:%x\n",st,button_st,gesture_st);
     // 清空鼠标报文
     memset((uint8_t*)&mouse_reports,0x00, sizeof(hid_mouse_report_t));
-    memset(Touchkeybuf, 0x00, KEYBOARD_REPORT_SZ);
+    memset(Touchkeybuf, 0x00, KEYBOARD_REPORT_SIZE);
     // 触摸板错误
     if ((st & TOUCH_STATUS_ERROR) == TOUCH_STATUS_ERROR) {
         pct1336_resume();
@@ -452,9 +451,7 @@ void auto_release_right_button(){
     ptp_reports_clone.button2 = 0;
     ptp_reports_clone.scantime_l8= (uint8_t)(t&0x00ff);
     ptp_reports_clone.scantime_m8= (uint8_t)((t&0xff00)>>8);
-    // 使用 OSAL 延时事件：15ms 后发送 clone 报告
-    // 定义 TOUCH_CLONE_SEND_EVT 事件并在 touch_process_event 中处理
-    OSAL_SetEvent(touch_taskID, TOUCH_INI_EVT);
+    send_clone_ptp_report();
 }
 #endif
 uint8_t ProcessGetPTPData(void){
@@ -616,7 +613,9 @@ uint8_t ProcessGetPTPData(void){
                 ptp_reports.button1=0;
                 _touch_button_repeat_flag = 0;
                 // 按钮松开时，清空按下的位置
+                #ifdef HOLD_BUTTON
                 memset(&pre_contact, 0, sizeof(contact_data_t));
+                #endif
             }
             _touch_button_repeat_count =0;
         }
@@ -649,7 +648,9 @@ uint8_t ProcessGetPTPData(void){
     }
     if (original_reports.contact_count == 0 && original_reports.contacts[0].tip == 0 && original_reports.contacts[0].confidence == 0){
         TOUCHPAD_log("All fingers leave");
+        #ifdef HOLD_BUTTON
         memset(&pre_contact, 0, sizeof(contact_data_t));
+        #endif
         start_touch_flag = 0;
     }
     // 用于判断是否存在不符合的值 如果是andriod 需要设置tip才生效。
@@ -750,8 +751,6 @@ void clear_touch_data_event(void){
 
 void set_touch_data_event(void){
     start_touch_flag = 1;
-    // 使用 OSAL 延时事件清除触摸数据标志
-    // 注意：需要在 touchpad_service 初始化时注册 OSAL 任务
 }
 int8_t touch_task(void){
     int8_t ret = 0;
@@ -773,8 +772,10 @@ int8_t touch_task(void){
 }
 
 /// @brief 触控板中断回调函数
-void _touch_cb(void)
+__HIGH_CODE
+void _touch_cb(pin_t pin)
 {
+    (void)pin;  /* 未使用，保留参数以匹配回调签名 */
     if (touch_en == 1) {
         _touch_int_flag++;
     }
@@ -785,29 +786,30 @@ void _touch_cb(void)
 /// @brief 触摸板gpio口初始化
 void touch_gpio_init(void){
     // 配置中断引脚为上拉输入
-    gpio_set_pin_input_high(TOUCH_INT);
+    gpio_set_pin_input_high(TOUCHPAD_INT);
 
     // 配置 I2C 引脚
-    gpio_set_pin_input_high(TOUCH_SCL);
-    gpio_set_pin_input_high(TOUCH_SDA);
-
+    gpio_set_pin_input_high(TOUCHPAD_SCL);
+    gpio_set_pin_input_high(TOUCHPAD_SDA);
     // 初始化 I2C
     i2c_init();
-
+    TOUCHPAD_log("Touch GPIO init \r\n");
+    int16_t status = i2c_init_channel_with_pins(I2C_CHANNEL_0, TOUCHPAD_SDA, TOUCHPAD_SCL, 400000);
+    TOUCHPAD_log("i2c init status: %d\r\n", status);
     // 启用中断
-    gpio_enable_interrupt(TOUCH_INT, GPIO_INT_LOW_LEVEL, _touch_cb);
+    gpio_enable_interrupt(TOUCHPAD_INT, GPIO_INT_LOW_LEVEL, _touch_cb);
 }
 
 /// @brief 触摸板 物理断电
 /// 注意此处 如果有单独GPIO 控制触摸板供电，需要将供电切断
 void touch_gpio_uninit(void){
     // 禁用中断
-    gpio_disable_interrupt(TOUCH_INT);
+    gpio_disable_interrupt(TOUCHPAD_INT);
 
     // 配置引脚为上拉输入（低功耗状态）
-    gpio_set_pin_input_high(TOUCH_SDA);
-    gpio_set_pin_input_high(TOUCH_SCL);
-    gpio_set_pin_input_high(TOUCH_INT);
+    gpio_set_pin_input_high(TOUCHPAD_SDA);
+    gpio_set_pin_input_high(TOUCHPAD_SCL);
+    gpio_set_pin_input_high(TOUCHPAD_INT);
 }
 
 
@@ -822,42 +824,17 @@ void touch_Init(void)
     if (result == 1)
     {
         touch_en = 1;
+        TOUCHPAD_log("touch_Init success\r\n");
     }
     else
     {
         touch_en = 0;
-        TOUCHPAD_log("touch_Init fail");
+        TOUCHPAD_log("touch_Init fail\r\n");
     }
     
     // 可选：释放参数内存（如果参数是动态分配的）
     // init_params = NULL;
     // init_params_len = 0;
-}
-
-// 触摸板事件处理函数
-static uint16_t touch_process_event(uint8_t task_id, uint16_t events)
-{
-    if (events & TOUCH_INIT_EVENT){
-        // 触控板初始化
-        TOUCHPAD_log("TOUCH software INIT\r\n");
-        touch_Init();
-        // 200ms 后执行寄存器初始化完成事件
-        OSAL_StartReloadTask(touch_taskID, TOUCH_REG_INIT_EVT, 200);
-        return (events ^ TOUCH_INIT_EVENT);
-    }
-    if (events & TOUCH_REG_INIT_EVT){
-        OSAL_StopTask(touch_taskID, TOUCH_REG_INIT_EVT);
-        // 触摸板初始化完成回调（如需要可在此添加处理）
-        TOUCHPAD_log("TOUCH init completed\r\n");
-        return (events ^ TOUCH_REG_INIT_EVT);
-    }
-    if (events & TOUCH_INI_EVT){
-        // 处理 PTP 数据事件
-        ProcessPTPData();
-        return (events ^ TOUCH_INI_EVT);
-    }
-
-    return 0;
 }
 
 /*********************************************************************
@@ -874,12 +851,9 @@ int8_t touch_power_on_with_params(pct1336_params_t* params, uint8_t len)
     pct1336_set_init_params(params, len);
 
     touch_gpio_init();
+    touch_Init();
 
-    // 注册 OSAL 任务并启动初始化事件
-    touch_taskID = OSAL_ProcessEventRegister(touch_process_event);
-    OSAL_SetEvent(touch_taskID, TOUCH_INIT_EVENT);
-
-    return 1;
+    return (touch_en == 1) ? 1 : 0;
 }
 int8_t touch_power_on(void){
     return touch_power_on_with_params(NULL, 0);
@@ -984,7 +958,7 @@ int8_t touch_timer_task(void){
     else
     {
         // 开机状态下连续5次中断脚为低电平，认为中断脚异常
-        if (gpio_read_pin(TOUCH_INT)){
+        if (gpio_read_pin(TOUCHPAD_INT)){
             int_low_cnt ++;
             if (int_low_cnt > 14 && _touch_int_flag == 0 )
             {
@@ -1044,11 +1018,11 @@ void touch_evt_task(void){
 }
 
 
-void touch_watchdog_check(void){
+bool touch_watchdog_check(void){
     if (touch_en != 1 ){
-        return ;
+        return false;
     }
-    pct1336_watchdog_check();
+    return pct1336_watchdog_check();
 }
 
 

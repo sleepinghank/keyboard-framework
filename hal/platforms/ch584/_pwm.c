@@ -137,7 +137,7 @@ static void update_pwm_hardware(pwm_channel_t channel) {
                     default: period_cycles = 64; break;
                 }
                 duty_data = (pwm_channels[i].duty_cycle * period_cycles) / 100;
-                // dprintf("PWM Channel %d: Setting 8-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
+                 dprintf("PWM Channel %d: Setting 8-bit duty data: %d,polarity:%d,enabled:%d\n", channel, duty_data, pwm_channels[i].polarity, pwm_channels[i].enabled);
                 /* 使用8位输出配置 */
                 PWMX_ACTOUT(channel, (uint8_t)duty_data,
                            pwm_channels[i].polarity ? Low_Level : High_Level,
@@ -233,6 +233,7 @@ void pwm_stop(pwm_channel_t channel) {
 
             /* 更新硬件配置 */
             uint8_t ch584_ch = hal_to_ch584_channel(1 << i);
+            dprintf("PWM Channel %d: Stopping\n", ch584_ch);
             PWMX_ACTOUT(ch584_ch, 0, High_Level, DISABLE);
         }
     }
@@ -470,6 +471,7 @@ bool pwm_unbind_pin(pin_t pin) {
 
             /* 禁用对应的PWM通道 */
             uint8_t ch584_ch = hal_to_ch584_channel(1 << i);
+            dprintf("PWM Channel %d: Unbinding\n", ch584_ch);
             PWMX_ACTOUT(ch584_ch, 0, High_Level, DISABLE);
 
             return true;

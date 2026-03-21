@@ -12,20 +12,13 @@
 /*********************************************************************
  * INCLUDES 头文件
  */
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 /*********************************************************************
  * CONSTANTS 常量
  */
-typedef enum {
-    TOUCH_INIT_EVENT      = (1 << 0),
-    TOUCH_INI_EVT         = (1 << 1),
-    TOUCH_REG_INIT_EVT    = (1 << 2),
-    TOUCH_POWER_OFF_EVENT = (1 << 3)
-} touch_evt_t;
-
-
 #pragma pack(1)
 /// @brief 触控板状态位枚举
 typedef enum{
@@ -216,6 +209,12 @@ int8_t pct1336_clear_int(void);
 int8_t pct1336_read_status(uint8_t *st, uint8_t *button_st , uint8_t *gesture_st);
 
 /**
+ * @brief 查询固件是否就绪
+ * @return true 已就绪, false 未就绪或读取失败
+ */
+bool pct1336_fw_ready(void);
+
+/**
  * @brief 设置触控板初始化参数
  * @param params 具体参数
  * @param len 参数长度，以3个字节为一个单位
@@ -225,14 +224,17 @@ void pct1336_set_init_params(pct1336_params_t* params, uint8_t len);
 
 /*********************************************************************
  * @fn      pct1336_watchdog_check
- * @brief   定时检查触控板状态，当检测到错误或看门狗复位时重启触控板
+ * @brief   定时检查触控板状态，检测到错误时记录日志
  *          建议每2秒调用一次
  *
  * @param   none
  *
  * @return  none
  */
-void pct1336_watchdog_check(void);
+bool pct1336_watchdog_check(void);
+
+
+int8_t pct1336_register_cb(void);
 /*********************************************************************
 *********************************************************************/
 

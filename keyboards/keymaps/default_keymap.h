@@ -62,7 +62,7 @@ enum {
 #endif
     NEW_SAFE_RANGE,
 
-#ifdef TOUCH_EN
+#ifdef TOUCHPAD_ENABLE
     TOUCH_LOCK,
 #endif
 };

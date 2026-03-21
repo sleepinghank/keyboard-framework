@@ -23,7 +23,7 @@
 #define BLUETOOTH_ENABLE_FLAG      TRUE
 // #define USB_ENABLE_FLAG      FALSE
 // #define P2P4G_ENABLE_FLAG    FALSE
-// #define TOUCHPAD_ENABLE      FALSE
+#define TOUCHPAD_ENABLE      TRUE
 #define COMBO_ENABLE         TRUE
 
 /* ========== 覆盖背光默认值 ========== */

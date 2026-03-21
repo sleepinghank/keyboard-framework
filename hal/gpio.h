@@ -17,6 +17,7 @@
 
 #include "pin_defs.h"
 #include "stdint.h"
+#include <stdbool.h>
 
 typedef uint8_t pin_t;
 
@@ -172,13 +173,21 @@ typedef enum {
     GPIO_INT_HIGH_LEVEL     /**< 高电平触发 */
 } gpio_int_trigger_t;
 
-/* GPIO 中断回调类型 */
-typedef void (*gpio_int_callback_t)(void);
+/**
+ * @brief GPIO 中断回调类型
+ * @param pin 触发中断的引脚编号，支持多 pin 共享同一回调
+ *
+ * @note 回调在 ISR 上下文中执行，必须短小（设标志位、投递事件等）
+ * @note 低电平触发（GPIO_INT_LOW_LEVEL）在电平保持期间会持续产生中断，
+ *       调用方必须在回调内主动调用 gpio_disable_interrupt 自锁，
+ *       处理完成后再重新使能
+ */
+typedef void (*gpio_int_callback_t)(pin_t pin);
 
 /*********************************************************************
  * @fn      gpio_enable_interrupt
  *
- * @brief   启用 GPIO 中断
+ * @brief   启用单个 GPIO 引脚的中断
  *
  * @param   pin 引脚编号
  * @param   trigger 触发类型
@@ -191,11 +200,40 @@ void gpio_enable_interrupt(pin_t pin, gpio_int_trigger_t trigger, gpio_int_callb
 /*********************************************************************
  * @fn      gpio_disable_interrupt
  *
- * @brief   禁用 GPIO 中断
+ * @brief   禁用单个 GPIO 引脚的中断
  *
  * @param   pin 引脚编号
  *
  * @return  none
  */
 void gpio_disable_interrupt(pin_t pin);
+
+/*********************************************************************
+ * @fn      gpio_enable_interrupt_batch
+ *
+ * @brief   批量启用多个 GPIO 引脚的中断（原子语义）
+ *          多个 pin 共享同一回调，全部成功或全部回滚
+ *
+ * @param   pins 引脚编号数组（const，HAL 不修改调用方数组）
+ * @param   count 引脚数量
+ * @param   trigger 触发类型（所有 pin 使用相同触发类型）
+ * @param   callback 共享的中断回调函数
+ *
+ * @return  true 全部注册成功，false 失败（已回滚）
+ */
+bool gpio_enable_interrupt_batch(const pin_t *pins, uint8_t count,
+                                 gpio_int_trigger_t trigger,
+                                 gpio_int_callback_t callback);
+
+/*********************************************************************
+ * @fn      gpio_disable_interrupt_batch
+ *
+ * @brief   批量禁用多个 GPIO 引脚的中断
+ *
+ * @param   pins 引脚编号数组
+ * @param   count 引脚数量
+ *
+ * @return  none（注销操作不会失败）
+ */
+void gpio_disable_interrupt_batch(const pin_t *pins, uint8_t count);
 

@@ -34,7 +34,7 @@
 #define DIODE_DIRECTION       COL2ROW
 
 #define MATRIX_ROW_PINS {     \
-    A9,  /* R0 - U2.7  */     \
+    NO_PIN,  /* R0 - U2.7  */     \
     A8,  /* R1 - U2.8  */     \
     A7,  /* R2 - U2.17 */     \
     A1,  /* R3 - U2.18 */     \
@@ -101,8 +101,8 @@ extern const ind_led_def_t ind_led_table[IND_LED_COUNT];
  * 芯片: PCT1336QN
  * 网络名: PB20_SDA, PB21_SCL, PA3_INT
  */
-#define TOUCHPAD_SDA          NO_PIN  /* PB20_SDA - U2.28 */
-#define TOUCHPAD_SCL          NO_PIN  /* PB21_SCL - U2.29 */
+#define TOUCHPAD_SDA          B20  /* PB20_SDA - U2.28 */
+#define TOUCHPAD_SCL          B21  /* PB21_SCL - U2.29 */
 #define TOUCHPAD_INT          A3   /* PA3_INT - 下降沿触发 - U2.42 */
 
 /* ========== 触控板尺寸 ========== */

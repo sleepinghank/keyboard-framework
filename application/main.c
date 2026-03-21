@@ -34,7 +34,7 @@ int main(void)
 #endif
         return init_result;
     }
-    dprint("System initialized successfully");
+    dprint("System initialized successfully\r\n");
 
     // 主循环：矩阵扫描 + OSAL 事件处理
     while (1) {

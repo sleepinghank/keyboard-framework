@@ -15,8 +15,8 @@
 #include "matrix.h"
 #include "CH58x_common.h"
 
-#ifdef TOUCH_EN
-#include "touchpad_service.h"
+#ifdef TOUCHPAD_ENABLE
+#include "touchpad/touchpad.h"
 #endif
 
 /* 低电量阈值 */
@@ -34,9 +34,9 @@
 #endif
 
 /* 触控板看门狗检查周期 (ms) */
-#ifndef TOUCH_WATCHDOG_INTERVAL
-#define TOUCH_WATCHDOG_INTERVAL  2000   /* 2秒检测一次 */
-#endif
+// #ifndef TOUCH_WATCHDOG_INTERVAL
+// #define TOUCH_WATCHDOG_INTERVAL  2000   /* 2秒检测一次 */
+// #endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -97,8 +97,6 @@ error_code_t matrix_scan_timer_stop(void)
 /*==========================================
  * 矩阵扫描标志位接口实现
  *=========================================*/
-
-
 __HIGH_CODE
 bool input_get_matrix_scan_flag(void) {
     return g_matrix_scan_flag;
@@ -116,23 +114,6 @@ void input_clear_matrix_scan_flag(void) {
  * @return 未处理的事件标志
  */
 uint16_t input_process_event(uint8_t task_id, uint16_t events) {
-
-    // 处理触控中断事件
-    if (events & INPUT_TOUCH_INT_EVT) {
-#ifdef TOUCH_EN
-        touch_evt_task();
-#endif
-        return (events ^ INPUT_TOUCH_INT_EVT);
-    }
-
-    // 处理触控板看门狗检查事件
-#ifdef TOUCH_EN
-    if (events & INPUT_TOUCH_WATCHDOG_EVT) {
-        touch_watchdog_check();
-        return (events ^ INPUT_TOUCH_WATCHDOG_EVT);
-    }
-#endif
-
     // 处理电量检测事件
     if (events & INPUT_BATTERY_DETE_EVT) {
         battery_task();
@@ -197,12 +178,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         /* 2. 配置矩阵 GPIO 为唤醒中断模式（COL 拉低，ROW 配下降沿中断） */
         matrix_prepare_wakeup();
 
-        /* 3. PA2 电源键：保留独立唤醒中断（三步序列，顺序不可颠倒） */
-        GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_PU);
-        GPIOA_ITModeCfg(GPIO_Pin_2, GPIO_ITMode_FallEdge);
-        GPIOA_ClearITFlagBit(GPIO_Pin_2);   /* 最后清标志，防止配置过程产生假中断 */
-
-#ifdef TOUCH_EN
+#ifdef TOUCHPAD_ENABLE
         if (mode == LPM_MODE_IDLE) {
             /* 触控低功耗，保留 INT 唤醒 */
             // touch_prepare_idle_sleep();
@@ -230,12 +206,7 @@ uint16_t input_process_event(uint8_t task_id, uint16_t events) {
         /* 1. 恢复矩阵 GPIO 为正常扫描模式 */
         matrix_resume_from_sleep();
 
-        /* 2. PA2 恢复（三步序列，顺序不可颠倒） */
-        GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_PU);
-        GPIOA_ITModeCfg(GPIO_Pin_2, GPIO_ITMode_FallEdge);
-        GPIOA_ClearITFlagBit(GPIO_Pin_2);
-
-#ifdef TOUCH_EN
+#ifdef TOUCHPAD_ENABLE
         // touch_resume_from_sleep();
 #endif
 
@@ -272,43 +243,12 @@ void input_service_init(void) {
     /* 启动电量检测定时任务 */
     OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
 
-#ifdef TOUCH_EN
+#ifdef TOUCHPAD_ENABLE
     /* 初始化触控板 */
-    touch_power_on();
-    dprintf("Input: Touchpad initialized\r\n");
-    /* 启动触控板看门狗定时检查 */
-    OSAL_StartReloadTask(input_taskID, INPUT_TOUCH_WATCHDOG_EVT, TOUCH_WATCHDOG_INTERVAL);
+    touchpad_setup();
+    OSAL_SetEvent(touchpad_taskID,TOUCHPAD_INIT_EVT);
+    dprintf("Input: Touchpad setup\r\n");
 #endif
-}
-
-/*==========================================
- * GPIO 唤醒中断服务程序
- * 在睡眠期间由 GPIO 下降沿触发，锁存唤醒原因并投递 SYSTEM_LPM_WAKE_EVT
- *=========================================*/
-
-__INTERRUPT
-__HIGH_CODE
-void GPIOA_IRQHandler(void) {
-    uint32_t flags = R16_PA_INT_IF;
-    R16_PA_INT_IF = flags;  /* 清除中断标志，防止重入 */
-
-    if (lpm_is_in_sleep()) {
-        /* PA2（GPIO_Pin_2 = bit2）为电源键，其余为矩阵 ROW 引脚 */
-        g_last_wakeup_source = (flags & GPIO_Pin_2) ? LPM_WAKEUP_PA2 : LPM_WAKEUP_MATRIX;
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_WAKE_EVT);
-    }
-}
-
-__INTERRUPT
-__HIGH_CODE
-void GPIOB_IRQHandler(void) {
-    uint32_t flags = R16_PB_INT_IF;
-    R16_PB_INT_IF = flags;  /* 清除中断标志，防止重入 */
-
-    if (lpm_is_in_sleep()) {
-        g_last_wakeup_source = LPM_WAKEUP_MATRIX;
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_WAKE_EVT);
-    }
 }
 
 #ifdef __cplusplus

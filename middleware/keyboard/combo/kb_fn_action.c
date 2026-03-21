@@ -10,14 +10,14 @@
 #include "indicator.h"
 #include "kb904/config_hw.h"
 #include <stddef.h>
+#include "debug.h"
 
 // 外部变量
 extern uint8_t FN_st;
 extern uint8_t combinations_flag;
 
-#ifndef M_SIRI
-#define M_SIRI (M_KEY_TYPE | 0x00CF)
-#endif
+// Apple Globe/Earth 键 - 用于切换输入法
+
 
 // ============================================================================
 // Earth 状态机定义
@@ -75,7 +75,7 @@ static uint8_t has_normal_key_in_list(list_t* key_list) {
     while (current != NULL) {
         uint16_t keycode = current->data.key_code;
         // 跳过 S_FN_KEY 和媒体键
-        if (keycode != S_FN_KEY && !(keycode & M_KEY_TYPE) && current->data.is_report == 1) {
+        if (keycode != S_FN_KEY && !(IS_CONSUMER_KEYCODE(keycode)) && current->data.is_report == 1) {
             return 1;
         }
         current = current->next;
@@ -204,7 +204,7 @@ uint8_t Bringhness_Down(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F1;
     } else {
-        add_keys[idx++] = M_BACKLIGHT_DOWN;
+        add_keys[idx++] = QK_BACKLIGHT_DOWN;
     }
     return idx;
 }
@@ -215,7 +215,7 @@ uint8_t Bringhness_Up(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F2;
     } else {
-        add_keys[idx++] = M_BACKLIGHT_UP;
+        add_keys[idx++] = QK_BACKLIGHT_UP;
     }
     return idx;
 }
@@ -226,7 +226,7 @@ uint8_t Volume_Down(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F10;
     } else {
-        add_keys[idx++] = M_VOLUME_DOWN;
+        add_keys[idx++] = KC_AUDIO_VOL_DOWN;
     }
     return idx;
 }
@@ -237,7 +237,7 @@ uint8_t Volume_Up(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F11;
     } else {
-        add_keys[idx++] = M_VOLUME_UP;
+        add_keys[idx++] = KC_AUDIO_VOL_UP;
     }
     return idx;
 }
@@ -248,7 +248,7 @@ uint8_t Volume_Mute(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F9;
     } else {
-        add_keys[idx++] = M_MUTE;
+        add_keys[idx++] = KC_AUDIO_MUTE;
     }
     return idx;
 }
@@ -259,7 +259,7 @@ uint8_t Media_Previous(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F6;
     } else {
-        add_keys[idx++] = M_SCAN_PREVIOUS_TRACK;
+        add_keys[idx++] = KC_MEDIA_PREV_TRACK;
     }
     return idx;
 }
@@ -270,7 +270,7 @@ uint8_t Media_Play_Pause(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F7;
     } else {
-        add_keys[idx++] = M_PLAY_N_PAUSE;
+        add_keys[idx++] = KC_MEDIA_PLAY_PAUSE;
     }
     return idx;
 }
@@ -281,7 +281,7 @@ uint8_t Media_Next(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F8;
     } else {
-        add_keys[idx++] = M_SCAN_NEXT_TRACK;
+        add_keys[idx++] = KC_MEDIA_NEXT_TRACK;
     }
     return idx;
 }
@@ -319,7 +319,7 @@ uint8_t Search(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F3;
     } else {
-        add_keys[idx++] = M_WWW_SEARCH;
+        add_keys[idx++] = KC_WWW_SEARCH;
     }
     return idx;
 }
@@ -333,7 +333,7 @@ uint8_t Multi_Task(uint16_t* add_keys) {
     return idx;
 }
 
-// 小地球
+// 小地球 (Apple Globe 键)
 uint8_t Earth(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
@@ -373,6 +373,7 @@ uint8_t Backlight_Level_Up(uint16_t* add_keys) {
  */
 uint8_t Backlight_Color_Next(uint16_t* add_keys) {
     (void)add_keys;
+    dprintf("Backlight_Color_Next\r\n");
     if (backlight_is_enabled()) {
         backlight_color_step();
     }
@@ -403,11 +404,11 @@ uint8_t Battery_Check(uint16_t* add_keys) {
 /**
  * @brief Siri 调用
  *
- * 自定义键: 发送 Consumer 键码 M_SIRI (0x00CF)
  * 触发设备的语音命令功能
  */
 uint8_t Siri_Invoke(uint16_t* add_keys) {
     uint8_t idx = 0;
-    add_keys[idx++] = M_SIRI;
+    // TODO: 根据实际需求发送siri
+    // add_keys[idx++] = ;
     return idx;
 }

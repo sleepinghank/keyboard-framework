@@ -412,20 +412,17 @@ static void classify_and_add_keycode(uint16_t keycode,
                                       report_keyboard_t* kb_report,
                                       uint16_t* consumer_report,
                                       uint8_t* key_idx) {
-    // 跳过层切换键
     if (IS_QK_MOMENTARY(keycode) || IS_QK_TOGGLE_LAYER(keycode)) {
         return;
     }
 
-    // 修饰键 (0xE0-0xE7)
-    if (keycode >= KC_LCTL && keycode <= KC_RWIN) {
+    if (IS_MODIFIER_KEYCODE(keycode)) {
         // dprintf("  Modifier keycode: 0x%04X, adding to mods\n", keycode);
-        kb_report->mods |= (1 << (keycode - KC_LCTL));
+        kb_report->mods |= MOD_BIT(keycode);
         return;
     }
 
-    // 普通键 (0x04-0xDF)
-    if (keycode >= KC_A && keycode < KC_LCTL) {
+    if (IS_BASIC_KEYCODE(keycode)) {
         if (*key_idx < KEYBOARD_REPORT_KEYS) {
             // dprintf("  Regular keycode: 0x%04X, adding to keys[%d]\n", keycode, *key_idx);
             kb_report->keys[(*key_idx)++] = (uint8_t)keycode;
@@ -433,10 +430,9 @@ static void classify_and_add_keycode(uint16_t keycode,
         return;
     }
 
-    // 媒体键（M_KEY_TYPE 标记）
-    if ((keycode & M_KEY_TYPE) == M_KEY_TYPE) {
+    if (IS_CONSUMER_KEYCODE(keycode)) {
         // dprintf("  Consumer keycode: 0x%04X, adding to consumer report\n", keycode);
-        *consumer_report = keycode ^ M_KEY_TYPE;
+        *consumer_report = KEYCODE2CONSUMER(keycode);
         return;
     }
 }

@@ -25,8 +25,7 @@
 #include "keymap.h"
 #include "keycode.h"
 
-// 自定义键码别名
-#define FN_KEY         QK_USER_0   // MO(1) - 切换到 Fn 层
+
 
 const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
 
@@ -40,7 +39,7 @@ const uint16_t keymap_layers[LAYER_MAX][MATRIX_ROWS][MATRIX_COLS] = {
         /* Row 2 */  KC_TAB,   KC_GRV,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,    KC_6,    KC_7,    KC_8,    KC_9,     KC_0,     XXXXXXX,  XXXXXXX,  KC_LCTL,
         /* Row 3 */  KC_CAPS,  KC_A,    KC_S,    KC_D,    KC_F,    KC_G,    KC_H,    KC_J,    KC_K,    KC_L,    XXXXXXX,  XXXXXXX,  XXXXXXX,  KC_RSFT,  XXXXXXX,
         /* Row 4 */  KC_Z,     KC_X,    KC_C,    KC_V,    KC_B,    KC_N,    KC_M,    XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,  XXXXXXX,  XXXXXXX,  KC_LSFT,  XXXXXXX,
-        /* Row 5 */  XXXXXXX,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,  XXXXXXX,  FN_KEY,   XXXXXXX,  XXXXXXX,
+        /* Row 5 */  XXXXXXX,  XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,  XXXXXXX,  S_FN_KEY, XXXXXXX,  XXXXXXX,
         /* Row 6 */  KC_F10,   KC_F11,  KC_MINS, KC_EQL,  KC_P,    KC_LBRC, KC_SCLN, KC_COMM, KC_DOT,  KC_RALT, KC_UP,    KC_DOWN,  XXXXXXX,  KC_LGUI,  XXXXXXX,
         /* Row 7 */  KC_F12,   KC_DEL,  KC_BSPC, KC_RBRC, KC_BSLS, KC_QUOT, KC_ENT,  KC_SLSH, KC_LEFT, KC_RGHT, XXXXXXX,  KC_SPC,   XXXXXXX,  XXXXXXX,  KC_RGUI,
     },

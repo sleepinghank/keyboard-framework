@@ -105,6 +105,13 @@ void matrix_resume_from_sleep(void);
  */
 void matrix_scan_once_after_wakeup(void);
 
+/**
+ * @brief 获取矩阵唤醒回调函数
+ * @note  用于 PA2 猉键等外部唤醒源共享矩阵唤醒回调
+ * @return 唤醒回调函数指针
+ */
+gpio_int_callback_t matrix_get_wakeup_callback(void);
+
 #ifdef __cplusplus
 }
 #endif

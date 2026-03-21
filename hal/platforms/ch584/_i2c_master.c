@@ -25,7 +25,7 @@
  * Note: 主机与从机的DEBUG接口需要同时打开或关闭，
  * 否则会产生时序问题。
  */
-#define CONFIG_I2C_DEBUG
+// #define CONFIG_I2C_DEBUG
 
 #ifdef CONFIG_I2C_DEBUG
 #define I2C_DBG(...)    PRINT(__VA_ARGS__)
@@ -189,11 +189,6 @@ static void print_i2c_irq_sta(uint32_t state)
 
     I2C_DBG(")\n");
 }
-#else
-static inline void print_i2c_irq_sta(uint32_t state)
-{
-    (void)state;
-}
 #endif
 
 /**
@@ -204,8 +199,9 @@ __INTERRUPT
 __HIGH_CODE
 void I2C_IRQHandler(void) {
     uint32_t event = I2C_GetLastEvent();
+    #ifdef CONFIG_I2C_DEBUG
     print_i2c_irq_sta(event);
-
+    #endif
     /* I2C Master */
     if (event & (RB_I2C_MSL << 16)) {
         if (event & RB_I2C_SB) {

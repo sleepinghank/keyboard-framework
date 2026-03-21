@@ -67,17 +67,18 @@ void system_init_hal(void) {
     // i2c_init();
     // platform_uart_init(PLATFORM_UART_1, 115200, 0);
     // pwm_init();
-    uint8_t status = 3;
+
     // platform_uart_bind_pins(NO_PIN, B21, PLATFORM_UART_3);
     // platform_uart_init(PLATFORM_UART_3, 921600, 0);
     platform_uart_bind_pins(NO_PIN, A9, PLATFORM_UART_1);
     platform_uart_init(PLATFORM_UART_1, 921600, 0);
 
-    i2c_init();
-    status = i2c_init_channel_with_pins(I2C_CHANNEL_0, TOUCHPAD_SDA, TOUCHPAD_SCL, 400000);
-    PRINT("I2C init status: %d\r\n", status);
-    PCT1336_Communication_Test();
-    PRINT("B19 HAL initialized\r\n");
+
+    // i2c_init();
+    // int16_t status = i2c_init_channel_with_pins(I2C_CHANNEL_0, TOUCHPAD_SDA, TOUCHPAD_SCL, 400000);
+    // PRINT("I2C init status: %d\r\n", status);
+    // PCT1336_Communication_Test();
+    // PRINT("B19 HAL initialized\r\n");
 
     // 硬件定时器初始化
     hw_timer_init();
@@ -106,7 +107,7 @@ void system_init_drivers(void) {
     // battery_init();
 
     // 4. 背光初始化 (从 output_service 移入)
-    // backlight_init(NULL);
+    backlight_init(NULL);
 
     // 5. 指示灯初始化
     indicator_init();

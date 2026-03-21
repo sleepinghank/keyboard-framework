@@ -19,6 +19,7 @@
  */
 #include "pct1336_driver.h"
 #include "kb904/config.h"
+#include "report.h"
 #ifdef MCS_GESTURE
 #include "mcs_gesture.h"
 #endif
@@ -110,7 +111,7 @@ extern GestureType act_gesture;
 /*********************************************************************
  * @fn      touch_power_on
  *
- * @brief   触控板开机，会延迟初始化，是否启动成功请参考touch_en值
+ * @brief   触控板开机，直接完成基础硬件初始化，是否启动成功请参考touch_en值
  *
  * @param   none
  *
@@ -122,7 +123,7 @@ int8_t touch_power_on(void);
 /*********************************************************************
  * @fn      touch_power_on_with_params
  * 
- * @brief   带参数的开机，会延迟初始化，是否启动成功请参考touch_en值
+ * @brief   带参数的开机，直接完成基础硬件初始化，是否启动成功请参考touch_en值
  * 
  * @param   params 参数指针
  * 
@@ -215,7 +216,7 @@ uint8_t end_touchpad_input(void);
 /*********************************************************************
  * @fn      touch_watchdog_check
  * @brief   触控板看门狗检查函数，用于检测触控板是否出现错误状态或看门狗复位
- *          当检测到错误时会尝试重新初始化触控板
+ *          生命周期恢复由上层 middleware 负责
  *
  * @note    该函数应定期调用（建议每2秒调用一次）以监控触控板状态
  *          只有在触控板已启用但未处于触摸处理状态时才执行检查
@@ -224,7 +225,7 @@ uint8_t end_touchpad_input(void);
  *
  * @return  none
  */
-void touch_watchdog_check(void);
+bool touch_watchdog_check(void);
 /*********************************************************************
 *********************************************************************/
 

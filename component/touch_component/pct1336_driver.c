@@ -13,7 +13,6 @@
 #include "pct1336_driver.h"
 #include "i2c_master.h"
 #include "wait.h"
-#include "event_manager.h"
 #include "debug.h"
 /*********************************************************************
  * MACROS 宏定义
@@ -26,9 +25,6 @@
 #endif
 
 #define TOUCH_SLAVE_ID                              0x33 // 触摸板从机地址
-
-/* OSAL 事件定义 */
-#define PCT1336_REG_POLL_EVT                        (1 << 0)
 
 #define EVENT_TOUCH 0x02
 #define EVENT_GEST 0x08
@@ -66,9 +62,6 @@ static uint8_t init_params_len = 0;
 
 static uint8_t retry_cnt = 0;
 static uint8_t state = 0;
-
-/* OSAL 任务 ID */
-static uint8_t pct1336_taskID = 0;
 
 /*********************************************************************
  * LOCAL FUNCTIONS 本地函数
@@ -178,34 +171,6 @@ int8_t pct1336_register_end(void){
     return 1;
 }
 
-/// @brief 注册触控板参数并启动
-/// @return 1：重启成功，0：未就绪
-int8_t pct1336_register_params(pct1336_params_t *params, uint8_t len)
-{
-    // 读取状态寄存器，检查BIT0是否为1，最多重试5次
-    uint8_t state;
-    pct1336_read_reg(0x70, &state);
-    if ((state & 0x01) != 0x01) {
-        // 触摸芯片尚未准备好，继续等待
-        retry_cnt++;
-        if (retry_cnt >= 50) {
-            PCT1336_log("Touch resume timeout after 50 attempts (500ms)\r\n");
-            OSAL_StopTask(pct1336_taskID, PCT1336_REG_POLL_EVT);
-            return 0;
-        }
-        return 0;
-    }
-    OSAL_StopTask(pct1336_taskID, PCT1336_REG_POLL_EVT);
-
-    if (len > 0) {
-        uint8_t u8tmp = 0;
-        for(u8tmp = 0; u8tmp < len; u8tmp++){
-            pct1336_write_user_reg(params[u8tmp].params.bank, params[u8tmp].params.address, params[u8tmp].params.data);
-        }
-    }
-    return pct1336_register_end();
-}
-
 /// @brief 重启 PCT1336 触摸芯片，遵循数据手册中的 Watchdog Reset Flow
 /// @return 1：成功 0：失败
 int8_t pct1336_reset(void)
@@ -251,22 +216,36 @@ int8_t pct1336_reset(void)
     return 1;
 }
 
-
-/*********************************************************************
- * OSAL 事件处理函数
- */
-
-/// @brief PCT1336 OSAL 事件处理函数
-/// @param task_id 任务ID
-/// @param events 事件标志
-/// @return 未处理的事件
-static uint16_t pct1336_process_event(uint8_t task_id, uint16_t events)
+/// @brief 注册触控板参数并启动
+/// @return 1：重启成功，0：未就绪 
+int8_t pct1336_register_params(pct1336_params_t *params, uint8_t len)
 {
-    if (events & PCT1336_REG_POLL_EVT) {
-        pct1336_register_params(init_params, init_params_len);
-        return (events ^ PCT1336_REG_POLL_EVT);
+    // 参数有效性检查
+    // if (params == NULL && len != 0)
+    // {
+    //     return 0;
+    // }
+    
+    // 读取状态寄存器，检查BIT0是否为1，最多重试5次
+    uint8_t state;
+    pct1336_read_reg(0x70, &state);
+    if ((state & 0x01) != 0x01) {
+        return 0;
     }
-    return 0;
+
+    if (len > 0) {
+        uint8_t u8tmp = 0;
+        for(u8tmp = 0; u8tmp < len; u8tmp++){
+            // PCT1336_log("<< touch_Init params:%x\r\n", params[u8tmp].params.data);
+            pct1336_write_user_reg(params[u8tmp].params.bank, params[u8tmp].params.address, params[u8tmp].params.data);
+        }
+    }
+    return pct1336_register_end();
+}
+
+int8_t pct1336_register_cb(void)
+{
+	return pct1336_register_params(init_params, init_params_len);
 }
 
 /*********************************************************************
@@ -279,6 +258,18 @@ void pct1336_set_init_params(pct1336_params_t* params, uint8_t len)
 {
     init_params = params;
     init_params_len = len;
+}
+
+/* middleware 通过该查询接口决定是否继续 FW 轮询，不在驱动层阻塞等待。 */
+bool pct1336_fw_ready(void)
+{
+    uint8_t fw_state = 0;
+
+    if (!pct1336_read_reg(0x70, &fw_state)) {
+        return false;
+    }
+
+    return (fw_state & 0x01) == 0x01;
 }
 
 int8_t pct1336_init()
@@ -356,12 +347,6 @@ int8_t pct1336_init()
         pct1336_write_reg(0x7a, 0xbb); // reset
         retry_cnt = 0;
         state = 0;
-
-        // 注册 OSAL 任务并启动轮询定时器
-        if (pct1336_taskID == 0) {
-            pct1336_taskID = OSAL_ProcessEventRegister(pct1336_process_event);
-        }
-        OSAL_StartReloadTask(pct1336_taskID, PCT1336_REG_POLL_EVT, 10);
         return 1;
     }
 }
@@ -529,7 +514,7 @@ int8_t pct1336_read_ptp_report(touchpad_data_t *ptp){
 }
 
 
-void pct1336_watchdog_check(void)
+bool pct1336_watchdog_check(void)
 {
     uint8_t status = 0;
     
@@ -538,26 +523,17 @@ void pct1336_watchdog_check(void)
         // 检查错误状态位 (bit 0) 或看门狗复位位 (bit 7)
         if ((status & TOUCH_STATUS_ERROR) == TOUCH_STATUS_ERROR || 
             (status & TOUCH_STATUS_WATCHDOG_RESET) == TOUCH_STATUS_WATCHDOG_RESET) {
-            int8_t ret = pct1336_init();
-            // 记录错误日志
-            PCT1336_log("Touchpad error detected, status: 0x%02X. Restarting...\r\n", status);
-            
-            // 重启触控板
-            if (ret == 1) {
-                PCT1336_log("Touchpad reset successful\r\n");
-            } else {
-                PCT1336_log("Touchpad reset failed\r\n");
-            }
+            PCT1336_log("Touchpad error detected, status: 0x%02X. Recovery handled by middleware.\r\n",
+                        status);
+            return false;
         } 
-        // else {
-        //     PCT1336_log("Touchpad status: 0x%02X\r\n", status);
-        // }
+        return true; // 设备状态正常
     } else {
         PCT1336_log("Failed to read touchpad status\r\n");
+        return false; // 读取失败，视为异常
     }
 }
 
 
 /*********************************************************************
 *********************************************************************/
-

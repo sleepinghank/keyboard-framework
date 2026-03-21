@@ -47,8 +47,8 @@ const uint16_t PROGMEM FN_F9_combo[]  = { KC_F9,  COMBO_END };
 const uint16_t PROGMEM FN_F10_combo[] = { KC_F10, COMBO_END };
 const uint16_t PROGMEM FN_F11_combo[] = { KC_F11, COMBO_END };
 const uint16_t PROGMEM FN_F12_combo[] = { KC_F12, COMBO_END };
-const uint16_t PROGMEM FN_RIGHT_SHIFT_combo[] = { S_FN_KEY, KC_RSFT, COMBO_END };
-const uint16_t PROGMEM FN_RIGHT_ENTER_combo[] = { S_FN_KEY, KC_ENTER, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_SHIFT_combo[] = { KC_LSFT, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_ENTER_combo[] = { KC_RSFT, COMBO_END };
 const uint16_t PROGMEM FN_RIGHT_CMD_combo[]   = { S_FN_KEY, KC_RCMD, COMBO_END };
 const uint16_t PROGMEM CUSTOM_KEY_combo[]     = { KC_APPLICATION, COMBO_END };
 
