@@ -69,7 +69,17 @@ cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj 
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Application Layer (test_main.c, services)                  │
+│  Application Layer                                          │
+│  ├── main.c          CH584M 硬件固件入口                    │
+│  ├── test_main.c     Windows 仿真入口（桌面调试）           │
+│  └── service/        事件驱动调度层                         │
+│       ├── system_service.c          系统事件调度            │
+│       ├── input_service.c           输入事件调度            │
+│       ├── communication_service.c   通信事件调度            │
+│       └── output_service.c          输出事件调度            │
+├─────────────────────────────────────────────────────────────┤
+│  Component Layer (component/)                               │
+│  └── touch_component/  触控板功能组件（跨 middleware/driver）│
 ├─────────────────────────────────────────────────────────────┤
 │  Middleware Layer                                           │
 │  ├── keyboard/   按键处理、层级、组合键、HID报告            │
@@ -85,6 +95,10 @@ cmd.exe /c "cd /d D:\\Code\\C_Project\\keyboard-framework\\project\\ch584m\\obj 
 │  GPIO, ADC, PWM, I2C, SPI, UART 抽象接口                    │
 └─────────────────────────────────────────────────────────────┘
 ```
+
+**入口文件区分（重要）：**
+- `application/main.c` — CH584M 实际烧录入口（硬件固件），不可与 test_main.c 混淆
+- `test_main.c` — Windows 仿真入口（桌面调试，不烧录）
 
 ## Key Processing Flow
 
@@ -202,9 +216,14 @@ _post_task();  // task 之后
 5. 如果构建失败，报告确切的缺失文件/符号和所属层级
 6. 如果添加测试，在注释中包含清晰的单测试运行命令
 
+## Design Documents
+
+设计文档存放在 `DOCS/plans/` 目录，命名格式：`YYYY-MM-DD-<topic>-<type>.md`（type: requirements/design/review）。实施前必须先阅读对应的设计文档。
+
 ## Critical Files
 
-- 入口: `test_main.c`
+- 硬件入口: `application/main.c`（CH584M 烧录固件）
+- 仿真入口: `test_main.c`（Windows 桌面调试）
 - 启动流程: `application/system/system_init.c`
 - 事件 API: `drivers/system/event_manager.h`
 - 键盘核心: `middleware/keyboard/keyboard.c`
