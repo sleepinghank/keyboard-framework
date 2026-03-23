@@ -1,6 +1,6 @@
 ---
 name: pyramid-design
-description: "You MUST use this before any feature development work - creating features, building components, adding functionality, or modifying behavior. Uses Pyramid Principle and MECE analysis with parallel TaskCreate teams and document-based phase handoff to confirm requirements, analyze current state, design solutions, and eliminate rework. Design phase presents core flow diagrams first, then details. Implementation hands off to a new session with executing-plans skill for clean context. Trigger on phrases like '新增功能', '修改功能', '方案设计', '需求分析', 'implement feature', 'design solution', or any request to build or change behavior."
+description: "You MUST use this before any feature development work - creating features, building components, adding functionality, or modifying behavior. Uses Pyramid Principle and MECE analysis with parallel Agent subagents and document-based phase handoff to confirm requirements, analyze current state, design solutions, and eliminate rework. Design phase presents core flow diagrams first, then details. Implementation hands off to a new session with executing-plans skill for clean context. Trigger on phrases like '新增功能', '修改功能', '方案设计', '需求分析', 'implement feature', 'design solution', or any request to build or change behavior."
 ---
 
 # Pyramid Design — 金字塔原理驱动的需求设计流程
@@ -23,29 +23,29 @@ Do NOT invoke any implementation skill, write any code, scaffold any project, or
 
 ### 核心原则：主对话 = 轻量协调器
 
-主对话**不直接读取源码文件**。所有重型工作（代码探索、代码分析、多角度评审）委派给 Task 子任务，子任务完成后只返回**结构化摘要**。阶段间通过**文档**传递完整上下文，避免对话历史累积。
+主对话**不直接读取源码文件**。所有重型工作（代码探索、代码分析、多角度评审）委派给 `Agent` 子任务，子任务完成后只返回**结构化摘要**。阶段间通过**文档**传递完整上下文，避免对话历史累积。
 
-**并行任务管理**：使用 `TaskCreate` 派遣并行任务，通过 `TaskList` 查看状态，`TaskGet`/`TaskOutput` 获取结果，`TaskStop` 停止失败任务。每个任务有独立 ID，可精确追踪和重试。
+**并行子任务管理**：使用 `Agent` 工具派遣子任务。`Agent` 是同步调用——在同一个 turn 中发起多个 `Agent` 调用即可并行执行，每个调用直接返回结果，无需轮询。如结果不满意，重新派遣新的 `Agent` 即可。
 
 ```
 Phase 1 需求确认
-  ├─ Task: 探索项目上下文 → 结构化摘要
+  ├─ Agent: 探索项目上下文 → 结构化摘要
   ├─ 主对话: 逐一提问用户
-  ├─ TaskCreate x3 并行: 需求评审 → TaskList 追踪 → TaskOutput 收集意见
-  ├─ TaskCreate: 代码现状分析 → 分析摘要
+  ├─ Agent x3 并行: 需求评审 → 直接返回意见
+  ├─ Agent: 代码现状分析 → 分析摘要
   └─ 输出: docs/plans/YYYY-MM-DD-<topic>-requirements.md
      [用户确认]
 
 Phase 2 方案设计
   ├─ 主对话: 读 requirements.md → 差距分析
   ├─ 主对话: 核心流程图/伪代码 → 逐节展示方案 → 用户确认
-  ├─ TaskCreate x5 并行: 方案评审 → TaskList 追踪 → 评审报告
+  ├─ Agent x5 并行: 方案评审 → 直接返回评审报告
   └─ 输出: docs/plans/YYYY-MM-DD-<topic>-design.md
      [用户确认]
 
 Phase 3 计划输出与交接
   ├─ 主对话: 读 design.md → 制定实施计划
-  ├─ TaskCreate: 文档质量评审
+  ├─ Agent: 文档质量评审
   └─ 输出实施启动指令 → 用户新开会话执行 superpowers:executing-plans
 ```
 
@@ -59,11 +59,11 @@ Phase 3 计划输出与交接
 
 | 错误做法 | 正确做法 |
 |---------|---------|
-| 主对话直接读取大量源码 | 派遣 Task 分析，只接收摘要 |
+| 主对话直接读取大量源码 | 派遣 Agent 分析，只接收摘要 |
 | 单次 turn 跳过多个步骤 | 每步独立确认 |
 | "太简单不需要设计" | 所有项目都走流程，设计可以短但必须有 |
-| Task 返回完整代码内容 | Task 返回结构化摘要，限制字数 |
-| 评审 Task 串行执行 | 独立评审维度使用 TaskCreate 并行 |
+| Agent 返回完整代码内容 | Agent 返回结构化摘要，限制字数 |
+| 评审 Agent 串行执行 | 独立评审维度在同一 turn 并行派遣多个 Agent |
 | 设计完在当前会话直接实施 | 文档交接后新开会话实施，保持上下文干净 |
 | 方案展示直接列细节 | 先展示核心流程图/伪代码，再逐节深入 |
 
@@ -75,10 +75,10 @@ Phase 3 计划输出与交接
 
 声明：`【步骤 1/9 — 探索项目上下文】`
 
-**派遣 Task 子任务**探索项目（不要在主对话中直接探索）：
+**派遣 Agent 子任务**探索项目（不要在主对话中直接探索）：
 
 ```
-使用 TaskCreate 派遣子任务，prompt 要点：
+使用 Agent 工具派遣子任务，prompt 要点：
 - 围绕「<用户需求一句话摘要>」探索项目
 - 检查文件结构、文档（CLAUDE.md, README 等）、近期 git 提交
 - 评估需求规模：小 / 中 / 大
@@ -90,7 +90,7 @@ Phase 3 计划输出与交接
   4. 如规模过大，拆解建议
 ```
 
-使用 `TaskGet` 获取结果后，将摘要展示给用户。
+Agent 直接返回结果，将摘要展示给用户。
 
 > **[CHECKPOINT 1]** 使用 `AskUserQuestion` 询问："步骤 1 完成。是否继续步骤 2（需求澄清）？"
 
@@ -105,21 +105,21 @@ Phase 3 计划输出与交接
 - 优先给选项，聚焦：目的、约束条件、成功标准
 - 所有问题回答完毕后，整理为「需求 Q&A 摘要」
 
-**Part B — 并行评审（TaskCreate 管理）：**
+**Part B — 并行评审（Agent 并行）：**
 
-所有问题回答完毕后，使用 `TaskCreate` **并行**派遣 3 个评审任务（参考 `references/agent-roles.md` 中「需求评审团」）：
+所有问题回答完毕后，在**同一个 turn** 中发起 3 个 `Agent` 调用实现并行评审（参考 `references/agent-roles.md` 中「需求评审团」）：
 
-| Task | 角色 | 输入 |
-|------|------|------|
-| Task 1 | 用户/产品视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
-| Task 2 | 架构/编码视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
-| Task 3 | 测试/质量视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
+| Agent | 角色 | 输入 |
+|-------|------|------|
+| Agent 1 | 用户/产品视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
+| Agent 2 | 架构/编码视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
+| Agent 3 | 测试/质量视角 | 需求 Q&A 摘要 + 步骤 1 项目摘要 |
 
-每个 Task 输出限制 200 字以内。三个 Task 在同一个 turn 中通过 `TaskCreate` 并行派遣。派遣后使用 `TaskList` 查看状态，`TaskOutput` 收集结果。如某个 Task 失败，用 `TaskStop` 停止后重新派遣。
+每个 Agent 输出限制 200 字以内。三个 Agent 在同一个 turn 中并行派遣，各自直接返回结果。如结果不满意，重新派遣新 Agent 即可。
 
 汇总评审意见，使用 `Write` 工具写入 `docs/plans/YYYY-MM-DD-<topic>-requirements.md`（需求部分）。
 
-> **[CHECKPOINT 2]** 展示需求摘要 + 各 Task 评审意见 + 范围边界。使用 `AskUserQuestion` 询问："步骤 2 完成。是否继续步骤 3？"
+> **[CHECKPOINT 2]** 展示需求摘要 + 各 Agent 评审意见 + 范围边界。使用 `AskUserQuestion` 询问："步骤 2 完成。是否继续步骤 3？"
 
 ---
 
@@ -127,13 +127,13 @@ Phase 3 计划输出与交接
 
 声明：`【步骤 3/9 — 代码现状分析】`
 
-根据步骤 1 识别的相关模块，使用 `TaskCreate` **派遣 Task 子任务**进行代码分析（不要在主对话中直接读代码）：
+根据步骤 1 识别的相关模块，使用 `Agent` **派遣子任务**进行代码分析（不要在主对话中直接读代码）：
 
-- 相关模块 ≤3 个：派遣 1 个 Task 分析全部
-- 相关模块 >3 个：按模块分组，**并行**派遣多个 Task（`TaskCreate` 并行）
+- 相关模块 ≤3 个：派遣 1 个 Agent 分析全部
+- 相关模块 >3 个：按模块分组，在同一 turn 中**并行**派遣多个 Agent
 
 ```
-每个代码分析 Task 的 prompt 要点：
+每个代码分析 Agent 的 prompt 要点：
 - 分析指定模块与「<需求摘要>」的关系
 - 需求关键点：<从 requirements.md 提取>
 - 模块路径：<具体路径列表>
@@ -197,17 +197,17 @@ Phase 3 计划输出与交接
 
 声明：`【步骤 6/9 — 方案多角度评审】`
 
-使用 `TaskCreate` **并行**派遣 5 个评审任务（参考 `references/agent-roles.md` 中「方案评审团」）：
+在**同一个 turn** 中发起 5 个 `Agent` 调用实现并行评审（参考 `references/agent-roles.md` 中「方案评审团」）：
 
-| Task | 评审维度 | 输入 |
-|------|---------|------|
-| Task 1 | 功能完整性 | 方案摘要 + requirements.md |
-| Task 2 | 技术可行性 | 方案摘要 |
-| Task 3 | 可维护性 | 方案摘要 |
-| Task 4 | 可测试性 | 方案摘要 |
-| Task 5 | 风险识别 | 方案摘要 |
+| Agent | 评审维度 | 输入 |
+|-------|---------|------|
+| Agent 1 | 功能完整性 | 方案摘要 + requirements.md |
+| Agent 2 | 技术可行性 | 方案摘要 |
+| Agent 3 | 可维护性 | 方案摘要 |
+| Agent 4 | 可测试性 | 方案摘要 |
+| Agent 5 | 风险识别 | 方案摘要 |
 
-每个 Task 输出限制 200 字以内。五个 Task 在同一个 turn 中通过 `TaskCreate` 并行派遣。使用 `TaskList` 监控状态，`TaskOutput` 收集结果。如某个 Task 失败，用 `TaskStop` 停止后单独重试，无需重跑全部。
+每个 Agent 输出限制 200 字以内。五个 Agent 在同一个 turn 中并行派遣，各自直接返回结果。如某个结果不满意，单独重新派遣新 Agent，无需重跑全部。
 
 如发现问题，返回步骤 4 修订。评审通过后使用 `Write` 工具将方案写入 `docs/plans/YYYY-MM-DD-<topic>-design.md`。
 
@@ -245,7 +245,7 @@ Phase 3 计划输出与交接
 - 方案设计
 - 实施计划
 
-**文档评审**：使用 `TaskCreate` 派遣评审任务检查文档质量（参考 `references/agent-roles.md` 中「文档评审员」）。使用 `TaskOutput` 获取评审结果。如发现问题，修正后重新派遣，最多 5 次。
+**文档评审**：使用 `Agent` 派遣评审任务检查文档质量（参考 `references/agent-roles.md` 中「文档评审员」）。Agent 直接返回评审结果。如发现问题，修正后重新派遣新 Agent，最多 5 次。
 
 提交到 git。
 
@@ -294,9 +294,9 @@ Phase 3 计划输出与交接
 
 - **金字塔原理** — 结论先行，再展示支撑依据
 - **MECE 原则** — 分析和方案必须相互独立、完全穷尽
-- **上下文隔离** — 重型工作委派 Task 子任务，主对话只接收摘要；实施阶段新开会话
+- **上下文隔离** — 重型工作委派 Agent 子任务，主对话只接收摘要；实施阶段新开会话
 - **文档衔接** — 阶段间通过文档传递上下文，不依赖对话历史
-- **并行加速** — 独立评审维度使用 TaskCreate 并行执行，TaskList 追踪状态
+- **并行加速** — 独立评审维度在同一 turn 中并行派遣多个 Agent，直接返回结果
 - **核心流程先行** — 方案展示先用流程图/伪代码呈现全貌，再逐节深入细节
 - **一次问一个** — 不要同时抛出多个问题
 - **优先给选项** — 比开放式问题更容易回答
