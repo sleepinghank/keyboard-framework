@@ -1,6 +1,6 @@
 ---
 name: pyramid-design
-description: "You MUST use this before any feature development work - creating features, building components, adding functionality, or modifying behavior. Uses Pyramid Principle and MECE analysis with parallel Agent subagents and document-based phase handoff to confirm requirements, analyze current state, design solutions, and eliminate rework. Design phase presents core flow diagrams first, then details. Implementation hands off to a new session with executing-plans skill for clean context. Trigger on phrases like '新增功能', '修改功能', '方案设计', '需求分析', 'implement feature', 'design solution', or any request to build or change behavior."
+description: "You MUST use this before any feature development work - creating features, building components, adding functionality, or modifying behavior. Uses Pyramid Principle and MECE analysis with parallel Agent subagents and document-based phase handoff to confirm requirements, analyze current state, design solutions, and eliminate rework. Design phase presents core flow diagrams first, then details. Implementation hands off to a new session with executing-plans skill for clean context. Trigger on phrases like '新增功能', '修改功能', '重构', '新模块', '优化方案', '方案设计', '需求分析', 'implement feature', 'design solution', 'refactor', 'add module', or any request to build or change behavior."
 ---
 
 # Pyramid Design — 金字塔原理驱动的需求设计流程
@@ -14,7 +14,9 @@ description: "You MUST use this before any feature development work - creating f
 - **每阶段有文档产出**，作为下一阶段的唯一输入
 
 <HARD-GATE>
-Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has approved it. This applies to EVERY project regardless of perceived simplicity.
+Do NOT invoke any implementation skill, write any code, scaffold any project, or take any implementation action until you have presented a design and the user has explicitly approved it. This applies to EVERY project regardless of perceived simplicity.
+
+"Approved" means the user gave an explicit affirmative response such as "确认", "通过", "可以", "没问题", "approved", "LGTM", "继续". Ambiguous responses like "嗯", "看看吧", "再说" do NOT count as approval — use `AskUserQuestion` to clarify.
 </HARD-GATE>
 
 ---
@@ -66,6 +68,9 @@ Phase 3 计划输出与交接
 | 评审 Agent 串行执行 | 独立评审维度在同一 turn 并行派遣多个 Agent |
 | 设计完在当前会话直接实施 | 文档交接后新开会话实施，保持上下文干净 |
 | 方案展示直接列细节 | 先展示核心流程图/伪代码，再逐节深入 |
+| 需求变更后不更新 requirements.md | 任何需求变更必须回溯更新文档，再继续设计 |
+| 文档路径命名不规范 | 严格遵循 `YYYY-MM-DD-<topic>-<type>.md` 格式 |
+| 用户模糊回复当作批准 | 只有显式肯定词才算批准，否则用 AskUserQuestion 澄清 |
 
 ---
 
@@ -189,7 +194,9 @@ Agent 直接返回结果，将摘要展示给用户。
 
 **设计隔离原则**：每个模块只做一件事，接口明确，可独立理解和测试。
 
-> **[CHECKPOINT 5]** 使用 `AskUserQuestion` 询问："方案各节已确认。是否继续步骤 6（多角度评审）？"
+**生成方案摘要**：所有节确认后，将各节核心内容合并为一份**方案摘要**（300-500 字），作为步骤 6 评审 Agent 的统一输入。
+
+> **[CHECKPOINT 5]** 展示方案摘要。使用 `AskUserQuestion` 询问："方案各节已确认。是否继续步骤 6（多角度评审）？"
 
 ---
 
@@ -247,9 +254,7 @@ Agent 直接返回结果，将摘要展示给用户。
 
 **文档评审**：使用 `Agent` 派遣评审任务检查文档质量（参考 `references/agent-roles.md` 中「文档评审员」）。Agent 直接返回评审结果。如发现问题，修正后重新派遣新 Agent，最多 5 次。
 
-提交到 git。
-
-> **[CHECKPOINT 8]** 使用 `AskUserQuestion` 询问："设计文档已完成。是否继续步骤 9？"
+> **[CHECKPOINT 8]** 使用 `AskUserQuestion` 询问："设计文档已完成。是否需要 commit 到 git？确认后进入步骤 9。"
 
 ---
 
