@@ -889,6 +889,11 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
             hidDevConnSecure = TRUE;
             tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
         }
+        else
+        {
+            /* 配对失败：设置标志，GAP_LINK_TERMINATED_EVENT 处理时重新发起配对广播 */
+            hidEmu_set_pairing_failed_flag();
+        }
 
         pairingStatus = status;
     }
@@ -927,8 +932,8 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
 //             // access_tran_report(REPORT_CMD_STATE, STATE_CONNECTED);
 // //            access_tran_report(REPORT_CMD_BATT_INFO, batt_val);
 //         }
-        hidEmu_save_ble_bonded(access_state.pairing_state);
-        access_state.pairing_state = FALSE;
+        hidEmu_save_ble_bonded(access_state.intent == BLE_INTENT_PAIRING ? TRUE : FALSE);
+        access_state.intent = BLE_INTENT_NONE;
         tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
         //启动系统识别
         if(status == SUCCESS)

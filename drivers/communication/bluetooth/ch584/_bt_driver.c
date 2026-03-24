@@ -83,6 +83,9 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
 
     dprintf("bt_driver_connect_ex: host_idx=%d\n", host_idx);
 
+    /* 入口清零配对失败标志，防止残留影响后续断开路由 */
+    hidEmu_clear_pairing_failed_flag();
+
     /* 验证并修正主机索引 */
     if ((target_host_idx <= BLE_INDEX_IDEL) || (target_host_idx >= BLE_INDEX_MAX)) {
         storage_config_t *cfg = storage_get_config_ptr();
@@ -94,47 +97,43 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
     }
 
     access_state.ble_idx = target_host_idx;
-    access_state.pairing_state = FALSE;
 
     GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
 
     dprintf("[BT] connect_ex: target=%d con_work_mode=%d ble_state=%d\n",
             target_host_idx, con_work_mode, ble_state);
 
-    if (con_work_mode == target_host_idx) {
-        /* 目标主机与当前一致：已连接或正在处理断开流程则不操作 */
-        if ((ble_state == GAPROLE_CONNECTED) ||
-            OSAL_GetTaskTimer(hidEmuTaskId, SEND_DISCONNECT_EVT)) {
-            dprintf("[BT] connect_ex: already connected or disconnecting, skip\n");
+    if (ble_state == GAPROLE_CONNECTED) {
+        if (con_work_mode == target_host_idx) {
+            dprintf("[BT] connect_ex: already connected to same host, skip\n");
             return;
         }
-        /* 未连接且未在广播，已绑定则发起广播 */
-        if ((ble_state != GAPROLE_ADVERTISING) && hidEmu_is_ble_bonded(target_host_idx)) {
-            dprintf("[BT] connect_ex: same host, start adv (bonded)\n");
-            hidEmu_prepare_reconnect_adv();
-            hidEmu_adv_enable(ENABLE);
-        } else {
-            dprintf("[BT] connect_ex: same host, adv already active or not bonded, skip\n");
-        }
-    } else {
-        /* 切换到不同主机：先取消可能挂起的断开定时器 */
+        /* 切换主机：先断开，TERMINATED 后由 intent=RECONNECT 续接广播 */
+        dprintf("[BT] connect_ex: switch host, disconnect first\n");
         if (OSAL_GetTaskTimer(hidEmuTaskId, SEND_DISCONNECT_EVT)) {
-            dprintf("[BT] connect_ex: cancel pending SEND_DISCONNECT_EVT\n");
             OSAL_StopTask(hidEmuTaskId, SEND_DISCONNECT_EVT);
         }
-
-        if (ble_state == GAPROLE_CONNECTED) {
-            dprintf("[BT] connect_ex: switch host, disconnect first\n");
-            hidEmu_disconnect();
-        } else if (ble_state == GAPROLE_ADVERTISING) {
-            dprintf("[BT] connect_ex: switch host, stop adv first\n");
-            hidEmu_adv_enable(DISABLE);
-        } else if (hidEmu_is_ble_bonded(target_host_idx)) {
-            dprintf("[BT] connect_ex: switch host, start adv (bonded)\n");
-            hidEmu_prepare_reconnect_adv();
-            hidEmu_adv_enable(ENABLE);
+        access_state.intent = BLE_INTENT_RECONNECT;
+        hidEmu_disconnect();
+    } else if (ble_state == GAPROLE_ADVERTISING) {
+        /* 当前正在广播（可能是其他 idx），停播后重新启动 */
+        dprintf("[BT] connect_ex: advertising, stop and restart\n");
+        hidEmu_stop_adv();
+        if (hidEmu_is_ble_bonded(target_host_idx)) {
+            hidEmu_reconnect_adv(target_host_idx);
         } else {
-            dprintf("[BT] connect_ex: switch host, not bonded, wait pairing cmd\n");
+            dprintf("[BT] connect_ex: not bonded, wait pairing cmd\n");
+            access_state.intent = BLE_INTENT_NONE;
+            con_work_mode = target_host_idx;
+        }
+    } else {
+        /* 空闲状态 */
+        if (hidEmu_is_ble_bonded(target_host_idx)) {
+            dprintf("[BT] connect_ex: idle, bonded, start reconnect adv\n");
+            hidEmu_reconnect_adv(target_host_idx);
+        } else {
+            dprintf("[BT] connect_ex: idle, not bonded, wait pairing cmd\n");
+            access_state.intent = BLE_INTENT_NONE;
             con_work_mode = target_host_idx;
         }
     }
@@ -153,41 +152,48 @@ void bt_driver_connect_ex(uint8_t host_idx, uint16_t timeout)
 void bt_driver_pairing_ex(uint8_t host_idx, void *param)
 {
     uint8_t ble_state;
-    bool    bonded;
     (void)param;
 
-    dprintf("bt_driver_pairing_ex: host_idx=%d\n", host_idx);
+    dprintf(“bt_driver_pairing_ex: host_idx=%d\n”, host_idx);
 
     /* 验证并修正主机索引 */
     if ((host_idx <= BLE_INDEX_IDEL) || (host_idx >= BLE_INDEX_MAX)) {
         host_idx = BLE_INDEX_1;
     }
 
-    bonded = bt_driver_is_host_bonded(host_idx);
+    /* 入口清零配对失败标志，防止残留 */
+    hidEmu_clear_pairing_failed_flag();
 
-    /* pairing_state 仅表示“已绑定设备重配时是否切换身份地址” */
-    access_state.ble_idx = host_idx;
-    access_state.pairing_state = bonded ? TRUE : FALSE;
+    /* 清除该 idx 的旧绑定（立即清除，防止旧主机在全开广播期间抢连） */
+    if (bt_driver_is_host_bonded(host_idx)) {
+        dprintf(“[BT] pairing_ex: clear old bonding for idx=%d\n”, host_idx);
+        hidEmu_delete_ble_bonded_by_idx((access_ble_idx_t)host_idx);
+    }
+
+    /* 设置目标 idx 和配对意图 */
+    access_state.ble_idx = (access_ble_idx_t)host_idx;
+    access_state.intent  = BLE_INTENT_PAIRING;
 
     GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
 
-    dprintf("[BT] pairing_ex: ble_state=%d ble_idx=%d bonded=%d repair=%d\n",
-            ble_state, access_state.ble_idx, bonded, access_state.pairing_state);
+    dprintf(“[BT] pairing_ex: ble_state=%d ble_idx=%d\n”,
+            ble_state, access_state.ble_idx);
 
     if (ble_state == GAPROLE_CONNECTED) {
-        /* 先断开，hidEmuStateCB 在 GAP_LINK_TERMINATED_EVENT 中会根据
-         * access_state.ble_idx 和 access_state.pairing_state 发起配对广播 */
-        dprintf("[BT] pairing_ex: connected, disconnect first then adv\n");
+        /* 已连接：先断开，GAP_LINK_TERMINATED_EVENT 中检查 intent=PAIRING 再启动配对广播 */
+        dprintf(“[BT] pairing_ex: connected, disconnect first\n”);
+        if (OSAL_GetTaskTimer(hidEmuTaskId, SEND_DISCONNECT_EVT)) {
+            OSAL_StopTask(hidEmuTaskId, SEND_DISCONNECT_EVT);
+        }
         hidEmu_disconnect();
-        return;
-    }
-
-    if (ble_state == GAPROLE_ADVERTISING) {
-        dprintf("[BT] pairing_ex: advertising, stop adv then restart\n");
-        hidEmu_adv_enable(DISABLE);
     } else {
-        dprintf("[BT] pairing_ex: idle, start pairing adv\n");
-        hidEmu_adv_enable(ENABLE);
+        /* 未连接（可能正在广播或空闲）：停播后直接启动配对广播 */
+        if (ble_state == GAPROLE_ADVERTISING) {
+            dprintf(“[BT] pairing_ex: advertising, stop first\n”);
+            hidEmu_stop_adv();
+        }
+        dprintf(“[BT] pairing_ex: start pairing adv\n”);
+        hidEmu_pairing_adv((access_ble_idx_t)host_idx);
     }
 }
 
@@ -351,7 +357,7 @@ void bt_driver_dump_state(void)
 
     dprintf("[BT_DUMP] gap=%s(%d) con_mode=%d ble_idx=%d pairing=%d\n",
             gap_name, ble_state,
-            con_work_mode, access_state.ble_idx, access_state.pairing_state);
+            con_work_mode, access_state.ble_idx, access_state.intent);
     dprintf("[BT_DUMP] bonded: [1]=%d [2]=%d [3]=%d\n",
             hidEmu_is_ble_bonded(BLE_INDEX_1),
             hidEmu_is_ble_bonded(BLE_INDEX_2),

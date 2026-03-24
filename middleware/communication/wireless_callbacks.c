@@ -42,7 +42,7 @@ extern uint8_t commu_taskID;
 extern wireless_event_t event;
 
 static bool access_ble_is_discoverable_session(uint8_t host_idx) {
-    if (access_state.pairing_state != 0u) {
+    if (access_state.intent == BLE_INTENT_PAIRING) {
         return true;
     }
 
@@ -180,13 +180,9 @@ void access_ble_notify_connected(uint8_t host_idx) {
 }
 
 void access_ble_notify_disconnected(uint8_t host_idx, uint8_t reason) {
-    bool discoverable = access_ble_is_discoverable_session(host_idx);
-
-    dprintf("[WT_SYNC] disconnected host=%d reason=%d discoverable=%d\r\n",
-            host_idx, reason, discoverable);
-    // wireless_state_set_disconnected(host_idx, reason);
-    // event.evt_type = WL_DISCONNECTED_EVT;
-    event.evt_type = discoverable ? EVT_DISCOVERABLE : EVT_RECONNECTING;
+    dprintf("[WT_SYNC] disconnected host=%d reason=%d\r\n", host_idx, reason);
+    /* 不在驱动层预判后续行为，由中间件状态机根据 wireless_state 决定 */
+    event.evt_type = EVT_DISCONNECTED;
     event.params.hostIndex = host_idx;
     event.data = reason;
     OSAL_SetEvent(commu_taskID, WL_DISCONNECTED_EVT);

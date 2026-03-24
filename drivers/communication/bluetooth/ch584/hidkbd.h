@@ -23,9 +23,15 @@ extern "C" {
 /*********************************************************************
  * CONSTANTS
  */
+typedef enum {
+    BLE_INTENT_NONE     = 0,
+    BLE_INTENT_PAIRING  = 1,
+    BLE_INTENT_RECONNECT = 2,
+} ble_intent_t;
+
 typedef struct
 {
-    uint8_t pairing_state;
+    ble_intent_t intent;    /* 操作意图（已请求的意图，非当前 GAP 状态） */
     uint8_t Fn_state;
     volatile uint8_t sleep_en;
     uint8_t deep_sleep_flag;
@@ -124,6 +130,13 @@ extern void hidEmu_save_ble_bonded(uint8_t is_pairing);
 extern void hidEmu_delete_ble_bonded(void);
 
 extern void hidEmu_disconnect(void);
+
+extern void hidEmu_pairing_adv(access_ble_idx_t idx);
+extern void hidEmu_reconnect_adv(access_ble_idx_t idx);
+extern void hidEmu_stop_adv(void);
+extern void hidEmu_clear_pairing_failed_flag(void);
+extern void hidEmu_set_pairing_failed_flag(void);
+extern void hidEmu_delete_ble_bonded_by_idx(access_ble_idx_t idx);
 
 extern uint8_t hidEmu_receive( uint8_t *pData, uint8_t len );
 
