@@ -16,7 +16,7 @@ uint16_t keymap_get_keycode(uint8_t row, uint8_t col) {
     }
 
     layer_id_t layer = g_layer_state.current_layer;
-    uint16_t keycode = keymap_layers[0][row][col];
+    uint16_t keycode = keymap_layers[layer][row][col];
     dprintf("Get keycode for row %d, col %d on layer %d: 0x%04X\r\n", row, col, layer, keycode);
     // 透明键回退到基础层
     if (keycode == KC_TRANSPARENT && layer != g_layer_state.base_layer) {

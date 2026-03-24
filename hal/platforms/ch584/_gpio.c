@@ -18,6 +18,7 @@
 #include "pin_defs.h"
 #include <stdint.h>
 #include <stdbool.h>
+#include "debug.h"
 
 /* 引入CH584标准外设库头文件 */
 #include "CH58x_gpio.h"

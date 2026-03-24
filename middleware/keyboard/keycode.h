@@ -48,8 +48,3 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef S_FN_KEY
 #define S_FN_KEY QK_USER_0
 #endif
-
-// Apple Globe/Earth 键 - 用于切换输入法
-#ifndef M_EARTH
-#define M_EARTH QK_USER_1
-#endif

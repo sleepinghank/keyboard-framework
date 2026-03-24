@@ -68,12 +68,18 @@ static uint16_t touchpad_process_event(uint8_t task_id, uint16_t events)
         return (events ^ TOUCHPAD_DATA_EVT);
     }
 
+    if (events & TOUCHPAD_KB_BREAK_EVT) {
+        set_kb_break_cnt(0);
+        return (events ^ TOUCHPAD_KB_BREAK_EVT);
+    }
+
     if (events & TOUCHPAD_REG_INIT_EVT) {
         static uint8_t retry_cnt = 0;
         if (pct1336_register_cb()) {
             TOUCHPAD_MW_LOG("Touchpad: register success\r\n");
             retry_cnt = 0;
             touch_en = 1;
+            touchpad_set_mode(3);
             OSAL_StopTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT);
         } else {
             if (++retry_cnt > TOUCHPAD_REG_INIT_MAX_COUNT) {
@@ -148,6 +154,26 @@ void touchpad_notify_int(void)
     (void)OSAL_SetEvent(touchpad_taskID, TOUCHPAD_DATA_EVT);
 }
 
+void touchpad_set_kb_break(uint16_t ms)
+{
+    if (touchpad_taskID == TOUCHPAD_INVALID_TASK_ID) {
+        return;
+    }
+
+    set_kb_break_cnt(1);
+    (void)OSAL_SetDelayedEvent(touchpad_taskID, TOUCHPAD_KB_BREAK_EVT, ms);
+}
+
+void touchpad_stop_all_events(void)
+{
+    if (touchpad_taskID == TOUCHPAD_INVALID_TASK_ID) {
+        return;
+    }
+
+    (void)OSAL_StopTask(touchpad_taskID, TOUCHPAD_DATA_EVT);
+    (void)OSAL_StopTask(touchpad_taskID, TOUCHPAD_KB_BREAK_EVT);
+}
+
 /* watchdog 只负责探测异常，恢复流程统一回到 middleware 生命周期。 */
 void touchpad_watchdog_check(void)
 {
@@ -185,6 +211,15 @@ void touchpad_power_off(void)
 }
 
 void touchpad_notify_int(void)
+{
+}
+
+void touchpad_set_kb_break(uint16_t ms)
+{
+    (void)ms;
+}
+
+void touchpad_stop_all_events(void)
 {
 }
 

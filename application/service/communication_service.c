@@ -11,6 +11,7 @@
 #include "transport.h"
 #include "lpm.h"
 #include "system_service.h"
+#include "storage.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -19,6 +20,20 @@ extern "C" {
 uint8_t commu_taskID = 0;
 
 wireless_event_t event    = {0};
+
+static uint8_t commu_resolve_ble_host_index(uint8_t host_idx) {
+    storage_config_t* cfg = storage_get_config_ptr();
+
+    if ((host_idx > BLE_INDEX_IDEL) && (host_idx < BLE_INDEX_MAX)) {
+        return host_idx;
+    }
+
+    if ((cfg != NULL) && (cfg->ble_idx > BLE_INDEX_IDEL) && (cfg->ble_idx < BLE_INDEX_MAX)) {
+        return cfg->ble_idx;
+    }
+
+    return BLE_INDEX_1;
+}
 
 
 /**
@@ -67,14 +82,20 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理无线可发现事件
     if (events & WL_DISCOVERABLE_EVT) {
-        wireless_enter_discoverable_kb(event.params.hostIndex);
-        dprintf("Communication: Wireless discoverable\r\n");
+        uint8_t host_idx = commu_resolve_ble_host_index(event.params.hostIndex);
+        event.params.hostIndex = host_idx;
+        wireless_state_set_pairing(host_idx);
+        wireless_enter_discoverable_kb(host_idx);
+        dprintf("Communication: Wireless discoverable entered\r\n");
         return (events ^ WL_DISCOVERABLE_EVT);
     }
 
     // 处理无线重连事件
     if (events & WL_RECONNECTING_EVT) {
-        wireless_enter_reconnecting_kb(event.params.hostIndex);
+        uint8_t host_idx = commu_resolve_ble_host_index(event.params.hostIndex);
+        event.params.hostIndex = host_idx;
+        wireless_state_set_reconnecting(host_idx);
+        wireless_enter_reconnecting_kb(host_idx);
         dprintf("Communication: Wireless reconnecting\r\n");
         return (events ^ WL_RECONNECTING_EVT);
     }
@@ -88,9 +109,17 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理无线断开连接事件
     if (events & WL_DISCONNECTED_EVT) {
-        wireless_state_set_disconnected(event.params.hostIndex, event.data);
+        uint8_t host_idx = commu_resolve_ble_host_index(event.params.hostIndex);
+        event.params.hostIndex = host_idx;
+        wireless_state_set_disconnected(host_idx, event.data);
         dprintf("Communication: Wireless disconnected\r\n");
-        OSAL_SetEvent(commu_taskID, WL_RECONNECT_EVT); // 断开后自动尝试重连
+
+        if (event.evt_type == EVT_DISCOVERABLE) {
+            dprintf("Communication: Resume discoverable host=%d\r\n", host_idx);
+            wireless_pairing_ex(host_idx, NULL);
+        } else {
+            OSAL_SetEvent(commu_taskID, WL_RECONNECT_EVT); // 已绑定普通回连失败后自动重连
+        }
         return (events ^ WL_DISCONNECTED_EVT);
     }
 
@@ -103,15 +132,18 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
 
     // 处理蓝牙配对事件
     if (events & WL_PAIR_EVT) {
-        dprintf("Communication: Bluetooth PIN code entry\r\n");
-        // pairing_param_t
-        wireless_pairing_ex(event.params.hostIndex, NULL);
+        uint8_t host_idx = commu_resolve_ble_host_index(0);
+        event.params.hostIndex = host_idx;
+        dprintf("Communication: Wireless pair request host=%d\r\n", host_idx);
+        wireless_pairing_ex(host_idx, NULL);
         return (events ^ WL_PAIR_EVT);
     }
 
     // 处理蓝牙回连事件
     if (events & WL_RECONNECT_EVT) {
-        wireless_connect_ex(event.params.hostIndex, 0);
+        uint8_t host_idx = commu_resolve_ble_host_index(event.params.hostIndex);
+        event.params.hostIndex = host_idx;
+        wireless_connect_ex(host_idx, 0);
         dprintf("Communication: Wireless reconnect\r\n");
         return (events ^ WL_RECONNECT_EVT);
     }
@@ -189,7 +221,7 @@ uint16_t commu_process_event(uint8_t task_id, uint16_t events) {
     if (events & COMMU_LPM_RESUME_EVT) {
         dprintf("Commu: LPM resume start\r\n");
         /* Deep 唤醒后：仅恢复本地无线上下文，不自动回连 */
-        /* 业务层回连由上层（如 SYSTEM_WAKEUP_EVT 或用户按键触发）决定 */
+        /* 业务层回连由上层（如 SYSTEM_LPM_WAKE_EVT 处理或用户按键触发）决定 */
         /* 此处清理睡眠标志，恢复 report_buffer 状态 */
         dprintf("Commu: LPM resume done (reconnect decision deferred to app)\r\n");
         return (events ^ COMMU_LPM_RESUME_EVT);

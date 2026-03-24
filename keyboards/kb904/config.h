@@ -23,7 +23,7 @@
 #define BLUETOOTH_ENABLE_FLAG      TRUE
 // #define USB_ENABLE_FLAG      FALSE
 // #define P2P4G_ENABLE_FLAG    FALSE
-#define TOUCHPAD_ENABLE      TRUE
+// #define TOUCHPAD_ENABLE      TRUE
 #define COMBO_ENABLE         TRUE
 
 /* ========== 覆盖背光默认值 ========== */
@@ -58,6 +58,21 @@
 
 /* ========== 包含硬件配置 ========== */
 #include "config_hw.h"
+
+/* ========== 国家/地区配置 ==========
+ * 取消注释以下之一，仅启用一个国家配置
+ * 配置值参考 country_codes.h 中的 hid_country_code_t 枚举
+ * ===================================================== */
+#define KEYBOARD_COUNTRY  COUNTRY_US        // 美国（默认）
+// #define KEYBOARD_COUNTRY  COUNTRY_GERMAN    // 德国
+// #define KEYBOARD_COUNTRY  COUNTRY_UK        // 英国
+// #define KEYBOARD_COUNTRY  COUNTRY_FRENCH    // 法国
+// #define KEYBOARD_COUNTRY  COUNTRY_JAPANESE  // 日本
+
+/* 国家配置说明：
+ * 如未定义 KEYBOARD_COUNTRY，country_codes.h 会将 HID_COUNTRY_CODE 设为 COUNTRY_NOT_SUPPORTED
+ * 意味着设备不声明特定的国家/地区布局
+ */
 
 /* ========== 产品 ID 宏（供条件编译使用） ========== */
 #ifndef PRODUCT_ID

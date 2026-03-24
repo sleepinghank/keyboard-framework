@@ -34,7 +34,7 @@
 #define DIODE_DIRECTION       COL2ROW
 
 #define MATRIX_ROW_PINS {     \
-    NO_PIN,  /* R0 - U2.7  */     \
+    A9,  /* R0 - U2.7  */     \
     A8,  /* R1 - U2.8  */     \
     A7,  /* R2 - U2.17 */     \
     A1,  /* R3 - U2.18 */     \
@@ -95,25 +95,35 @@ typedef struct {
 } ind_led_def_t;
 
 /* extern 声明（实现在 kb904/indicator.c）*/
-extern const ind_led_def_t ind_led_table[IND_LED_COUNT];
+extern const ind_led_def_t ind_led_table[3];
 
 /* ========== 触控板 I2C ==========
  * 芯片: PCT1336QN
  * 网络名: PB20_SDA, PB21_SCL, PA3_INT
  */
 #define TOUCHPAD_SDA          B20  /* PB20_SDA - U2.28 */
-#define TOUCHPAD_SCL          B21  /* PB21_SCL - U2.29 */
+#define TOUCHPAD_SCL          NO_PIN  /* PB21_SCL - U2.29 */
 #define TOUCHPAD_INT          A3   /* PA3_INT - 下降沿触发 - U2.42 */
 
 /* ========== 触控板尺寸 ========== */
 #define TOUCHPAD_MAX_X        2048
 #define TOUCHPAD_MAX_Y        1024
+// 按键单指拖动保持开关
+// #define HOLD_BUTTON
+// 按下双击转换为右键开关
+// #define DOUBLE_CLICK_TO_RIGHT_BUTTON
+// 预设手势开关
+#define MCS_GESTURE
+// 边缘防误触开关
+#define EDGE_MISTOUCH
+// 贝叶斯防误触开关
+#define BAYES_MISTOUCH
+// 贝叶斯防抖周期
+#define BAYES_DEBOUNCE_CYCLE						2 
 
 /* ========== 电源管理 ==========
  * 网络名: PA2_POWER_KEY_IN, PB19_POWER_EN, PA14_ADC
  */
-#define POWER_KEY_PIN         A2   /* PA2_POWER_KEY_IN - U2.41 */
-#define POWER_EN_PIN          B19  /* PB19_POWER_EN - U2.27 */
 #define BATTERY_ADC_PIN       A14  /* PA14_ADC - U2.45 (与 LED_CHARGE_PIN 共用) */
 
 /* ========== UART 调试 ==========

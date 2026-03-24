@@ -68,7 +68,7 @@ typedef void (*pfnHidEmuReceiveCB_t)( uint8_t *pData, uint8_t len );
 #define DEFAULT_DESIRED_CONN_TIMEOUT         300
 
 #define DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT       (1600 * 2)
-#define SYSTEM_DEEP_SLEEP_EVT_TIMEOUT          (1600 * 60)
+#define LPM_DEEP_REQ_DELAY_TICKS              (1600 * 60)
 /*********************************************************************
  * FUNCTIONS
  */
@@ -94,6 +94,8 @@ extern void HidEmu_Init(void);
 extern uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events);
 
 extern void hidEmu_adv_enable(uint8_t enable);
+
+extern void hidEmu_prepare_reconnect_adv(void);
 
 extern uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx );
 

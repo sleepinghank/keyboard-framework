@@ -8,6 +8,7 @@
 enum combos {
     FN_DOWN_ID = 0,
     FN_UP_ID,
+    FN_LONG_PRESS_ID,
     FN_F1_ID,
     FN_F2_ID,
     FN_F3_ID,
@@ -47,8 +48,8 @@ const uint16_t PROGMEM FN_F9_combo[]  = { KC_F9,  COMBO_END };
 const uint16_t PROGMEM FN_F10_combo[] = { KC_F10, COMBO_END };
 const uint16_t PROGMEM FN_F11_combo[] = { KC_F11, COMBO_END };
 const uint16_t PROGMEM FN_F12_combo[] = { KC_F12, COMBO_END };
-const uint16_t PROGMEM FN_RIGHT_SHIFT_combo[] = { KC_LSFT, COMBO_END };
-const uint16_t PROGMEM FN_RIGHT_ENTER_combo[] = { KC_RSFT, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_SHIFT_combo[] = { S_FN_KEY,KC_RSFT, COMBO_END };
+const uint16_t PROGMEM FN_RIGHT_ENTER_combo[] = { S_FN_KEY,KC_ENTER, COMBO_END };
 const uint16_t PROGMEM FN_RIGHT_CMD_combo[]   = { S_FN_KEY, KC_RCMD, COMBO_END };
 const uint16_t PROGMEM CUSTOM_KEY_combo[]     = { KC_APPLICATION, COMBO_END };
 
@@ -60,28 +61,32 @@ combo_t key_combos[] = {
     // Fn 键按下/释放
     [FN_DOWN_ID] = COMBO(FN_DOWN_combo, PRESS_DOWN, FN_DOWN_KEY),
     [FN_UP_ID]   = COMBO(FN_UP_combo,   PRESS_UP,   FN_UP_KEY),
+    [FN_LONG_PRESS_ID] = COMBO_LONG_MS(FN_DOWN_combo,
+                                       1500,
+                                       LONG_PRESS_START,
+                                       FN_LONG_PRESS_KEY),
 
     // F1~F12 媒体键（长按保持触发）
-    [FN_F1_ID]  = COMBO_LONG_TICKS(FN_F1_combo,  5, LONG_PRESS_HOLD, Bringhness_Down),
-    [FN_F2_ID]  = COMBO_LONG_TICKS(FN_F2_combo,  5, LONG_PRESS_HOLD, Bringhness_Up),
-    [FN_F3_ID]  = COMBO_LONG_TICKS(FN_F3_combo,  5, LONG_PRESS_HOLD, Search),
-    [FN_F4_ID]  = COMBO_LONG_TICKS(FN_F4_combo,  5, PRESS_DOWN,      Print_Screen),
-    [FN_F5_ID]  = COMBO_LONG_TICKS(FN_F5_combo,  5, LONG_PRESS_HOLD, Earth),
-    [FN_F6_ID]  = COMBO_LONG_TICKS(FN_F6_combo,  5, LONG_PRESS_HOLD, Media_Previous),
-    [FN_F7_ID]  = COMBO_LONG_TICKS(FN_F7_combo,  5, LONG_PRESS_HOLD, Media_Play_Pause),
-    [FN_F8_ID]  = COMBO_LONG_TICKS(FN_F8_combo,  5, LONG_PRESS_HOLD, Media_Next),
-    [FN_F9_ID]  = COMBO_LONG_TICKS(FN_F9_combo,  5, LONG_PRESS_HOLD, Volume_Mute),
-    [FN_F10_ID] = COMBO_LONG_TICKS(FN_F10_combo, 5, LONG_PRESS_HOLD, Volume_Down),
-    [FN_F11_ID] = COMBO_LONG_TICKS(FN_F11_combo, 5, LONG_PRESS_HOLD, Volume_Up),
-    [FN_F12_ID] = COMBO_LONG_TICKS(FN_F12_combo, 5, PRESS_DOWN,      Lock_Screen),
+    [FN_F1_ID]  = COMBO_LONG_MS(FN_F1_combo,  25, LONG_PRESS_HOLD, Bringhness_Down),
+    [FN_F2_ID]  = COMBO_LONG_MS(FN_F2_combo,  25, LONG_PRESS_HOLD, Bringhness_Up),
+    [FN_F3_ID]  = COMBO_LONG_MS(FN_F3_combo,  25, LONG_PRESS_HOLD, Search),
+    [FN_F4_ID]  = COMBO_LONG_MS(FN_F4_combo,  25, PRESS_DOWN,      Print_Screen),
+    [FN_F5_ID]  = COMBO_LONG_MS(FN_F5_combo,  25, LONG_PRESS_HOLD, Earth),
+    [FN_F6_ID]  = COMBO_LONG_MS(FN_F6_combo,  25, LONG_PRESS_HOLD, Media_Previous),
+    [FN_F7_ID]  = COMBO_LONG_MS(FN_F7_combo,  25, LONG_PRESS_HOLD, Media_Play_Pause),
+    [FN_F8_ID]  = COMBO_LONG_MS(FN_F8_combo,  25, LONG_PRESS_HOLD, Media_Next),
+    [FN_F9_ID]  = COMBO_LONG_MS(FN_F9_combo,  25, LONG_PRESS_HOLD, Volume_Mute),
+    [FN_F10_ID] = COMBO_LONG_MS(FN_F10_combo, 25, LONG_PRESS_HOLD, Volume_Down),
+    [FN_F11_ID] = COMBO_LONG_MS(FN_F11_combo, 25, LONG_PRESS_HOLD, Volume_Up),
+    [FN_F12_ID] = COMBO_LONG_MS(FN_F12_combo, 25, PRESS_DOWN,      Lock_Screen),
 
     // 新增 Fn 组合键
-    [FN_RIGHT_SHIFT_ID] = COMBO(FN_RIGHT_SHIFT_combo, PRESS_DOWN, Backlight_Level_Up),
-    [FN_RIGHT_ENTER_ID] = COMBO(FN_RIGHT_ENTER_combo, PRESS_DOWN, Backlight_Color_Next),
-    [FN_RIGHT_CMD_ID]   = COMBO(FN_RIGHT_CMD_combo,   PRESS_DOWN, Battery_Check),
+    [FN_RIGHT_SHIFT_ID] = COMBO(FN_RIGHT_SHIFT_combo, PRESS_DOWN, Backlight_Light),
+    [FN_RIGHT_ENTER_ID] = COMBO(FN_RIGHT_ENTER_combo, PRESS_DOWN, Backlight_Color),
+    [FN_RIGHT_CMD_ID]   = COMBO(FN_RIGHT_CMD_combo,   PRESS_DOWN, Bat_Check),
     [CUSTOM_KEY_ID]     = COMBO(CUSTOM_KEY_combo,     PRESS_DOWN, Siri_Invoke),
 
     // 特殊组合键
-    [FN_DEL_ID]        = COMBO_LONG_TICKS(FN_DEL_combo,        3000, LONG_PRESS_START, Pair_button),
-    [Reset_factory_ID] = COMBO_LONG_TICKS(Reset_factory_combo, 3000, LONG_PRESS_START, Factory_Reset),
+    [FN_DEL_ID]        = COMBO_LONG_MS(FN_DEL_combo,        3000, LONG_PRESS_START, Pair_button),
+    [Reset_factory_ID] = COMBO_LONG_MS(Reset_factory_combo, 3000, LONG_PRESS_START, Factory_Reset),
 };

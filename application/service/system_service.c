@@ -54,13 +54,6 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
     }
 
-    // 处理系统空闲事件（保留兼容旧调用，实际由 LPM 调度替代）
-    if (events & SYSTEM_IDLE_EVT) {
-        /* 此事件已由 SYSTEM_LPM_IDLE_REQ_EVT 替代，保留为空以兼容旧调用 */
-        dprintf("System: Legacy idle event received, ignored\r\n");
-        return (events ^ SYSTEM_IDLE_EVT);
-    }
-
     // 处理系统关机事件
     if (events & SYSTEM_SHUTDOWN_EVT) {
         println("System: System shutdown");
@@ -76,35 +69,12 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_SHUTDOWN_EVT);
     }
 
-    // 处理深度睡眠事件（保留兼容，转发到 LPM 调度）
-    if (events & SYSTEM_DEEP_SLEEP_EVT) {
-        /* 转发为 LPM Deep 请求，由 LPM 状态机处理 */
-        dprintf("System: Legacy deep sleep event, forwarding to LPM\r\n");
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
-        return (events ^ SYSTEM_DEEP_SLEEP_EVT);
-    }
-
     // 处理系统存储事件
     if (events & SYSTEM_STORAGE_EVT) {
         println("System: Storage operation");
         // 执行存储保存
         storage_save();
         return (events ^ SYSTEM_STORAGE_EVT);
-    }
-
-    // 处理系统唤醒事件
-    if (events & SYSTEM_WAKEUP_EVT) {
-        println("System: System wakeup");
-        // 唤醒恢复流程:
-        // 1. 从存储读取配置
-        storage_init();
-        // 2. 重置低功耗定时器
-        lpm_timer_reset();
-        // 3. 根据传输模式恢复连接
-        if (get_transport() == TRANSPORT_BLUETOOTH) {
-            wireless_connect();
-        }
-        return (events ^ SYSTEM_WAKEUP_EVT);
     }
 
     // 处理恢复出厂设置事件

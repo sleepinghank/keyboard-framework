@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
+#include "debug.h"
 
 /*==========================================
  * ADC通道状态结构体
@@ -152,16 +153,14 @@ void adc_init_channel(adc_channel_t channel, adc_mode_t mode, uint8_t avg_sample
         adc_configure_gpio(adc_channels[channel].bound_pin);
     }
 
-    /* 初始化ADC硬件（单端模式） */
-    /* 使用电池检测案例中的参数：4MHz采样频率，1/2增益 */
-    ADC_ExtSingleChSampInit(adc_get_sample_freq(), adc_get_pga_gain());
-
-    /* 配置通道 */
-    ADC_ChannelCfg(channel);
+    /* 执行ADC校准 */
+    /* 校准的参数：4MHz采样频率，1/2增益 */
+    ADC_ExtSingleChSampInit(SampleFreq_4_or_2, ADC_PGA_1_2);
 
     /* 执行ADC校准（仅在首次初始化时） */
     if (adc_calib_value == 0) {
         adc_calib_value = ADC_DataCalib_Rough();
+        dprintf("ADC校准值: %d\n", adc_calib_value);
     }
 }
 
@@ -255,7 +254,7 @@ uint16_t adc_read_single(adc_channel_t channel) {
 
     /* 切换到目标通道 */
     ADC_ChannelCfg(channel);
-
+    ADC_ExtSingleChSampInit( SampleFreq_4_or_2, ADC_PGA_1_2 );
     /* 执行单次转换 */
     uint16_t value = adc_perform_conversion(channel);
 

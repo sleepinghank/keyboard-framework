@@ -28,6 +28,7 @@ typedef enum {
     OUTPUT_LPM_PREPARE_EVT          = 1 << 6,  /**< LPM prepare（Deep 时关灯，Idle 无操作） */
     OUTPUT_LPM_RESUME_EVT           = 1 << 7,  /**< LPM resume（Deep 唤醒后恢复灯效） */
     OUTPUT_BACKLIGHT_SLEEP_EVT      = 1 << 8,  /**< 背光 5 秒无操作自动休眠事件 */
+    OUTPUT_BATTERY_CHECK_EVT        = 1 << 9,  /**< 电池电量检查事件 */
 } output_task_event_t;
 
 /**

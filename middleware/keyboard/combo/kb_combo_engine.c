@@ -3,7 +3,9 @@
 #include "kb_fn_action.h"
 #include "linkedlist.h"
 #include <string.h>
+#include "timer.h"
 #include "wireless.h"
+#include "debug.h"
 
 #define COMBO_DISABLED(combo) (combo->disabled)
 #define COMBO_STATE(combo) (combo->state)
@@ -84,7 +86,7 @@ static uint8_t apply_combo(uint16_t combo_index, combo_t *combo) {
 }
 
 static void button_ticks(combo_t *combo) {
-    if ((combo->state) > 0) combo->ticks++;
+    uint32_t elapsed = (combo->state > 0) ? timer_elapsed32(combo->press_time) : 0;
 
     // 电平变化检测
     if (combo->active_status != combo->button_level) {
@@ -96,7 +98,7 @@ static void button_ticks(combo_t *combo) {
         case 0:
             if (combo->button_level == 1) {
                 combo->event = (uint8_t)PRESS_DOWN;
-                combo->ticks = 0;
+                combo->press_time = timer_read32();
                 combo->repeat = 1;
                 combo->state = 1;
             } else {
@@ -107,9 +109,9 @@ static void button_ticks(combo_t *combo) {
         case 1:
             if (combo->button_level != 1) {
                 combo->event = (uint8_t)PRESS_UP;
-                combo->ticks = 0;
+                combo->press_time = timer_read32();
                 combo->state = 2;
-            } else if (combo->ticks > combo->long_press_ticks) {
+            } else if (elapsed > combo->long_press_ms) {
                 combo->event = (uint8_t)LONG_PRESS_START;
                 combo->state = 5;
             }
@@ -121,9 +123,9 @@ static void button_ticks(combo_t *combo) {
                 if (combo->repeat != PRESS_REPEAT_MAX_NUM) {
                     combo->repeat++;
                 }
-                combo->ticks = 0;
+                combo->press_time = timer_read32();
                 combo->state = 3;
-            } else if (combo->ticks > SHORT_TICKS) {
+            } else if (elapsed > SHORT_MS) {
                 if (combo->repeat == 1) {
                     combo->event = (uint8_t)SINGLE_CLICK;
                 } else if (combo->repeat == 2) {
@@ -136,13 +138,13 @@ static void button_ticks(combo_t *combo) {
         case 3:
             if (combo->button_level != 1) {
                 combo->event = (uint8_t)PRESS_UP;
-                if (combo->ticks < SHORT_TICKS) {
-                    combo->ticks = 0;
+                if (elapsed < SHORT_MS) {
+                    combo->press_time = timer_read32();
                     combo->state = 2;
                 } else {
                     combo->state = 0;
                 }
-            } else if (combo->ticks > SHORT_TICKS) {
+            } else if (elapsed > SHORT_MS) {
                 combo->state = 1;
             }
             break;
@@ -218,6 +220,10 @@ void combo_task(key_update_st_t _keyUpdateSt) {
         }
         // 判断是否触发组合
         apply_combo(i, combo);
+        if (combo->state > 0) {
+            // 如果组合键处于按下状态，进行状态机处理
+             dprintf("Combo %d state machine processing, event: %d\n", i, combo->event);
+        }
         // 按键状态机处理
         button_ticks(combo);
         // 判断是否执行事件

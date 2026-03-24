@@ -17,40 +17,45 @@
 #include "gpio.h"
 #include "timer.h"
 #include "indicator.h"
+#include "adc.h"
+#include "debug.h"
+#include "kb904/config_hw.h"
+#include "kb904/config_hw.h"
+#include "kb904/config_hw.h"
 
 // 分压电阻配置 (KΩ)
 #ifndef RVD_R1
-#    define RVD_R1 10    // 上拉电阻
+#    define RVD_R1 1000    // 上拉电阻
 #endif
 
 #ifndef RVD_R2
-#    define RVD_R2 10    // 下拉电阻
+#    define RVD_R2 2000    // 下拉电阻
 #endif
 
 // 锂电池放电曲线查表 - 电压(mV) 对应 电量百分比(%)
 // 从100%到0%，每5%一个电压值
 static const uint16_t voltage_to_percentage_table[21] = {
-    4200,  // 100%
+    4200,  // 100% 
     4150,  // 95%
     4100,  // 90%
-    4050,  // 85%
-    4000,  // 80%
-    3950,  // 75%
-    3900,  // 70%
-    3850,  // 65%
-    3800,  // 60%
-    3750,  // 55%
-    3700,  // 50%
-    3680,  // 45%
-    3660,  // 40%
-    3640,  // 35%
-    3620,  // 30%
-    3580,  // 25%
-    3540,  // 20%
-    3500,  // 15%
-    3460,  // 10%
-    3420,  // 5%
-    3400   // 0%
+    4000,  // 85%
+    3950,  // 80%
+    3900,  // 75%
+    3850,  // 70%
+    3800,  // 65%
+    3750,  // 60%
+    3700,  // 55%
+    3650,  // 50%
+    3600,  // 45%
+    3550,  // 40%
+    3500,  // 35%
+    3450,  // 30%
+    3400,  // 25%
+    3350,  // 20%
+    3300,  // 15%
+    3250,  // 10%
+    3200,  // 5%
+    3150   // 0%
 };
 
 // 全局变量
@@ -71,35 +76,17 @@ static uint32_t g_battery_timer = 0;          // 电池检测定时器
 void battery_init(void) {
     // 初始化充电状态
     g_charging_state = BAT_NOT_CHARGING;
-
-    // 配置充电检测引脚
-#if defined(BAT_CHARGING_PIN)
-#    if (BAT_CHARGING_LEVEL == 0)
-    gpio_set_pin_input(BAT_CHARGING_PIN, GPIO_PULL_UP);
-#    else
-    gpio_set_pin_input(BAT_CHARGING_PIN, GPIO_PULL_DOWN);
-#    endif
-#endif
-
-    // 配置ADC使能引脚
-#ifdef BAT_ADC_ENABLE_PIN
-    gpio_set_pin_output_push_pull(BAT_ADC_ENABLE_PIN);
-    gpio_write_pin_high(BAT_ADC_ENABLE_PIN);
-#endif
-
-    // 配置ADC引脚
-#ifdef BAT_ADC_PIN
-    gpio_set_pin_input_analog(BAT_ADC_PIN);
-#endif
-
+    // 初始化ADC
+    adc_init();
+    adc_bind_pin(BATTERY_ADC_PIN, ADC_CHANNEL_4);
+    adc_init_channel(ADC_CHANNEL_4, ADC_MODE_SINGLE, 1);
+ 
     // 初始化变量
     g_adc_value = 0;
     g_battery_voltage = FULL_VOLTAGE_VALUE;
     g_battery_percentage = 100;
     g_battery_timer = timer_read();
 
-    // 启动ADC转换
-    battery_measure();
 }
 
 /*********************************************************************
@@ -117,8 +104,8 @@ void battery_stop(void) {
 #endif
 
     // 释放ADC引脚
-#ifdef BAT_ADC_PIN
-    gpio_set_pin_input(BAT_ADC_PIN);
+#ifdef BATTERY_ADC_PIN
+    gpio_set_pin_input(BATTERY_ADC_PIN);
 #endif
 }
 
@@ -159,7 +146,9 @@ uint16_t battery_calculate_voltage_from_adc(uint16_t adc_value) {
 
     // ADC参考电压3.3V，12位分辨率 (0-4095)，使用1024计算
     // 通过分压电阻计算实际电池电压
-    voltage = ((uint32_t)adc_value * 3300 * (RVD_R1 + RVD_R2) / 1024 / RVD_R2);
+    voltage = ((uint32_t)adc_value * 1050 ) / 1024 - 1050;
+
+    voltage = voltage * (RVD_R1 + RVD_R2) / RVD_R2;
 
     // LED/RGB亮度补偿 - 背光和指示灯开启时会消耗电流，导致电压下降
     // 需要根据LED亮度补偿电压
@@ -199,16 +188,16 @@ uint16_t battery_calculate_voltage_from_adc(uint16_t adc_value) {
     // 负载电流补偿 - 根据当前工作模式估算电流消耗
     // 电流越大，电池内阻上的电压降越大，需要补偿
     // 这里可以根据实际工作模式调整补偿值
-    uint16_t estimated_current_ma = 0;
+    // uint16_t estimated_current_ma = 0;
 
-    // 估算当前电流 (mA) - 根据系统状态
-    if (indicator_any_active()) {
-        estimated_current_ma += 50;  // LED背光约50mA
-    }
+    // // 估算当前电流 (mA) - 根据系统状态
+    // if (indicator_any_active()) {
+    //     estimated_current_ma += 50;  // LED背光约50mA
+    // }
 
-    // 根据电流和电池内阻计算电压降
-    uint16_t voltage_drop = (estimated_current_ma * BATTERY_INTERNAL_RESISTANCE) / 1000;
-    voltage += voltage_drop;
+    // // 根据电流和电池内阻计算电压降
+    // uint16_t voltage_drop = (estimated_current_ma * BATTERY_INTERNAL_RESISTANCE) / 1000;
+    // voltage += voltage_drop;
 
     return voltage;
 }
@@ -300,15 +289,17 @@ uint8_t battery_get_power_state(void) {
  * @return  none
  */
 void battery_measure(void) {
-#ifdef BAT_ADC_PIN
-    // 执行ADC转换
-    g_adc_value = analog_read(BAT_ADC_PIN);
+#ifdef BATTERY_ADC_PIN
+    g_adc_value = adc_read_average(ADC_CHANNEL_4, 4);
+    dprintf("ADC值(4次平均): %d\n", g_adc_value);
 
     // 计算电压
     g_battery_voltage = battery_calculate_voltage_from_adc(g_adc_value);
+    dprintf("电压: %d\n", g_battery_voltage);
 
     // 根据电压计算电量百分比
     g_battery_percentage = battery_voltage_to_percentage(g_battery_voltage);
+    dprintf("电量百分比: %d\n", g_battery_percentage);
 #else
     // 如果没有ADC引脚，使用默认电压
     g_adc_value = 0;
@@ -338,35 +329,23 @@ bool battery_power_on_sample(void) {
  * @return  none
  */
 void battery_task(void) {
-    uint32_t current_time = timer_read();
-    uint32_t elapsed = timer_elapsed(g_battery_timer);
-
-    // 检查是否到达测量间隔
-    uint32_t measure_interval = VOLTAGE_MEASURE_INTERVAL;
-
 #if defined(LED_MATRIX_ENABLE) || defined(RGB_MATRIX_ENABLE)
     // 如果背光开启，使用较短的测量间隔
     if (indicator_any_active()) {
         measure_interval = BACKLIGHT_OFF_VOLTAGE_MEASURE_INTERVAL;
     }
 #endif
+    // 执行ADC采样
+    battery_measure();
 
-    if (elapsed >= measure_interval) {
-        // 执行ADC采样
-        battery_measure();
-
-        // 检测充电状态
+    // 检测充电状态
 #if defined(BAT_CHARGING_PIN)
-        if (gpio_read_pin(BAT_CHARGING_PIN) == BAT_CHARGING_LEVEL) {
-            g_charging_state = BAT_CHARGING;
-        } else {
-            g_charging_state = BAT_NOT_CHARGING;
-        }
-#endif
-
-        // 重置定时器
-        g_battery_timer = current_time;
+    if (gpio_read_pin(BAT_CHARGING_PIN) == BAT_CHARGING_LEVEL) {
+        g_charging_state = BAT_CHARGING;
+    } else {
+        g_charging_state = BAT_NOT_CHARGING;
     }
+#endif
 }
 
 /*********************************************************************

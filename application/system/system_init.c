@@ -54,6 +54,8 @@
 #include "CONFIG.h"
 #include "hal.h"
 
+#include <string.h>
+
 static volatile system_init_status_t g_system_init_status = SYSTEM_INIT_STATUS_NOT_STARTED;
 static volatile bool g_system_initialized = false;
 
@@ -63,22 +65,11 @@ static volatile bool g_system_initialized = false;
 
 void system_init_hal(void) {
     // HAL层初始化阶段
-    // Timer已在setup阶段初始化，此处可进行HAL层其他初始化
-    // i2c_init();
-    // platform_uart_init(PLATFORM_UART_1, 115200, 0);
-    // pwm_init();
+    platform_uart_bind_pins(NO_PIN, B21, PLATFORM_UART_3);
+    platform_uart_init(PLATFORM_UART_3, 921600, 0);
+    // platform_uart_bind_pins(NO_PIN, A9, PLATFORM_UART_1);
+    // platform_uart_init(PLATFORM_UART_1, 921600, 0);
 
-    // platform_uart_bind_pins(NO_PIN, B21, PLATFORM_UART_3);
-    // platform_uart_init(PLATFORM_UART_3, 921600, 0);
-    platform_uart_bind_pins(NO_PIN, A9, PLATFORM_UART_1);
-    platform_uart_init(PLATFORM_UART_1, 921600, 0);
-
-
-    // i2c_init();
-    // int16_t status = i2c_init_channel_with_pins(I2C_CHANNEL_0, TOUCHPAD_SDA, TOUCHPAD_SCL, 400000);
-    // PRINT("I2C init status: %d\r\n", status);
-    // PCT1336_Communication_Test();
-    // PRINT("B19 HAL initialized\r\n");
 
     // 硬件定时器初始化
     hw_timer_init();
@@ -98,16 +89,40 @@ void system_init_drivers(void) {
     // 1. 存储系统初始化 (最优先)
     storage_init();
 
+    {
+        storage_config_t *storage_cfg = storage_get_config_ptr();
+        const char        ble_pairing_name[] = BLE_PAIRING_NAME;
+        size_t            ble_name_len = sizeof(ble_pairing_name) - 1;
+        bool              needs_save = false;
+
+        if (ble_name_len > sizeof(storage_cfg->ble_name_data)) {
+            ble_name_len = sizeof(storage_cfg->ble_name_data);
+        }
+
+        if ((storage_cfg->ble_name_len != (uint8_t)ble_name_len) ||
+            (memcmp(storage_cfg->ble_name_data, ble_pairing_name, ble_name_len) != 0)) {
+            needs_save = true;
+        }
+
+        storage_cfg->ble_name_len = (uint8_t)ble_name_len;
+        memset(storage_cfg->ble_name_data, 0, sizeof(storage_cfg->ble_name_data));
+        memcpy(storage_cfg->ble_name_data, ble_pairing_name, ble_name_len);
+
+        if (needs_save) {
+            storage_save();
+        }
+    }
+
 #ifdef BLUETOOTH_ENABLE_FLAG
     // 2. 蓝牙驱动初始化 - BLE 协议栈
     bt_driver_init(false);
 #endif
 
-    // 3. 电池管理初始化 (从 input_service 移入)
+    // 3. 改成adc初始化 不立即进行电量采集会有数据异常
     // battery_init();
 
     // 4. 背光初始化 (从 output_service 移入)
-    backlight_init(NULL);
+    // backlight_init(NULL);
 
     // 5. 指示灯初始化
     indicator_init();

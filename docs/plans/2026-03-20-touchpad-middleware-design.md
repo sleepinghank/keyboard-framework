@@ -219,7 +219,7 @@ input_service 2000ms 定时器 → INPUT_TOUCH_WATCHDOG_EVT
   - `touchpad_set_mode()` — 调用 `set_touch_mode()`
 
 **前置条件：** 无
-**验证：** CMake 配置通过（`cmake -S . -B build`），grep 确认接口签名与设计一致
+**验证：** grep 确认接口签名与设计一致
 
 ---
 
@@ -259,8 +259,6 @@ input_service 2000ms 定时器 → INPUT_TOUCH_WATCHDOG_EVT
 
 ### Step 4：更新构建配置
 
-**文件：** `CMakeLists.txt`
-
 **改动：**
 - 取消注释 touch_component 4 个源文件
 - 新增 `middleware/touchpad/touchpad.c`
@@ -268,7 +266,7 @@ input_service 2000ms 定时器 → INPUT_TOUCH_WATCHDOG_EVT
 - 确认 `TOUCH_EN` 宏定义存在
 
 **前置条件：** Step 1-3 完成
-**验证：** `cmake -S . -B build -G "MinGW Makefiles" && cmake --build build -j4` 零错误零警告
+**验证：** 使用skills wch-riscv-build 进行编译
 
 ---
 

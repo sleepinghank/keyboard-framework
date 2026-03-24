@@ -1,147 +1,141 @@
 // middleware/keyboard/combo/Special_Combo.c
 #include "kb_sys_action.h"
+#include "country_codes.h"
 #include "event_manager.h"
+#include "output_service.h"
+#include "input_service.h"
+#include "communication_service.h"
+#include "storage.h"
 #include "system_service.h"
+#include "debug.h"
 
 // 组合键触发标志位
 uint8_t combinations_flag = 1;
 
-// OSAL 事件定义（需要在 sys_config.h 或相关头文件中定义）
-// 示例事件 ID，根据实际项目调整
-#ifndef SYS_EVT_STORAGE_WRITE
-#define SYS_EVT_STORAGE_WRITE    0x0001
-#endif
-#ifndef SYS_EVT_FACTORY_RESET
-#define SYS_EVT_FACTORY_RESET    0x0002
-#endif
-#ifndef SYS_EVT_BLE_PAIRING
-#define SYS_EVT_BLE_PAIRING      0x0004
-#endif
-#ifndef SYS_EVT_BACKLIGHT_COLOR
-#define SYS_EVT_BACKLIGHT_COLOR  0x0008
-#endif
-#ifndef SYS_EVT_BACKLIGHT_BRIGHT
-#define SYS_EVT_BACKLIGHT_BRIGHT 0x0010
-#endif
-#ifndef SYS_EVT_TOUCH_TOGGLE
-#define SYS_EVT_TOUCH_TOGGLE     0x0020
-#endif
-#ifndef SYS_EVT_BATTERY_CHECK
-#define SYS_EVT_BATTERY_CHECK    0x0040
-#endif
-
-// 系统服务任务 ID（需要根据实际项目定义）
-#ifndef SYSTEM_SERVICE_TASK_ID
-#define SYSTEM_SERVICE_TASK_ID   0
-#endif
-
 // Fn 锁定
 uint8_t Set_FN_Lock(uint16_t* add_keys) {
-    // TODO: 实现 Fn 锁定逻辑
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    dprintf("Set_FN_Lock triggered\n");
+    uint8_t current = STORAGE_GET_FN_LOCK();
+    STORAGE_SET_FN_LOCK(current ? 0 : 1);
+    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
     return 0;
 }
 
 // 切换背光颜色
 uint8_t Backlight_Color(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_COLOR);
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    dprintf("Backlight_Color triggered\n");
+
+    // OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_COLOR_EVT);
+    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
     return 0;
 }
 
 // 切换背光亮度
 uint8_t Backlight_Light(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BACKLIGHT_BRIGHT);
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    dprintf("Backlight_Light triggered\n");
+    // OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_BRIGHTNESS_EVT);
+    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
     return 0;
 }
 
 // 触摸板锁定
 uint8_t Touch_Locked(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_TOUCH_TOGGLE);
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_STORAGE_WRITE);
+    dprintf("Touch_Locked triggered\n");
+    // OSAL_SetEvent(input_taskID, INPUT_TOUCH_TOGGLE_EVT);
+    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
     return 0;
 }
 
 // 恢复出厂设置
 uint8_t Factory_Reset(uint16_t* add_keys) {
-    OSAL_SetEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT);
+    dprintf("Factory_Reset triggered\n");
+    // OSAL_SetEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT);
     return 0;
 }
 
 // 电池检测
 uint8_t Bat_Check(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BATTERY_CHECK);
+    dprintf("Bat_Check triggered\n");
+    // OSAL_SetEvent(output_taskID, OUTPUT_BATTERY_CHECK_EVT);
     return 0;
 }
 
 // 配对按钮
 uint8_t Pair_button(uint16_t* add_keys) {
-    OSAL_SetEvent(SYSTEM_SERVICE_TASK_ID, SYS_EVT_BLE_PAIRING);
+    dprintf("Pair_button triggered\n");
+    // OSAL_SetEvent(commu_taskID, WL_PAIR_EVT);
     return 0;
 }
 
-#ifdef DE
-uint8_t  X_Special_Combo(uint16_t* add_keys)
-{
+/* =====================================================
+ * 特殊组合键（按国家差异）
+ * X 键组合：输出特殊字符
+ * ===================================================== */
+#if IS_COUNTRY_DE
+// 德国布局：Shift + ` (grave) 或 Shift + < (Europe 2)
+uint8_t X_Special_Combo(uint16_t* add_keys) {
     uint8_t idx = 0;
-    if(keycode_type == IOS || keycode_type == MAC){        
+    if (keycode_type == IOS || keycode_type == MAC) {
         add_keys[idx++] = KB_L_SHIFT;
         add_keys[idx++] = KB_GRAVE_ACCENT_N_TILDE;
-    }else{
+    } else {
         add_keys[idx++] = KB_L_SHIFT;
         add_keys[idx++] = KB_EUROPE_2;
     }
     return idx;
 }
-uint8_t  Z_Special_Combo(uint16_t* add_keys)
-{
+
+// Z 键组合：Y/Z 互换布局的特殊处理
+uint8_t Z_Special_Combo(uint16_t* add_keys) {
     uint8_t idx = 0;
-    if(keycode_type == IOS|| keycode_type == MAC){
+    if (keycode_type == IOS || keycode_type == MAC) {
         add_keys[idx++] = KB_GRAVE_ACCENT_N_TILDE;
-    }else {
+    } else {
         add_keys[idx++] = KB_EUROPE_2;
     }
     return idx;
 }
-uint8_t C_Special_Combo(uint16_t* add_keys)
-{
+
+// C 键组合：输出特殊字符
+uint8_t C_Special_Combo(uint16_t* add_keys) {
     uint8_t idx = 0;
-    if(keycode_type == IOS|| keycode_type == MAC){
+    if (keycode_type == IOS || keycode_type == MAC) {
         add_keys[idx++] = KB_L_ALT;
         add_keys[idx++] = KB_7;
-    }else {
+    } else {
         add_keys[idx++] = KB_R_ALT;
         add_keys[idx++] = KB_EUROPE_2;
     }
     return idx;
 }
-#endif
 
-
-#ifdef UK
-uint8_t X_Special_Combo(uint16_t* add_keys)
-{
+#elif IS_COUNTRY_UK
+// 英国布局：` 和 # 位置差异
+uint8_t X_Special_Combo(uint16_t* add_keys) {
     uint8_t idx = 0;
-    if(keycode_type == IOS){
+    if (keycode_type == IOS) {
         add_keys[idx++] = KB_L_SHIFT;
         add_keys[idx++] = KB_BACK_SPLASH_N_VERTICAL_BAR;
-    }else if(keycode_type == WINDOWS){
-    add_keys[idx++] = KB_EUROPE_2;
+    } else if (keycode_type == WINDOWS) {
+        add_keys[idx++] = KB_EUROPE_2;
     }
     return idx;
 }
-uint8_t Z_Special_Combo(uint16_t* add_keys)
-{
+
+uint8_t Z_Special_Combo(uint16_t* add_keys) {
     uint8_t idx = 0;
-    if(keycode_type == IOS){
+    if (keycode_type == IOS) {
         add_keys[idx++] = KB_BACK_SPLASH_N_VERTICAL_BAR;
-    }else if(keycode_type == WINDOWS){
+    } else if (keycode_type == WINDOWS) {
         add_keys[idx++] = KB_L_SHIFT;
         add_keys[idx++] = KB_EUROPE_2;
     }
     return idx;
 }
+
+#else
+// 默认美国布局（无特殊组合键差异）
+// 如需添加美国特定的组合键处理，在此处实现
 #endif
 
 
@@ -150,7 +144,7 @@ uint8_t Z_Special_Combo(uint16_t* add_keys)
 //     uint8_t idx = 0;   
 //     if (combinations_flag == 1){
 //         if(keycode_type == IOS || keycode_type == MAC){
-//             add_keys[idx++] = M_EARTH;
+//             add_keys[idx++] = KC_KEYBOARD_LAYOUT;
 //             INFO_log("Earth_PRESS_UP_Handler```````````````` \n");
 //         }else if(keycode_type == WINDOWS){
 //             add_keys[idx++] = KB_L_GUI;
@@ -179,7 +173,7 @@ uint8_t Z_Special_Combo(uint16_t* add_keys)
 //     uint8_t idx = 0;
 //     if(keycode_type == IOS || keycode_type == MAC){
 //         if (combinations_flag == 1 ){
-//             add_keys[idx++] = M_EARTH;
+//             add_keys[idx++] = KC_KEYBOARD_LAYOUT;
 //             // INFO_log("Earth_LONG_PRESS_START_UP_Handler```````````````` \n");        
 //         }
 //     }

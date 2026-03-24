@@ -137,14 +137,14 @@ uint16_t keymap_get_keycode(uint8_t row, uint8_t col);
 typedef struct combo_t {
     const uint16_t *keys;           // 组合键列表（以 COMBO_END 结尾）
     bool  disabled;                 // 是否禁用
-    uint16_t ticks;                 // 计时器
+    uint32_t press_time;            // 按下时刻时间戳（ms）
     uint8_t  repeat : 4;            // 重复次数
     uint8_t  event : 4;             // 当前事件
     uint8_t  state : 5;             // 状态机状态
     uint8_t  fn_combo : 1;          // 是否为 Fn 组合键
     uint8_t  active_status : 1;     // 是否激活
     uint8_t  button_level : 1;      // 当前电平
-    uint16_t long_press_ticks;      // 长按阈值
+    uint16_t long_press_ms;         // 长按阈值（ms）
     BtnCallback cb[number_of_event]; // 事件回调数组
 } combo_t;
 ```
@@ -192,7 +192,7 @@ COMBO(keys, event_idx, callback)
 COMBO2(keys, event1, cb1, event2, cb2)
 
 // 带自定义长按阈值
-COMBO_LONG_TICKS(keys, long_tick_ms, event_idx, callback)
+COMBO_LONG_MS(keys, long_press_ms, event_idx, callback)
 ```
 
 ### 4. report.c - HID 报告生成
@@ -294,10 +294,8 @@ find_activate_key(list, keycode)  // 查找活跃按键
 
 组合键时间参数（`process_combo.h`）：
 ```c
-#define TICKS_INTERVAL    5      // 扫描间隔 ms
-#define DEBOUNCE_TICKS    3      // 防抖周期数
-#define SHORT_TICKS       60     // 短按阈值（300ms / 5ms）
-#define LONG_TICKS        500    // 长按阈值（2500ms / 5ms）
+#define SHORT_MS  300    // 短按阈值（ms）
+#define LONG_MS   2500   // 默认长按阈值（ms）
 ```
 
 ## 使用示例
@@ -311,7 +309,7 @@ void main(void) {
     while (1) {
         keyboard_task();
         // 其他任务...
-        wait_ms(TICKS_INTERVAL);
+        wait_ms(5);  // combo 判定已改为基于 timer_elapsed32() 的绝对时间
     }
 }
 ```

@@ -41,6 +41,14 @@ void access_ble_cancel_deep_sleep_evt(void);
 extern uint8_t commu_taskID;
 extern wireless_event_t event;
 
+static bool access_ble_is_discoverable_session(uint8_t host_idx) {
+    if (access_state.pairing_state != 0u) {
+        return true;
+    }
+
+    return (hidEmu_is_ble_bonded((access_ble_idx_t)host_idx) == 0u);
+}
+
 /*********************************************************************
  * @fn      wireless_enter_reset_kb
  *
@@ -149,16 +157,22 @@ void wireless_enter_sleep_kb(void) {
 }
 
 void access_ble_notify_advertising(uint8_t pairing_state, uint8_t host_idx) {
-    dprintf("[WT_SYNC] adv pairing=%d host=%d\r\n", pairing_state, host_idx);
-    if (pairing_state) {
-        wireless_state_set_pairing(host_idx);
+    bool discoverable = access_ble_is_discoverable_session(host_idx);
+
+    dprintf("[WT_SYNC] adv pairing=%d host=%d discoverable=%d\r\n",
+            pairing_state, host_idx, discoverable);
+    event.evt_type = discoverable ? EVT_DISCOVERABLE : EVT_RECONNECTING;
+    event.params.hostIndex = host_idx;
+    if (discoverable) {
+        OSAL_SetEvent(commu_taskID, WL_DISCOVERABLE_EVT);
     } else {
-        wireless_state_set_reconnecting(host_idx);
+        OSAL_SetEvent(commu_taskID, WL_RECONNECTING_EVT);
     }
 }
 
 void access_ble_notify_connected(uint8_t host_idx) {
     dprintf("[WT_SYNC] connected host=%d\r\n", host_idx);
+    event.evt_type = EVT_CONNECTED;
     event.params.hostIndex = host_idx;
     OSAL_SetEvent(commu_taskID, WL_CONNECTED_EVT);
     // access_ble_cancel_deep_sleep_evt();
@@ -166,9 +180,13 @@ void access_ble_notify_connected(uint8_t host_idx) {
 }
 
 void access_ble_notify_disconnected(uint8_t host_idx, uint8_t reason) {
-    dprintf("[WT_SYNC] disconnected host=%d reason=%d\r\n", host_idx, reason);
+    bool discoverable = access_ble_is_discoverable_session(host_idx);
+
+    dprintf("[WT_SYNC] disconnected host=%d reason=%d discoverable=%d\r\n",
+            host_idx, reason, discoverable);
     // wireless_state_set_disconnected(host_idx, reason);
     // event.evt_type = WL_DISCONNECTED_EVT;
+    event.evt_type = discoverable ? EVT_DISCOVERABLE : EVT_RECONNECTING;
     event.params.hostIndex = host_idx;
     event.data = reason;
     OSAL_SetEvent(commu_taskID, WL_DISCONNECTED_EVT);
@@ -199,8 +217,8 @@ void access_ble_schedule_deep_sleep_evt(uint32_t delay_ticks) {
         return;
     }
 
-    OSAL_SetDelayedEvent(system_taskID, SYSTEM_DEEP_SLEEP_EVT, delay_ticks);
-    dprintf("[WT_SLEEP] schedule SYSTEM_DEEP_SLEEP_EVT delay=%lu\r\n", (unsigned long)delay_ticks);
+    OSAL_SetDelayedEvent(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT, delay_ticks);
+    dprintf("[WT_SLEEP] schedule SYSTEM_LPM_DEEP_REQ_EVT delay=%lu\r\n", (unsigned long)delay_ticks);
 }
 
 void access_ble_cancel_deep_sleep_evt(void) {
@@ -208,9 +226,9 @@ void access_ble_cancel_deep_sleep_evt(void) {
         return;
     }
 
-    if (OSAL_GetTaskTimer(system_taskID, SYSTEM_DEEP_SLEEP_EVT)) {
-        OSAL_StopTask(system_taskID, SYSTEM_DEEP_SLEEP_EVT);
-        dprintf("[WT_SLEEP] cancel SYSTEM_DEEP_SLEEP_EVT\r\n");
+    if (OSAL_GetTaskTimer(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT)) {
+        OSAL_StopTask(system_taskID, SYSTEM_LPM_DEEP_REQ_EVT);
+        dprintf("[WT_SLEEP] cancel SYSTEM_LPM_DEEP_REQ_EVT\r\n");
     }
 }
 

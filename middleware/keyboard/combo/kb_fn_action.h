@@ -55,54 +55,11 @@ uint8_t Earth(uint16_t* add_keys);
  * Fn 键处理 (Fn Key Handlers)
  *============================================================================*/
 
+
 uint8_t FN_DOWN_KEY(uint16_t* add_keys);
+uint8_t FN_LONG_PRESS_KEY(uint16_t* add_keys);
 uint8_t FN_UP_KEY(uint16_t* add_keys);
 uint8_t FN_ESC_button(uint16_t* add_keys);
-
-/*============================================================================
- * 背光控制 (Backlight Control)
- *============================================================================*/
-
-/**
- * @brief 切换背光亮度档位
- *
- * Fn+右Shift: 在 OFF→LOW→MEDIUM→HIGH→OFF 之间循环
- * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
- *
- * @param add_keys 未使用
- * @return 0（不发送额外键码）
- */
-uint8_t Backlight_Level_Up(uint16_t* add_keys);
-
-/**
- * @brief 切换背光颜色
- *
- * Fn+右Enter: 在 13 色之间循环（红→暗红→...→白→红）
- * 仅当背光开启时才切换颜色
- * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
- *
- * @param add_keys 未使用
- * @return 0（不发送额外键码）
- */
-uint8_t Backlight_Color_Next(uint16_t* add_keys);
-
-/*============================================================================
- * 电量检测 (Battery Check)
- *============================================================================*/
-
-/**
- * @brief 电量检查（Fn+右Cmd）
- *
- * 根据当前电量百分比控制红灯闪烁次数：
- * - 75-100%: 闪 4 次
- * - 50-74%: 闪 3 次
- * - 25-49%: 闪 2 次
- * - 0-24%: 闪 1 次
- *
- * @param add_keys 未使用
- * @return 0（不发送额外键码）
- */
-uint8_t Battery_Check(uint16_t* add_keys);
 
 /*============================================================================
  * Siri 调用 (Siri Invoke)
@@ -126,7 +83,7 @@ uint8_t Siri_Invoke(uint16_t* add_keys);
  * @brief Earth 状态机后处理决策
  *
  * 在 combo_task 主循环结束后调用，根据 fn_function_fired 和按键列表
- * 决定是否发送 M_EARTH 或转换为 EARTH_FN_TAKEN 状态
+ * 决定是否维持 Earth 输出或转换为 EARTH_FN_TAKEN 状态
  *
  * @param fn_fired 是否有 Fn 功能键被触发
  * @param key_list 当前按键列表

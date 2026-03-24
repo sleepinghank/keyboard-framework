@@ -71,13 +71,15 @@ void keyboard_task(void) {
     if (key_st == KEY_UPDATE) {
         // 4. 更新按键列表（基于防抖后的矩阵变化）
         update_key_code_list();
-        // 5. 组合键处理
-        combo_task(key_st);
-        // 6. 生成并发送 HID 报告
-        report_update_proc(key_st);
     }
 
-    // 7. 清空扩展键列表
+    // 在每个扫描周期推进 combo 状态机，保证长按/保持逻辑按时间生效
+    combo_task(key_st);
+
+    // 生成并发送 HID 报告
+    report_update_proc(key_st);
+
+    // 清空扩展键列表
     del_all_child(_key_code_list_extend);
 }
 
@@ -145,7 +147,6 @@ static void update_key_code_list(void) {
             if (!(changes & col_mask)) continue;
 
             uint16_t keycode = keymap_get_keycode(row, col);
-            dprintf("Key change row %d, col %d, keycode 0x%04X\r\n", row, col, keycode);
             if (keycode == KC_NO) continue;
 
             if (current & col_mask) {
@@ -186,5 +187,5 @@ void keyboard_update_base_layer_by_system(void) {
     }
 
     dprintf("Layer switch: system_type=%d, target_layer=%d\r\n", host_system_type, target_layer);
-    layer_set(target_layer);
+    layer_on(target_layer);
 }

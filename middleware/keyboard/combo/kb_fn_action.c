@@ -5,9 +5,6 @@
 #include "kb_combo_engine.h"
 #include "wireless.h"
 #include "linkedlist.h"
-#include "backlight.h"
-#include "battery.h"
-#include "indicator.h"
 #include "kb904/config_hw.h"
 #include <stddef.h>
 #include "debug.h"
@@ -31,23 +28,21 @@ extern uint8_t combinations_flag;
  *                               │
  *               ┌───────────────┼───────────────┐
  *               ▼               ▼               ▼
- *         fn_function_fired   Apple+普通键     保持PENDING
+ *         fn_function_fired   普通键触发       Apple 长按
  *               │               │               │
  *               ▼               ▼               ▼
- *        EARTH_FN_TAKEN    EARTH_DOWN      [FN_UP时发tap]
- *               │               │
- *               ▼               ▼
- *         [FN_UP: 无动作]  [FN_UP: 发Earth up]
- *               │               │
- *               └───────┬───────┘
+ *        EARTH_FN_TAKEN    EARTH_DOWN       EARTH_HOLD
+ *               │               │               │
+ *               └───────────────┴───────┬───────┘
  *                       ▼
  *                  EARTH_IDLE
  */
 typedef enum {
     EARTH_IDLE = 0,      // 空闲状态
     EARTH_PENDING,       // FN 键按下，等待决策
-    EARTH_DOWN,          // Earth 键已发送 down（Apple 平台 + 普通键）
+    EARTH_DOWN,          // Earth 键已进入按下保持态（普通键组合）
     EARTH_FN_TAKEN,      // Fn 功能键被激活，Earth 不发送
+    EARTH_HOLD,          // Apple 平台长按保持 Earth
 } earth_state_t;
 
 static earth_state_t earth_state = EARTH_IDLE;
@@ -61,6 +56,45 @@ static earth_state_t earth_state = EARTH_IDLE;
  */
 static inline uint8_t is_apple_platform(void) {
     return (host_system_type == IOS || host_system_type == MAC);
+}
+
+/**
+ * @brief 填充当前平台对应的 Earth 键序列
+ */
+static uint8_t fill_earth_keys(uint16_t* add_keys) {
+    uint8_t idx = 0;
+
+    switch (host_system_type) {
+        case IOS:
+        case MAC:
+            add_keys[idx++] = KC_KEYBOARD_LAYOUT;
+            break;
+        case WIN:
+            add_keys[idx++] = KC_LEFT_GUI;
+            add_keys[idx++] = KC_SPACE;
+            break;
+        case ANDROID:
+            add_keys[idx++] = KC_LEFT_SHIFT;
+            add_keys[idx++] = KC_SPACE;
+            break;
+        default:
+            add_keys[idx++] = KC_KEYBOARD_LAYOUT;
+            break;
+    }
+
+    return idx;
+}
+
+/**
+ * @brief 将 Earth 键序列加入扩展上报列表
+ */
+static void push_earth_keys(list_t* key_list_extend) {
+    uint16_t earth_keys[2] = {0};
+    uint8_t idx = fill_earth_keys(earth_keys);
+
+    for (uint8_t i = 0; i < idx; ++i) {
+        add(earth_keys[i], key_list_extend);
+    }
 }
 
 /**
@@ -83,49 +117,33 @@ static uint8_t has_normal_key_in_list(list_t* key_list) {
     return 0;
 }
 
-/**
- * @brief 计算电池检测闪烁次数
- * @param percentage 电量百分比
- * @return 1~4 次闪烁
- */
-static uint8_t battery_blink_count(uint8_t percentage) {
-    if (percentage >= 75) {
-        return 4;
-    }
-    if (percentage >= 50) {
-        return 3;
-    }
-    if (percentage >= 25) {
-        return 2;
-    }
-    return 1;
-}
-
 // ============================================================================
 // Earth 状态机接口实现
 // ============================================================================
 
 void earth_post_loop_decision(uint8_t fn_fired, list_t* key_list, list_t* key_list_extend) {
-    if (earth_state != EARTH_PENDING) {
-        return;
+    if (earth_state == EARTH_PENDING) {
+        if (fn_fired) {
+            // Fn 功能键被激活，Earth 不发送
+            earth_state = EARTH_FN_TAKEN;
+            return;
+        }
+
+        if (has_normal_key_in_list(key_list)) {
+            combinations_flag = 0;
+            earth_state = EARTH_DOWN;
+        } else {
+            return;
+        }
     }
 
-    if (fn_fired) {
-        // Fn 功能键被激活，Earth 不发送
-        earth_state = EARTH_FN_TAKEN;
-        return;
+    if (earth_state == EARTH_DOWN || earth_state == EARTH_HOLD) {
+        push_earth_keys(key_list_extend);
     }
-
-    // Apple 平台 + 普通键：补发 M_EARTH down
-    if (is_apple_platform() && has_normal_key_in_list(key_list) && has_normal_key_in_list(key_list_extend)) {
-        add(M_EARTH, key_list_extend);
-        earth_state = EARTH_DOWN;
-    }
-    // 其他情况保持 PENDING，等待 FN_UP 时发送 tap
 }
 
 uint8_t earth_is_down(void) {
-    return (earth_state == EARTH_DOWN) ? 1 : 0;
+    return (earth_state == EARTH_DOWN || earth_state == EARTH_HOLD) ? 1 : 0;
 }
 
 void earth_reset(void) {
@@ -149,42 +167,33 @@ uint8_t FN_DOWN_KEY(uint16_t* add_keys) {
     return 0;
 }
 
+// Fn 键长按
+uint8_t FN_LONG_PRESS_KEY(uint16_t* add_keys) {
+    (void)add_keys;
+
+    if (is_apple_platform() && earth_state == EARTH_PENDING) {
+        combinations_flag = 0;
+        earth_state = EARTH_HOLD;
+    }
+
+    return 0;
+}
+
 // Fn 键释放
 uint8_t FN_UP_KEY(uint16_t* add_keys) {
     uint8_t idx = 0;
     FN_st = 0;
     combinations_flag = 0;
-
+    dprintf("FN_UP_KEY called, current Earth state: %d\r\n", earth_state);
     // 根据 Earth 状态机决定发送动作
     switch (earth_state) {
         case EARTH_PENDING:
             // 没有触发任何 Fn 功能或普通键，发送 Earth tap
-            switch (host_system_type) {
-                case IOS:
-                case MAC:
-                    // Apple 平台发送 M_EARTH
-                    add_keys[idx++] = M_EARTH;
-                    break;
-                case WIN:
-                    // Windows 发送 Win+Space
-                    add_keys[idx++] = KC_LEFT_GUI;
-                    add_keys[idx++] = KC_SPACE;
-                    break;
-                case ANDROID:
-                    // Android 发送 Shift+Space
-                    add_keys[idx++] = KC_LEFT_SHIFT;
-                    add_keys[idx++] = KC_SPACE;
-                    break;
-                default:
-                    // 默认发送 M_EARTH
-                    add_keys[idx++] = M_EARTH;
-                    break;
-            }
+            idx = fill_earth_keys(add_keys);
             break;
         case EARTH_DOWN:
-            // Apple 平台已发送 Earth down，现在发送 up
-            // 注意：up 信号通过移除键码实现，这里不再单独处理
-            // Earth 键会在下一帧的 report_update_proc 中自然释放
+        case EARTH_HOLD:
+            // Earth 保持由 earth_post_loop_decision 注入，本帧不再注入即可自然释放
             break;
         case EARTH_FN_TAKEN:
         case EARTH_IDLE:
@@ -195,7 +204,7 @@ uint8_t FN_UP_KEY(uint16_t* add_keys) {
 
     // 重置状态
     earth_state = EARTH_IDLE;
-    return 0;
+    return idx;
 }
 
 // 亮度降低
@@ -339,7 +348,7 @@ uint8_t Earth(uint16_t* add_keys) {
     if (FN_st == 1) {
         add_keys[idx++] = KC_F5;
     } else {
-        add_keys[idx++] = M_EARTH;
+        add_keys[idx++] = KC_KEYBOARD_LAYOUT;
     }
     return idx;
 }
@@ -352,63 +361,13 @@ uint8_t FN_ESC_button(uint16_t* add_keys) {
 }
 
 /**
- * @brief 背光亮度档位切换
- *
- * Fn+右Shift: 在 OFF→LOW→MEDIUM→HIGH→OFF 之间循环切换
- * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
- */
-uint8_t Backlight_Level_Up(uint16_t* add_keys) {
-    (void)add_keys;
-    backlight_level_step();
-    keyboard_note_backlight_activity();
-    return 0;
-}
-
-/**
- * @brief 背光颜色切换
- *
- * Fn+右Enter: 在 13 色之间循环切换
- * 仅当背光开启时才切换颜色
- * 同时通知背光服务有活动发生，重置 5 秒休眠定时器
- */
-uint8_t Backlight_Color_Next(uint16_t* add_keys) {
-    (void)add_keys;
-    dprintf("Backlight_Color_Next\r\n");
-    if (backlight_is_enabled()) {
-        backlight_color_step();
-    }
-    keyboard_note_backlight_activity();
-    return 0;
-}
-
-/**
- * @brief 电量检查
- *
- * Fn+右Cmd: 根据电量百分比显示闪烁次数
- * - 75-100%: 闪 4 次
- * - 50-74%: 闪 3 次
- * - 25-49%: 闪 2 次
- * - 0-24%: 闪 1 次
- */
-uint8_t Battery_Check(uint16_t* add_keys) {
-    (void)add_keys;
-
-    uint8_t percentage = battery_get_percentage();
-    uint8_t blink_count = battery_blink_count(percentage);
-    ind_effect_t effect = IND_BLINK_CUSTOM(200, 200, blink_count);
-
-    indicator_set(LED_POWER_RED, &effect);
-    return 0;
-}
-
-/**
  * @brief Siri 调用
  *
  * 触发设备的语音命令功能
  */
 uint8_t Siri_Invoke(uint16_t* add_keys) {
     uint8_t idx = 0;
-    // TODO: 根据实际需求发送siri
-    // add_keys[idx++] = ;
+    add_keys[idx++] = KC_KEYBOARD_LAYOUT;
+    add_keys[idx++] = KC_S;
     return idx;
 }

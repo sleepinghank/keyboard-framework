@@ -67,6 +67,9 @@ enum mouse_buttons {
  * See https://www.usb.org/sites/default/files/documents/hut1_12v2.pdf#page=75
  */
 enum consumer_usages {
+    // Apple Accessory-Design-Guidelines specified usages
+    IOS_POWER        = 0x030, // power key on iOS devices, distinct from SYSTEM_POWER_DOWN 锁定
+    IOS_MENU         = 0x040, // menu key on iOS devices
     // 15.5 Display Controls
     SNAPSHOT        = 0x065,
     BRIGHTNESS_UP   = 0x06F, // https://www.usb.org/sites/default/files/hutrr41_0.pdf
@@ -86,6 +89,13 @@ enum consumer_usages {
     AUDIO_MUTE     = 0x0E2,
     AUDIO_VOL_UP   = 0x0E9,
     AUDIO_VOL_DOWN = 0x0EA,
+    // 15.9.2 Audio Controls - Tone
+    AUDIO_BASS_BOOST  = 0x0E5,
+    AUDIO_LOUDNESS    = 0x0E7,
+    AUDIO_BASS_UP     = 0x152,
+    AUDIO_BASS_DOWN   = 0x153,
+    AUDIO_TREBLE_UP   = 0x154,
+    AUDIO_TREBLE_DOWN = 0x155,
     // 15.15 Application Launch Buttons
     AL_CC_CONFIG       = 0x183,
     AL_EMAIL           = 0x18A,
@@ -321,6 +331,24 @@ static inline uint16_t KEYCODE2CONSUMER(uint8_t key) {
             return AC_DESKTOP_SHOW_ALL_WINDOWS;
         case KC_LAUNCHPAD:
             return AC_SOFT_KEY_LEFT;
+        case KC_BASS_BOOST:
+            return AUDIO_BASS_BOOST;
+        case KC_LOUDNESS:
+            return AUDIO_LOUDNESS;
+        case KC_BASS_UP:
+            return AUDIO_BASS_UP;
+        case KC_BASS_DOWN:
+            return AUDIO_BASS_DOWN;
+        case KC_TREBLE_UP:
+            return AUDIO_TREBLE_UP;
+        case KC_TREBLE_DOWN:
+            return AUDIO_TREBLE_DOWN;
+        case KC_KEYBOARD_LAYOUT:
+            return AC_NEXT_KEYBOARD_LAYOUT_SELECT;
+        case KC_IOS_POWER:
+            return IOS_POWER;
+        case KC_IOS_MENU:
+            return IOS_MENU;
         default:
             return 0;
     }

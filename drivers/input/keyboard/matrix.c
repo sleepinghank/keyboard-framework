@@ -26,6 +26,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "_pin_defs.h"
 #include "gpio.h"
 #include "system_service.h"
+#include "event_manager.h"
 #include "gpio.h"
 
 #  define ROWS_PER_HAND (MATRIX_ROWS)
@@ -108,7 +109,7 @@ void matrix_read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col,
     for (uint8_t row_index = 0; row_index < ROWS_PER_HAND; row_index++) {
         // Check row pin state
         if (readMatrixPin(row_pins[row_index]) == 0) {
-            dprintf("downkey:%d,%d\r\n", row_index, current_col);
+            // dprintf("downkey:%d,%d\r\n", row_index, current_col);
             // Pin LO, set col bit
             current_matrix[row_index] |= row_shifter;
             key_pressed = true;

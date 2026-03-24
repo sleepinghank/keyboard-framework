@@ -8,6 +8,7 @@
 #include "indicator.h"
 #include "kb904/config.h"
 #include "backlight.h"
+#include "battery.h"
 #include "lpm.h"
 #include "system_service.h"
 
@@ -204,13 +205,30 @@ uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     }
 
     if (events & OUTPUT_BACKLIGHT_BRIGHTNESS_EVT) {
-        // Placeholder: backlight control will be integrated with backlight driver.
+        backlight_level_step();
+        output_service_note_backlight_activity();
         return (events ^ OUTPUT_BACKLIGHT_BRIGHTNESS_EVT);
     }
 
     if (events & OUTPUT_BACKLIGHT_COLOR_EVT) {
-        // Placeholder: backlight color control
+        if (backlight_is_enabled()) {
+            backlight_color_step();
+        }
+        output_service_note_backlight_activity();
         return (events ^ OUTPUT_BACKLIGHT_COLOR_EVT);
+    }
+
+    if (events & OUTPUT_BATTERY_CHECK_EVT) {
+        uint8_t percentage = battery_get_percentage();
+        uint8_t blink_count;
+        if (percentage >= 75)      blink_count = 4;
+        else if (percentage >= 50) blink_count = 3;
+        else if (percentage >= 25) blink_count = 2;
+        else                       blink_count = 1;
+
+        ind_effect_t effect = IND_BLINK_CUSTOM(200, 200, blink_count);
+        indicator_set(LED_POWER_RED, &effect);
+        return (events ^ OUTPUT_BATTERY_CHECK_EVT);
     }
 
     if (events & OUTPUT_SEND_HID_KEYBOARD_EVT) {

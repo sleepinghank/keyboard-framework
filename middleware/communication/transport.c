@@ -43,21 +43,52 @@ nkro_t nkro = {false, false};
 static void transport_changed(transport_t new_transport);
 
 #ifdef BLUETOOTH_ENABLE_FLAG
+static uint8_t bt_transport_get_default_host(void) {
+    storage_config_t* cfg = storage_get_config_ptr();
+
+    if ((cfg != NULL) && (cfg->ble_idx > BLE_INDEX_IDEL) && (cfg->ble_idx < BLE_INDEX_MAX)) {
+        return cfg->ble_idx;
+    }
+
+    return BLE_INDEX_1;
+}
+
+static bool bt_transport_is_bonded(uint8_t host_idx) {
+    storage_config_t* cfg = storage_get_config_ptr();
+    uint8_t           bond_flag = 0;
+
+    if (cfg == NULL) {
+        return false;
+    }
+
+    switch (host_idx) {
+        case BLE_INDEX_1:
+            bond_flag = BLE_BOND_FLAG_1;
+            break;
+        case BLE_INDEX_2:
+            bond_flag = BLE_BOND_FLAG_2;
+            break;
+        case BLE_INDEX_3:
+            bond_flag = BLE_BOND_FLAG_3;
+            break;
+        default:
+            return false;
+    }
+
+    return ((cfg->ble_bond_flag & bond_flag) != 0u);
+}
+
 void bt_transport_enable(bool enable) {
     if (enable) {
-        // if (host_get_driver() != &wireless_driver) {
+        uint8_t host_idx = bt_transport_get_default_host();
+
         host_set_driver(&wireless_driver);
-        // dprintf("Transport: Switching to Bluetooth\n");
-        wireless_disconnect();
 
-        uint32_t t = timer_read32();
-        // while (timer_elapsed32(t) < 50) {
-        //     wireless_transport.task();
-        // }
-        wireless_connect();
-
-        // TODO: Clear USB report
-        //}
+        if (bt_transport_is_bonded(host_idx)) {
+            wireless_connect_ex(host_idx, 0);
+        } else {
+            wireless_pairing_ex(host_idx, NULL);
+        }
     } else {
         // indicator_stop();
 

@@ -11,10 +11,8 @@
 #define pgm_read_word(address_short) *((uint16_t*)(address_short))
 
 // 时间配置（单位：ms）
-#define TICKS_INTERVAL    5
-#define DEBOUNCE_TICKS    3
-#define SHORT_TICKS       (300 / TICKS_INTERVAL)
-#define LONG_TICKS        (2500 / TICKS_INTERVAL)
+#define SHORT_MS  300
+#define LONG_MS   2500
 
 // 组合键结束标志
 #define COMBO_END 0
@@ -45,7 +43,7 @@ typedef enum {
 typedef struct combo_t {
     const uint16_t *keys; // 记录组合键 按键
     bool  disabled; // 记录是否禁用
-    uint16_t ticks; // 状态切换时间戳 (timer_read)
+    uint32_t press_time; // 按下时刻绝对时间戳，单位 ms（timer_read32 返回值）
     uint8_t  system_type;   // 记录系统类型：每个bit代表一个系统，BIT(TYPE)。0xff为所有系统
     uint8_t  repeat : 4; // 记录重复次数
     uint8_t  event : 4; // 记录激活事件
@@ -54,38 +52,38 @@ typedef struct combo_t {
     uint8_t  fn_combo : 1; // 记录是否为FN组合键
     uint8_t  active_status : 1; // 判断组合键是否激活
     uint8_t  button_level : 1; // 记录当前电平
-    uint16_t long_press_ticks; // 长按时间阈值 ms
+    uint16_t long_press_ms; // 长按时间阈值，单位 ms
     BtnCallback cb[number_of_event]; // 回调函数
 } combo_t;
 
 #define COMBO(ck, event_idx,callback) { .keys = &(ck)[0], .cb[event_idx] = (callback) ,\
-    .long_press_ticks= LONG_TICKS,.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=0,.system_type = 0xff}
+    .long_press_ms = LONG_MS,.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=0,.system_type = 0xff}
 
 #define COMBO2(ck, event_idx1,callback1, event_idx2,callback2) \
     { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),\
-    .long_press_ticks= LONG_TICKS,.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=0,.system_type = 0xff}
+    .long_press_ms = LONG_MS,.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=0,.system_type = 0xff}
 
 #define COMBO3(ck, event_idx1,callback1, event_idx2,callback2, event_idx3,callback3) \
     { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),.cb[event_idx3] = (callback3) ,\
-    .event=(uint8_t)NONE_PRESS,.long_press_ticks= LONG_TICKS,.state = 0,.f1_flag=0,.system_type = 0xff}
+    .event=(uint8_t)NONE_PRESS,.long_press_ms = LONG_MS,.state = 0,.f1_flag=0,.system_type = 0xff}
 
-#define COMBO_LONG_TICKS(ck,long_tick, event_idx,callback) \
+#define COMBO_LONG_MS(ck,long_ms, event_idx,callback) \
     { .keys = &(ck)[0], .cb[event_idx] = (callback) ,.event=(uint8_t)NONE_PRESS,\
-    .long_press_ticks=(uint16_t)(long_tick),.state = 0,.f1_flag=0,.system_type = 0xff}
+    .long_press_ms = (uint16_t)(long_ms),.state = 0,.f1_flag=0,.system_type = 0xff}
 
-#define COMBO2_LONG_TICKS(ck,long_tick, event_idx1,callback1, event_idx2,callback2) \
+#define COMBO2_LONG_MS(ck,long_ms, event_idx1,callback1, event_idx2,callback2) \
     { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),.event=(uint8_t)NONE_PRESS,\
-    .long_press_ticks=(uint16_t)(long_tick) ,.state = 0,.f1_flag=0,.system_type = 0xff}
+    .long_press_ms = (uint16_t)(long_ms),.state = 0,.f1_flag=0,.system_type = 0xff}
 
-#define COMBO3_LONG_TICKS(ck,long_tick, event_idx1,callback1, event_idx2,callback2, event_idx3,callback3) \
+#define COMBO3_LONG_MS(ck,long_ms, event_idx1,callback1, event_idx2,callback2, event_idx3,callback3) \
     { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),.cb[event_idx3] = (callback3) ,\
-    .event=(uint8_t)NONE_PRESS,.long_press_ticks=(uint16_t)(long_tick),.state = 0,.f1_flag=0,.system_type = 0xff}
+    .event=(uint8_t)NONE_PRESS,.long_press_ms = (uint16_t)(long_ms),.state = 0,.f1_flag=0,.system_type = 0xff}
 
-#define COMBO_ALL(ck,long_tick, event_idx,callback,f1_key,sys_type) { .keys = &(ck)[0], .cb[event_idx] = (callback) ,\
-    .long_press_ticks=(uint16_t)(long_tick),.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=f1_key,.system_type = sys_type}
+#define COMBO_ALL(ck,long_ms, event_idx,callback,f1_key,sys_type) { .keys = &(ck)[0], .cb[event_idx] = (callback) ,\
+    .long_press_ms = (uint16_t)(long_ms),.event=(uint8_t)NONE_PRESS,.state = 0,.f1_flag=f1_key,.system_type = sys_type}
 
-#define COMBO2_ALL(ck,long_tick, event_idx1,callback1,event_idx2,callback2,f1_key,sys_type) { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),.event=(uint8_t)NONE_PRESS,\
-    .long_press_ticks=(uint16_t)(long_tick) ,.state = 0,.f1_flag=f1_key,.system_type = sys_type}
+#define COMBO2_ALL(ck,long_ms, event_idx1,callback1,event_idx2,callback2,f1_key,sys_type) { .keys = &(ck)[0], .cb[event_idx1] = (callback1),.cb[event_idx2] = (callback2),.event=(uint8_t)NONE_PRESS,\
+    .long_press_ms = (uint16_t)(long_ms),.state = 0,.f1_flag=f1_key,.system_type = sys_type}
 
 extern uint8_t active_fn_combo;
 extern uint8_t active_event;

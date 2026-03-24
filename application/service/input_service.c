@@ -114,6 +114,12 @@ void input_clear_matrix_scan_flag(void) {
  * @return 未处理的事件标志
  */
 uint16_t input_process_event(uint8_t task_id, uint16_t events) {
+    if (events & INPUT_TOUCH_TOGGLE_EVT) {
+        // TODO: 触摸板锁定/解锁逻辑，待 touchpad 模块接口稳定后实现
+        dprintf("Input: Touch toggle event received (not implemented)\r\n");
+        return (events ^ INPUT_TOUCH_TOGGLE_EVT);
+    }
+
     // 处理电量检测事件
     if (events & INPUT_BATTERY_DETE_EVT) {
         battery_task();
@@ -241,7 +247,7 @@ void input_service_init(void) {
     matrix_scan_timer_start();
     dprintf("Input: Matrix scan timer started\r\n");
     /* 启动电量检测定时任务 */
-    OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
+    // OSAL_StartReloadTask(input_taskID, INPUT_BATTERY_DETE_EVT, BATTERY_DETECT_INTERVAL);
 
 #ifdef TOUCHPAD_ENABLE
     /* 初始化触控板 */

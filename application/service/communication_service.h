@@ -20,15 +20,15 @@
 /* 无线事件定义 */
 #define WL_INIT_EVT               (1 << 0)
 #define WL_RESET_EVT              (1 << 1)
-#define WL_DISCOVERABLE_EVT       (1 << 2)
-#define WL_RECONNECTING_EVT       (1 << 3)
+#define WL_DISCOVERABLE_EVT       (1 << 2)   /* 已进入可发现/配对广播 */
+#define WL_RECONNECTING_EVT       (1 << 3)   /* 已进入回连广播 */
 #define WL_CONNECTED_EVT          (1 << 4)
 #define WL_DISCONNECTED_EVT       (1 << 5)
 #define WL_ADVEND_EVT             (1 << 6)
 #define WL_HID_SET_PROTOCOL_EVT   (1 << 7)
 #define WL_HID_INDICATOR_EVT      (1 << 8)
 #define WL_CONECTION_INTERVAL_EVT (1 << 9)
-#define WL_PAIR_EVT               (1 << 10)
+#define WL_PAIR_EVT               (1 << 10)  /* 上层发起配对请求 */
 #define WL_RECONNECT_EVT          (1 << 11)
 // #define USB_CONNECT_EVT           (1 << 12)
 // #define USB_DISCONNECT_EVT        (1 << 13)

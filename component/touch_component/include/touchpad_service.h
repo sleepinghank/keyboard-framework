@@ -96,7 +96,6 @@ typedef struct AntiMistouchData {
  * Global Variables
  */
 extern uint8_t touch_en;
-extern uint8_t _touch_int_flag;
 #ifdef MCS_GESTURE
 extern GestureType act_gesture;
 #endif
@@ -144,16 +143,6 @@ int8_t touch_power_on_with_params(pct1336_params_t* params, uint8_t len);
  * @return  Success or Failure
  */
 int8_t touch_power_off(void);
-/*********************************************************************
- * @fn      touch_timer_task
- *
- * @brief   触控板定时器任务处理，放到系统定时器中调用
- *
- * @param   none
- *
- * @return  Success or Failure
- */
-int8_t touch_timer_task(void);
 
 /*********************************************************************
  * @fn      touch_evt_task

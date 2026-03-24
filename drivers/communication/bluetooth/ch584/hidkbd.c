@@ -23,6 +23,7 @@
 #include "HAL.h"
 #include "hidkbd.h"
 #include "event_manager.h"
+#include "timer.h"
 #include "debug.h"
 #include "wireless.h"
 #include "keyboard.h"
@@ -121,6 +122,11 @@ typedef struct att_read_by_type_val_rsp
 // Battery level is critical when it is less than this %
 #define DEFAULT_BATT_CRITICAL_LEVEL          100
 
+/** Legacy BLE advertising / scan response PDU max (31 octets). */
+#define HIDEMU_BLE_LEGACY_AD_MAX_LEN         31u
+/** Max UTF-8 name octets in scan response after A+ layout (UUID moved to advertData). */
+#define HIDEMU_SCAN_RSP_NAME_MAX             20u
+
 /*********************************************************************
  * TYPEDEFS
  */
@@ -154,66 +160,14 @@ extern void access_ble_cancel_deep_sleep_evt(void);
  */
 access_state_t access_state;            // Access模块的全局状态结构体
 bleConfig_t ble_config;
-static uint8_t reconnect_adv_fallback_stage = 1; // 0: whitelist reconnect, 1: general fallback
+static uint8_t reconnect_adv_fallback_stage = 0; // 0: whitelist reconnect, 1: general fallback
+static uint32_t hidEmu_link_established_ms = 0;
 
-// GAP Profile - Name attribute for SCAN RSP data
-static uint8_t scanRspData[] = {
-    0x0D,                           // length of this data
-    GAP_ADTYPE_LOCAL_NAME_COMPLETE, // AD Type = Complete local name
-    'H',
-    'I',
-    'D',
-    ' ',
-    'K',
-    'e',
-    'y',
-    'b',
-    'T',
-    'E',
-    'S',
-    'T',  // connection interval range
-    0x05, // length of this data
-    GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE,
-    LO_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL), // 100ms
-    HI_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL),
-    LO_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL), // 1s
-    HI_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL),
-
-    // service UUIDs
-    0x05, // length of this data
-    GAP_ADTYPE_16BIT_MORE,
-    LO_UINT16(HID_SERV_UUID),
-    HI_UINT16(HID_SERV_UUID),
-    LO_UINT16(BATT_SERV_UUID),
-    HI_UINT16(BATT_SERV_UUID),
-
-    // Tx power level
-    0x02, // length of this data
-    GAP_ADTYPE_POWER_LEVEL,
-    0 // 0dBm                        发射功率
-};
-
-// Advertising data
-static uint8_t advertData[31] = {
-    // flags
-    0x02, // length of this data
-    GAP_ADTYPE_FLAGS,
-    GAP_ADTYPE_FLAGS_LIMITED | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
-
-//    // service UUIDs
-//    0x03, // length of this data
-//    GAP_ADTYPE_16BIT_MORE,
-//    LO_UINT16(HID_SERV_UUID),
-//    HI_UINT16(HID_SERV_UUID),
-//    LO_UINT16(BATT_SERV_UUID),
-//    HI_UINT16(BATT_SERV_UUID),
-
-    // appearance
-    0x03, // length of this data
-    GAP_ADTYPE_APPEARANCE,
-    LO_UINT16(GAP_APPEARE_HID_KEYBOARD),
-    HI_UINT16(GAP_APPEARE_HID_KEYBOARD)
-};
+// GAP Profile - built by hidEmu_build_ble_ad_payload() (A+: UUIDs in advertData, name in scanRsp)
+static uint8_t  scanRspData[HIDEMU_BLE_LEGACY_AD_MAX_LEN];
+static uint8_t  advertData[HIDEMU_BLE_LEGACY_AD_MAX_LEN];
+static uint16_t hidEmu_scan_rsp_payload_len;
+static uint16_t hidEmu_advert_payload_len;
 
 // Advertising data
 static uint8_t reconAdvertData[1] = {
@@ -259,6 +213,7 @@ static uint8_t hidEmuRptCB(uint8_t id, uint8_t type, uint16_t uuid,
                            uint8_t oper, uint16_t *pLen, uint8_t *pData);
 static void    hidEmuEvtCB(uint8_t evt);
 static void    hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent);
+static void    hidEmu_build_ble_ad_payload(void);
 
 uint8_t HCI_MB_DisconnectCmd( uint16_t connHandle, uint8_t reason );
 extern uint8_t LL_SetDataRelatedAddressChanges( uint8_t Advertising_Handle, uint8_t Change_Reasons ) ;
@@ -272,6 +227,15 @@ __attribute__((weak)) void access_ctl_process(uint8_t ble_idx)
 __attribute__((weak)) void hidDevBattCB(uint8_t evt)
 {
     (void)evt;
+}
+
+void hidEmu_prepare_reconnect_adv(void)
+{
+    uint8_t prev_stage = reconnect_adv_fallback_stage;
+    reconnect_adv_fallback_stage = 0;
+    dprint("[ADV_STAGE] prepare_reconnect %x->%x idx=%x pairing=%x\n",
+           prev_stage, reconnect_adv_fallback_stage,
+           access_state.ble_idx, access_state.pairing_state);
 }
 //void hidEmu_NEXT_BUF(void);
 
@@ -287,6 +251,96 @@ static hidDevCB_t hidEmuHidCBs = {
     };//回调函数
 
 pfnHidEmuReceiveCB_t    hidEmu_receive_cb = 0;
+
+/*********************************************************************
+ * @fn      hidEmu_build_ble_ad_payload
+ *
+ * @brief   Build Legacy advertData / scanRspData from storage (A+), update GATT name, keep connectable ADV_IND.
+ */
+static void hidEmu_build_ble_ad_payload(void)
+{
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t           name[22];
+    uint8_t           name_len = 0;
+    uint8_t           adv_name_len;
+    uint8_t           pos;
+    uint8_t           i;
+    uint8_t           adv_event_type = GAP_ADTYPE_ADV_IND;
+
+    if((cfg != NULL) && (cfg->ble_name_len > 0u))
+    {
+        name_len = cfg->ble_name_len;
+        if(name_len > sizeof(name))
+        {
+            name_len = (uint8_t)sizeof(name);
+        }
+        memcpy(name, cfg->ble_name_data, name_len);
+    }
+    else
+    {
+        static const char fallback[] = "Keyboard";
+        name_len = (uint8_t)(sizeof(fallback) - 1u);
+        memcpy(name, fallback, name_len);
+    }
+
+    for(i = 0u; i < name_len; i++)
+    {
+        if(name[i] == '$')
+        {
+            name[i] = (uint8_t)(access_state.ble_idx + (uint8_t)'0' - (uint8_t)BLE_INDEX_IDEL);
+        }
+    }
+
+    GGS_SetParameter(GGS_DEVICE_NAME_ATT, name_len, name);
+
+    adv_name_len = name_len;
+    if(adv_name_len > HIDEMU_SCAN_RSP_NAME_MAX)
+    {
+        adv_name_len = HIDEMU_SCAN_RSP_NAME_MAX;
+    }
+
+    memset(scanRspData, 0, sizeof(scanRspData));
+    pos = 0u;
+    scanRspData[pos++] = (uint8_t)(1u + adv_name_len);
+    scanRspData[pos++] = GAP_ADTYPE_LOCAL_NAME_COMPLETE;
+    memcpy(&scanRspData[pos], name, adv_name_len);
+    pos = (uint8_t)(pos + adv_name_len);
+
+    scanRspData[pos++] = 0x05u;
+    scanRspData[pos++] = GAP_ADTYPE_SLAVE_CONN_INTERVAL_RANGE;
+    scanRspData[pos++] = LO_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL);
+    scanRspData[pos++] = HI_UINT16(DEFAULT_DESIRED_MIN_CONN_INTERVAL);
+    scanRspData[pos++] = LO_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL);
+    scanRspData[pos++] = HI_UINT16(DEFAULT_DESIRED_MAX_CONN_INTERVAL);
+
+    scanRspData[pos++] = 0x02u;
+    scanRspData[pos++] = GAP_ADTYPE_POWER_LEVEL;
+    scanRspData[pos++] = 0u;
+
+    hidEmu_scan_rsp_payload_len = pos;
+
+    memset(advertData, 0, sizeof(advertData));
+    pos = 0u;
+    advertData[pos++] = 0x02u;
+    advertData[pos++] = GAP_ADTYPE_FLAGS;
+    advertData[pos++] = GAP_ADTYPE_FLAGS_LIMITED | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED;
+
+    advertData[pos++] = 0x05u;
+    advertData[pos++] = GAP_ADTYPE_16BIT_MORE;
+    advertData[pos++] = LO_UINT16(HID_SERV_UUID);
+    advertData[pos++] = HI_UINT16(HID_SERV_UUID);
+    advertData[pos++] = LO_UINT16(BATT_SERV_UUID);
+    advertData[pos++] = HI_UINT16(BATT_SERV_UUID);
+
+    advertData[pos++] = 0x03u;
+    advertData[pos++] = GAP_ADTYPE_APPEARANCE;
+    advertData[pos++] = LO_UINT16(GAP_APPEARE_HID_KEYBOARD);
+    advertData[pos++] = HI_UINT16(GAP_APPEARE_HID_KEYBOARD);
+
+    hidEmu_advert_payload_len = pos;
+
+    GAPRole_SetParameter(GAPROLE_ADV_EVENT_TYPE, sizeof(uint8_t), &adv_event_type);
+}
 
 /*********************************************************************
  * PUBLIC FUNCTIONS
@@ -335,18 +389,12 @@ void HidEmu_Init()
         // Set the GAP Role Parameters 设置gap参数，广播参数，扫描参数等
         GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &initial_advertising_enable);
 
-        // 从flash恢复设备名称
-        // scanRspData[0] = storage_get_config_ptr()->ble_name_len+1;
-        // scanRspData[1] = GAP_ADTYPE_LOCAL_NAME_COMPLETE;
-        // memcpy(&scanRspData[2], storage_get_config_ptr()->ble_name_data, storage_get_config_ptr()->ble_name_len);
-        // memcpy(&advertData[13-2-4], scanRspData, storage_get_config_ptr()->ble_name_len+2);
-//        dprint("len %d %x\n",scanRspData[0],scanRspData[1]);
+        hidEmu_build_ble_ad_payload();
         GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
         GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData);//实际的广播参数设置，之前的sdk截断了这个广播包
     }
 
-    // Set the GAP Characteristics
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, storage_get_config_ptr()->ble_name_len, (void *)storage_get_config_ptr()->ble_name_data);
+    // GGS device name is set inside hidEmu_build_ble_ad_payload()
 
     // Setup the GAP Bond Manager
     {
@@ -661,14 +709,30 @@ uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events)
     if(events & PERI_SECURITY_REQ_EVT)
     {
         uint8_t ble_state;
+        uint8_t sec_req_ret = 0;
+        uint8_t bonded = hidEmu_is_ble_bonded(access_state.ble_idx);
+        uint32_t elapsed = timer_elapsed32(hidEmu_link_established_ms);
         GAPRole_GetParameter(GAPROLE_STATE, &ble_state);
+        dprint("[PAIR] sec_req_evt elapsed=%lu state=%x secure=%x bonded=%x pairing=%x pending=%lu conn=%x\n",
+               (unsigned long)elapsed, ble_state, hidDevConnSecure, bonded,
+               access_state.pairing_state,
+               (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, PERI_SECURITY_REQ_EVT),
+               hidEmuConnHandle);
         if(ble_state == GAPROLE_CONNECTED)
         {
             dprint("Send Security Req ...\n");
-            if(GAPBondMgr_PeriSecurityReq(hidEmuConnHandle))
+            sec_req_ret = GAPBondMgr_PeriSecurityReq(hidEmuConnHandle);
+            dprint("[PAIR] sec_req ret=%x conn=%x\n", sec_req_ret, hidEmuConnHandle);
+            if(sec_req_ret)
             {
                 OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);
+                dprint("[PAIR] sec_req retry pending=%lu\n",
+                       (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, PERI_SECURITY_REQ_EVT));
             }
+        }
+        else
+        {
+            dprint("[PAIR] sec_req skipped state=%x\n", ble_state);
         }
         return (events ^ PERI_SECURITY_REQ_EVT);
     }
@@ -936,13 +1000,14 @@ uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx )
  */
 void hidEmu_adv_enable(uint8_t enable)
 {
-    uint8_t i,need_update=0;
     uint8_t ownAddr[6];
     uint8_t initial_advertising_enable = enable;
     uint8_t IRK[KEYLEN]={0};
 
     if(initial_advertising_enable)
     {
+        hidEmu_build_ble_ad_payload();
+
         uint8_t advertising_state;
         uint8_t RL_enable = TRUE;
         GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &advertising_state );
@@ -1021,6 +1086,11 @@ void hidEmu_adv_enable(uint8_t enable)
     {
         uint8_t filter_policy = GAP_FILTER_POLICY_ALL;
         GAPRole_SetParameter(GAPROLE_ADV_FILTER_POLICY, sizeof(uint8_t), &filter_policy);
+        if(initial_advertising_enable != 0)
+        {
+            GAPRole_SetParameter(GAPROLE_ADVERT_DATA, sizeof(advertData), advertData);
+            GAPRole_SetParameter(GAPROLE_SCAN_RSP_DATA, sizeof(scanRspData), scanRspData);
+        }
         if((initial_advertising_enable != 0) && (reconnect_adv_fallback_stage == 1) && (!access_state.pairing_state))
         {
             dprint("[ADV] GENERAL mode (fallback after WL timeout)\n");
@@ -1035,12 +1105,15 @@ void hidEmu_adv_enable(uint8_t enable)
     if(initial_advertising_enable && (!access_state.pairing_state))
     {
         access_state.deep_sleep_flag = FALSE;
-        access_ble_schedule_deep_sleep_evt(SYSTEM_DEEP_SLEEP_EVT_TIMEOUT);
-        dprint("[TRACE_ADV] set SYSTEM_DEEP_SLEEP_EVT timeout=%d req=%x idx=%x\n",
-               SYSTEM_DEEP_SLEEP_EVT_TIMEOUT, initial_advertising_enable, access_state.ble_idx);
+        access_ble_schedule_deep_sleep_evt(LPM_DEEP_REQ_DELAY_TICKS);
+        dprint("[TRACE_ADV] set LPM_DEEP_REQ delay=%d req=%x idx=%x\n",
+               LPM_DEEP_REQ_DELAY_TICKS, initial_advertising_enable, access_state.ble_idx);
     }
     else if(initial_advertising_enable == 0)
     {
+        dprint("[ADV_STAGE] adv_disable %x->1 idx=%x pairing=%x bonded=%x\n",
+               reconnect_adv_fallback_stage, access_state.ble_idx,
+               access_state.pairing_state, bonded);
         reconnect_adv_fallback_stage = 1;
     }
 
@@ -1060,20 +1133,16 @@ void hidEmu_adv_enable(uint8_t enable)
  */
 uint8_t hidEmu_update_device_name()
 {
-    uint8_t i;
-    scanRspData[0] = storage_get_config_ptr()->ble_name_len+1;
-    scanRspData[1] = GAP_ADTYPE_LOCAL_NAME_COMPLETE;
-    memcpy(&scanRspData[2], storage_get_config_ptr()->ble_name_data, storage_get_config_ptr()->ble_name_len);
-    for(i=0; i<storage_get_config_ptr()->ble_name_len; i++ )
+    bStatus_t st;
+
+    hidEmu_build_ble_ad_payload();
+    st = GAP_UpdateAdvertisingData(hidEmuTaskId, TRUE, hidEmu_advert_payload_len, advertData);
+    if(st != SUCCESS)
     {
-        if(storage_get_config_ptr()->ble_name_data[i]=='$')
-        {
-            scanRspData[2+i] = access_state.ble_idx+0x30-BLE_INDEX_IDEL;
-//                need_update = 1;
-        }
+        return (uint8_t)st;
     }
-    GGS_SetParameter(GGS_DEVICE_NAME_ATT, storage_get_config_ptr()->ble_name_len, (void *)&scanRspData[2]);
-    return GAP_UpdateAdvertisingData( hidEmuTaskId, FALSE, storage_get_config_ptr()->ble_name_len+2, scanRspData );
+    st = GAP_UpdateAdvertisingData(hidEmuTaskId, FALSE, hidEmu_scan_rsp_payload_len, scanRspData);
+    return (uint8_t)st;
 }
 
 /*********************************************************************
@@ -1282,13 +1351,36 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 
                 // get connection handle
                 hidEmuConnHandle = event->connectionHandle;
+                hidEmu_link_established_ms = timer_read32();
+                dprint("[PAIR] link established handle=%x int=%x pairing=%x idx=%x\n",
+                       event->connectionHandle, event->connInterval,
+                       access_state.pairing_state, access_state.ble_idx);
+                dprint("[PAIR] link ctx bonded=%x secure=%x wait_term=%lu send_disc=%lu sec_req=%lu adv_stage=%x conn=%x\n",
+                       hidEmu_is_ble_bonded(access_state.ble_idx), hidDevConnSecure,
+                       (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, WAIT_TERMINATE_EVT),
+                       (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, SEND_DISCONNECT_EVT),
+                       (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, PERI_SECURITY_REQ_EVT),
+                       reconnect_adv_fallback_stage, hidEmuConnHandle);
                 access_state.deep_sleep_flag = FALSE;
-                reconnect_adv_fallback_stage = 1;
+                dprint("[ADV_STAGE] connected %x->0 idx=%x pairing=%x\n",
+                       reconnect_adv_fallback_stage, access_state.ble_idx,
+                       access_state.pairing_state);
+                reconnect_adv_fallback_stage = 0;
                 access_ble_notify_connected(access_state.ble_idx);
                 access_ble_cancel_deep_sleep_evt();
                 centralConnHandle = event->connectionHandle;//锟斤拷锟斤拷锟斤拷锟接撅拷锟? 系统识锟斤拷使锟斤拷
 
-                OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
+                OSAL_StopTask(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
+                if((hidEmu_is_ble_bonded(access_state.ble_idx) == 0u) || (access_state.pairing_state != 0u))
+                {
+                    dprint("[PAIR] request security immediately bonded=%x pairing=%x\n",
+                           hidEmu_is_ble_bonded(access_state.ble_idx), access_state.pairing_state);
+                    OSAL_SetEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
+                }
+                else
+                {
+                    OSAL_SetDelayedEvent(hidEmuTaskId, PERI_SECURITY_REQ_EVT, 4800);//锟斤拷锟杰帮拷全锟斤拷锟斤拷
+                }
                 OSAL_StopTask(hidEmuTaskId, BLE_CLEAR_BUF_EVT);
                 if( OSAL_GetTaskTimer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/ )
                 {
@@ -1354,6 +1446,15 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
                     }
                     else
                     {
+                        if(hidEmu_is_ble_bonded(access_state.ble_idx) &&
+                           (!access_state.pairing_state) &&
+                           (reconnect_adv_fallback_stage == 0))
+                        {
+                            dprint("[ADV_STAGE] waiting_restart %x->1 idx=%x pairing=%x\n",
+                                   reconnect_adv_fallback_stage, access_state.ble_idx,
+                                   access_state.pairing_state);
+                            reconnect_adv_fallback_stage = 1;
+                        }
                         // limit广播自动停止，重新打开即可
                         hidEmu_adv_enable(ENABLE);
                     }
@@ -1386,10 +1487,39 @@ static void hidEmuStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
             else if(pEvent->gap.opcode == GAP_LINK_TERMINATED_EVENT)
             {
                 dprint("GAP_LINK_TERMINATED_EVENT..\n");
+                dprint("[PAIR] terminate reason=%x pairing=%x idx=%x con_work_mode=%x\n",
+                       pEvent->linkTerminate.reason, access_state.pairing_state,
+                       access_state.ble_idx, con_work_mode);
                 dprint("[TRACE_DISC] terminate reason=%x con_work_mode=%x idx=%x pairing=%x deep=%x\n",
                        pEvent->linkTerminate.reason, con_work_mode, access_state.ble_idx,
                        access_state.pairing_state, access_state.deep_sleep_flag);
-                reconnect_adv_fallback_stage = 1;
+                dprint("[PAIR] terminate ctx elapsed=%lu secure=%x sec_req=%lu svc_disc=%lu rw=%lu cccd=%lu adv_stage=%x\n",
+                       (unsigned long)timer_elapsed32(hidEmu_link_established_ms),
+                       hidDevConnSecure,
+                       (unsigned long)OSAL_GetTaskTimer(hidEmuTaskId, PERI_SECURITY_REQ_EVT),
+                       (unsigned long)OSAL_GetTaskTimer(centralTaskId, START_SVC_DISCOVERY_EVT),
+                       (unsigned long)OSAL_GetTaskTimer(centralTaskId, START_READ_OR_WRITE_EVT),
+                       (unsigned long)OSAL_GetTaskTimer(centralTaskId, START_WRITE_CCCD_EVT),
+                       reconnect_adv_fallback_stage);
+                if(OSAL_GetTaskTimer(centralTaskId, START_SVC_DISCOVERY_EVT))
+                {
+                    OSAL_StopTask(centralTaskId, START_SVC_DISCOVERY_EVT);
+                }
+                if(OSAL_GetTaskTimer(centralTaskId, START_READ_OR_WRITE_EVT))
+                {
+                    OSAL_StopTask(centralTaskId, START_READ_OR_WRITE_EVT);
+                }
+                if(OSAL_GetTaskTimer(centralTaskId, START_WRITE_CCCD_EVT))
+                {
+                    OSAL_StopTask(centralTaskId, START_WRITE_CCCD_EVT);
+                }
+                centralDiscState = BLE_DISC_STATE_IDLE;
+                centralProcedureInProgress = FALSE;
+                centralSvcStartHdl = 0;
+                centralSvcEndHdl = 0;
+                centralCharHdl = 0;
+                centralCCCDHdl = 0;
+                centralConnHandle = GAP_CONNHANDLE_INIT;
                 access_ble_notify_disconnected(access_state.ble_idx, pEvent->linkTerminate.reason);
                 if(OSAL_GetTaskTimer(hidEmuTaskId, WAIT_TERMINATE_EVT))
                 {

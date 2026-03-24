@@ -48,7 +48,7 @@ void indicator_battery_low_enable(bool enable) {
 static uint8_t host_index = 0;
 static uint8_t led_state  = 0;
 //系统状态变量
-uint8_t host_system_type = 0;
+uint8_t host_system_type = IOS;
 
 wt_func_t  wireless_transport;
 #ifdef P2P4G_ENABLE_FLAG

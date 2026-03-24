@@ -34,6 +34,7 @@
 typedef enum {
     // INPUT_MATRIX_SCAN_EVT  = 1 << 0,  // 移除：改用 main loop 标志位
     INPUT_MATRIX_CHANGED_EVT  = 1 << 1,  /**< 矩阵数据变化事件 */
+    INPUT_TOUCH_TOGGLE_EVT    = 1 << 2,  /**< 触控板锁定/解锁切换事件 */
     INPUT_BATTERY_DETE_EVT    = 1 << 3,  /**< 电量变化事件 */
     INPUT_LPM_PREPARE_EVT     = 1 << 4,  /**< LPM prepare（Idle/Deep，mode 通过 lpm_get_mode() 查询） */
     INPUT_LPM_RESUME_EVT      = 1 << 5,  /**< LPM resume（Idle/Deep 唤醒后恢复） */

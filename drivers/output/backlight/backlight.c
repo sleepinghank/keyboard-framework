@@ -67,7 +67,6 @@ static void apply_output(void) {
 #else
         bl_hal_set_single(0);
 #endif
-    dprintf("backlight_set_rgb: 0, 0, 0\r\n");
         return;
     }
 
@@ -75,7 +74,6 @@ static void apply_output(void) {
     uint8_t r = (uint16_t)bl_state.color.r * bl_state.brightness / 100;
     uint8_t g = (uint16_t)bl_state.color.g * bl_state.brightness / 100;
     uint8_t b = (uint16_t)bl_state.color.b * bl_state.brightness / 100;
-    dprintf("r: %d, g: %d, b: %d\r\n", r, g, b);
     bl_hal_set_rgb(r, g, b);
 #else
     bl_hal_set_single(bl_state.brightness);
@@ -309,7 +307,6 @@ void backlight_color_step(void) {
     if (bl_current_color_index >= BL_COLOR_COUNT) {
         bl_current_color_index = BL_COLOR_RED;
     }
-    dprintf("backlight_color_step: %d\r\n", bl_current_color_index);
     backlight_set_preset_color(bl_current_color_index);
 }
 

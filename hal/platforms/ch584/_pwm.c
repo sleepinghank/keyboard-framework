@@ -422,7 +422,6 @@ bool pwm_bind_pin(pin_t pin, pwm_channel_t channel) {
     /* 查找第一个设置的通道位 */
     for (i = 0; i < 8; i++) {
         if (channel & (1 << i)) {
-            dprintf("1");
             /* 检查此引脚是否已绑定到其他通道 */
             int j;
             for (j = 0; j < 8; j++) {
