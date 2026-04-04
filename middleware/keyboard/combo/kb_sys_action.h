@@ -32,4 +32,7 @@ uint8_t C_Special_Combo(uint16_t* add_keys);
 uint8_t Page_Up(uint16_t* add_keys);
 //page down
 uint8_t Page_Down(uint16_t* add_keys);
+
+uint8_t Touch_Button_down(uint16_t* add_keys);
+uint8_t Touch_Button_up(uint16_t* add_keys);
 #endif

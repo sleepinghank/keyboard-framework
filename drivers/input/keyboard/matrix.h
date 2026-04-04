@@ -20,7 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdint.h>
 #include <stdbool.h>
 #include "gpio.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 /* diode directions */
 #define COL2ROW 0
@@ -99,11 +99,7 @@ void matrix_prepare_wakeup(void);
  */
 void matrix_resume_from_sleep(void);
 
-/**
- * @brief 唤醒后立即执行一次矩阵扫描
- * @note  用于检测触发唤醒的那个按键，防止首键丢失
- */
-void matrix_scan_once_after_wakeup(void);
+
 
 /**
  * @brief 获取矩阵唤醒回调函数

@@ -1,5 +1,5 @@
 #include "event_manager.h"
-#include "sys_error.h"
+#include "system_enums.h"
 #include "CH58xBLE_LIB.h"
 /**
  * @brief   注册事件处理回调函数
@@ -152,8 +152,8 @@ void OSAL_SystemProcessOnce(void) {
     TMOS_SystemProcess();
 }
 
-__attribute__((used))
-__HIGH_CODE
+// __attribute__((used))
+// __HIGH_CODE
 void OSAL_SystemProcess(void){
     while(1)
     {

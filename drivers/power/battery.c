@@ -291,15 +291,15 @@ uint8_t battery_get_power_state(void) {
 void battery_measure(void) {
 #ifdef BATTERY_ADC_PIN
     g_adc_value = adc_read_average(ADC_CHANNEL_4, 4);
-    dprintf("ADC值(4次平均): %d\n", g_adc_value);
+    dprintf("ADC value (4 times average): %d\n", g_adc_value);
 
     // 计算电压
     g_battery_voltage = battery_calculate_voltage_from_adc(g_adc_value);
-    dprintf("电压: %d\n", g_battery_voltage);
+    dprintf("voltage: %d\n", g_battery_voltage);
 
     // 根据电压计算电量百分比
     g_battery_percentage = battery_voltage_to_percentage(g_battery_voltage);
-    dprintf("电量百分比: %d\n", g_battery_percentage);
+    dprintf("battery percentage: %d\n", g_battery_percentage);
 #else
     // 如果没有ADC引脚，使用默认电压
     g_adc_value = 0;

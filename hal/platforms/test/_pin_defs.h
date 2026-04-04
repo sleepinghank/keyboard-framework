@@ -16,10 +16,16 @@
 #pragma once
 
 
-#define PAL_LINE(port, pad) ((port) << 6) | (pad)
+#define PAL_LINE(port, pad) (((port) << 6) | (pad))
 
 #define PORTA 0
 #define PORTB 1
+
+/* GPIO 解析宏 */
+#define GPIO_PORT_MASK  0xC0
+#define GPIO_PIN_MASK   0x3F
+#define GET_GPIO_PORT(gpio) (((gpio) & GPIO_PORT_MASK) >> 6)
+#define GET_GPIO_PIN(gpio)  ((gpio) & GPIO_PIN_MASK)
 
 #ifdef PORTA
 #    define A0 PAL_LINE(PORTA, 0)

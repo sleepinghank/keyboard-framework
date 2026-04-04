@@ -28,6 +28,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "system_service.h"
 #include "event_manager.h"
 #include "gpio.h"
+#include "input_service.h"
+
+#if (CHIP_TYPE == CHIP_CH584M)
+#include "CH58x_gpio.h"
+#include "CH58x_pwr.h"
+#endif
 
 #  define ROWS_PER_HAND (MATRIX_ROWS)
 
@@ -45,12 +51,12 @@ void matrix_read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col,
 
 
 static inline void setPinOutput_writeLow(pin_t pin) {
-    setPinOutput(pin);
+    // setPinOutput(pin);
     writePinLow(pin);
 }
 
 static inline void setPinOutput_writeHigh(pin_t pin) {
-    setPinOutput(pin);
+    // setPinOutput(pin);
     writePinHigh(pin);
 }
 
@@ -77,8 +83,10 @@ static bool select_col(uint8_t col) {
 static void unselect_col(uint8_t col) {
     pin_t pin = col_pins[col];
     if (pin != NO_PIN) {
+        // writePinHigh(pin);
+        // setPinInputHigh(pin);
+        setPinOutput(pin);
         writePinHigh(pin);
-        setPinInputHigh(pin);
     }
 }
 
@@ -109,7 +117,6 @@ void matrix_read_rows_on_col(matrix_row_t current_matrix[], uint8_t current_col,
     for (uint8_t row_index = 0; row_index < ROWS_PER_HAND; row_index++) {
         // Check row pin state
         if (readMatrixPin(row_pins[row_index]) == 0) {
-            // dprintf("downkey:%d,%d\r\n", row_index, current_col);
             // Pin LO, set col bit
             current_matrix[row_index] |= row_shifter;
             key_pressed = true;
@@ -155,7 +162,6 @@ uint8_t matrix_scan(void) {
     }
 
     changed = debounce(raw_matrix, matrix, ROWS_PER_HAND, changed);
-
 
     return (uint8_t)changed;
 }
@@ -270,13 +276,13 @@ bool peek_matrix(uint8_t row_index, uint8_t col_index, bool raw) {
  *==========================================*/
 
 /* 外部声明 */
-extern uint8_t system_taskID;
+#include "PMU.h"
 
 /* 矩阵唤醒回调（由 HAL ISR 调用） */
 void matrix_wakeup_cb(pin_t pin) {
     (void)pin;  /* 唤醒后全矩阵扫描，无需识别具体唤醒源 */
-    /* 触发系统唤醒事件（由 system_service 处理） */
-    OSAL_SetEvent(system_taskID, SYSTEM_LPM_WAKE_EVT);
+    input_set_last_wakeup_source(LPM_WAKEUP_MATRIX);
+    return;
 }
 
 /* 获取矩阵唤醒回调（供外部唤醒源共享） */
@@ -296,8 +302,7 @@ void matrix_prepare_wakeup(void) {
     for (uint8_t c = 0; c < MATRIX_COLS; c++) {
         pin_t pin = col_pins[c];
         if (pin != NO_PIN) {
-            setPinOutput(pin);
-            writePinLow(pin);
+            setPinOutput_writeLow(pin);
         }
     }
 
@@ -324,12 +329,4 @@ void matrix_resume_from_sleep(void) {
             setPinInputHigh(row_pins[r]);
         }
     }
-}
-
-/**
- * @brief 唤醒后立即执行一次矩阵扫描
- * @note  用于检测触发唤醒的那个按键，防止首键丢失
- */
-void matrix_scan_once_after_wakeup(void) {
-    matrix_scan();
 }

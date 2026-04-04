@@ -19,18 +19,18 @@
  * @brief 背光模块配置
  *
  * 配置加载顺序：
- * 1. 产品配置 (keyboards/kb904/config.h) - 定义覆盖值
+ * 1. 产品配置 (keyboards/kb904/config_product.h) - 定义覆盖值
  * 2. 默认配置 (defaults/backlight_defaults.h) - 使用 #ifndef 保护
  * 3. 本文件 - 硬件引脚和 PWM 通道配置
  */
 
 #pragma once
 
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "pwm.h"
 
 /* ============ 默认配置加载 ============ */
-/* 如果使用新的配置系统，defaults 在产品 config.h 中已包含 */
+/* 如果使用新的配置系统，defaults 在产品 config_product.h 中已包含 */
 /* 否则从这里加载默认值 */
 
 #ifndef BACKLIGHT_DEFAULT_ON
@@ -46,7 +46,7 @@
 
 /* ============ 背光类型配置 ============ */
 
-// 在产品 config.h 中定义以下宏之一:
+// 在产品 config_product.h 中定义以下宏之一:
 // #define BACKLIGHT_TYPE_SINGLE   // 单色灯模式
 // #define BACKLIGHT_TYPE_RGB      // RGB三色灯模式
 

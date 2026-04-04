@@ -61,7 +61,7 @@ uint32_t Lib_Read_Flash(uint32_t addr, uint32_t num, uint32_t *pBuf)
  */
 uint32_t Lib_Write_Flash(uint32_t addr, uint32_t num, uint32_t *pBuf)
 {
-    EEPROM_ERASE(addr, num * 4);
+    EEPROM_ERASE(addr, BLE_SNV_BLOCK * BLE_SNV_NUM);
     EEPROM_WRITE(addr, pBuf, num * 4);
     return 0;
 }

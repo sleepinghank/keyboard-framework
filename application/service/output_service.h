@@ -15,21 +15,15 @@
  * - LPM 低功耗管理
  */
 
-/**
- * @brief 输出服务事件枚举
- */
-typedef enum {
-    OUTPUT_INDICATOR_EVT            = 1 << 0,  /**< 指示灯事件 */
-    OUTPUT_BACKLIGHT_BRIGHTNESS_EVT = 1 << 1,  /**< 背光灯亮度事件 */
-    OUTPUT_BACKLIGHT_COLOR_EVT      = 1 << 2,  /**< 背光灯颜色事件 */
-    OUTPUT_SEND_HID_KEYBOARD_EVT    = 1 << 3,  /**< 发送HID键盘事件 */
-    OUTPUT_SEND_MOUSE_REPORT_EVT    = 1 << 4,  /**< 发送鼠标报文事件 */
-    OUTPUT_SEND_TOUCH_REPORT_EVT    = 1 << 5,  /**< 发送触控板报文事件 */
-    OUTPUT_LPM_PREPARE_EVT          = 1 << 6,  /**< LPM prepare（Deep 时关灯，Idle 无操作） */
-    OUTPUT_LPM_RESUME_EVT           = 1 << 7,  /**< LPM resume（Deep 唤醒后恢复灯效） */
-    OUTPUT_BACKLIGHT_SLEEP_EVT      = 1 << 8,  /**< 背光 5 秒无操作自动休眠事件 */
-    OUTPUT_BATTERY_CHECK_EVT        = 1 << 9,  /**< 电池电量检查事件 */
-} output_task_event_t;
+/* 输出服务事件定义 */
+#define OUTPUT_INDICATOR_EVT            (1 << 0)  /* 指示灯事件 */
+#define OUTPUT_BACKLIGHT_BRIGHTNESS_EVT (1 << 1)  /* 背光灯亮度事件 */
+#define OUTPUT_BACKLIGHT_COLOR_EVT      (1 << 2)  /* 背光灯颜色事件 */
+#define OUTPUT_SEND_HID_KEYBOARD_EVT    (1 << 3)  /* 发送HID键盘事件 */
+#define OUTPUT_SEND_MOUSE_REPORT_EVT    (1 << 4)  /* 发送鼠标报文事件 */
+#define OUTPUT_SEND_TOUCH_REPORT_EVT    (1 << 5)  /* 发送触控板报文事件 */
+#define OUTPUT_BACKLIGHT_SLEEP_EVT      (1 << 8)  /* 背光 5 秒无操作自动休眠事件 */
+#define OUTPUT_BATTERY_CHECK_EVT        (1 << 9)  /* 电池电量检查事件 */
 
 /**
  * @brief 指示灯请求类型

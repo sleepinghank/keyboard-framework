@@ -16,14 +16,15 @@
 
 #include "wireless.h"
 #include "indicator.h"
-#include "lpm.h"
 #include "transport.h"
+#include "PMU.h"
 #include "timer.h"
 #include "host_driver.h"
 #include "keycode_config.h"
 #include "host.h"
 #include "wait.h"
 #include "storage.h"
+#include "debug.h"
 
 #ifndef REINIT_LED_DRIVER
 #    define REINIT_LED_DRIVER 0
@@ -84,11 +85,8 @@ void bt_transport_enable(bool enable) {
 
         host_set_driver(&wireless_driver);
 
-        if (bt_transport_is_bonded(host_idx)) {
-            wireless_connect_ex(host_idx, 0);
-        } else {
-            wireless_pairing_ex(host_idx, NULL);
-        }
+        wireless_connect_ex(host_idx, NULL);
+        
     } else {
         // indicator_stop();
 
@@ -167,7 +165,6 @@ void set_transport(transport_t new_transport) {
 #endif
 
         transport = new_transport;
-        // dprintf("Transport: Switching to %d\n", transport);
 
         switch (transport) {
 #ifdef USB_ENABLE_FLAG
@@ -200,7 +197,7 @@ void set_transport(transport_t new_transport) {
 #ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
-                lpm_timer_reset();
+                PMU_Update();
                 break;
 #endif
 
@@ -216,7 +213,7 @@ void set_transport(transport_t new_transport) {
 #ifdef USB_ENABLE_FLAG
                 usb_transport_enable(false);
 #endif
-                lpm_timer_reset();
+                PMU_Update();
                 break;
 #endif
 
@@ -230,7 +227,7 @@ void set_transport(transport_t new_transport) {
 
 // 驱动切换通知函数实现
 void transport_notify_driver_switch(transport_t new_transport) {
-    kc_printf("Transport: Notifying driver switch to %d\n", new_transport);
+    LOG_I("[TRANS] driver switch to %d", new_transport);
 
     switch (new_transport) {
 #ifdef USB_ENABLE_FLAG
@@ -277,7 +274,7 @@ static void reinit_led_drvier(void) {
 #endif
 
 void transport_changed(transport_t new_transport) {
-    kc_printf("transport_changed %d\n\r", new_transport);
+    (void)new_transport;
     // indicator_init();
 
 #if (REINIT_LED_DRIVER)

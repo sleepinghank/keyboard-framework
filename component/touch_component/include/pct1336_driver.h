@@ -15,7 +15,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-
+#include "kb904/config_product.h"
 /*********************************************************************
  * CONSTANTS 常量
  */
@@ -67,7 +67,7 @@ typedef enum {
 /*********************************************************************
  * MACROS 宏定义
  */
-#define	TP_MAX_CONTACT_COUNT							4 // 最大总触摸点数
+
 #define	TP_MAX_CONTACT_ID						6 // 报告的最大ID
 
 /*********************************************************************

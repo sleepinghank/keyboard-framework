@@ -15,6 +15,7 @@
  */
 
 #include "uart.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include "pin_mapper.h"
 #include <stdbool.h>

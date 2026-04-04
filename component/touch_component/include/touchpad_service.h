@@ -18,7 +18,7 @@
  * INCLUDES 头文件
  */
 #include "pct1336_driver.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "report.h"
 #ifdef MCS_GESTURE
 #include "mcs_gesture.h"
@@ -26,6 +26,7 @@
 #ifdef BAYES_MISTOUCH
 #include "bayes_filtering.h"
 #endif
+#include "report.h"
 /*********************************************************************
  * CONSTANTS 常量
  */
@@ -42,40 +43,31 @@ typedef enum
 /*********************************************************************
  * TYPEDEFS 数据结构
  */
-typedef struct ContactReport
-{	
-	uint8_t tip:1; // 是否离开表面开关
-	uint8_t confidence:1; // 置信度
-	uint8_t contact_id:6; // 接触ID
-	uint8_t x_l8;	// X坐标低8位
-	uint8_t x_m4:4; // X坐标高4位
-	uint8_t y_l4:4;	 //	Y坐标低4位
-	uint8_t y_m8; //	Y坐标高8位
-}contact_report_t;
 
-typedef struct HidPTPReport
-{	
-	uint8_t scantime_l8;
-	uint8_t scantime_m8;
-    uint8_t button:1;
-    uint8_t button1:1;
-    uint8_t button2:1;
-    uint8_t Reserved:5;
-	contact_report_t contact_rpt[TP_MAX_CONTACT_COUNT];
-	uint8_t contactCnt;
-}hid_ptp_report_t;
+
+// typedef struct HidPTPReport
+// {	
+// 	uint8_t scantime_l8;
+// 	uint8_t scantime_m8;
+//     uint8_t button:1;
+//     uint8_t button1:1;
+//     uint8_t button2:1;
+//     uint8_t Reserved:5;
+// 	contact_report_t contact_rpt[TP_MAX_CONTACT_COUNT];
+// 	uint8_t contactCnt;
+// }report_ptp_t;
  
 
-typedef struct HidMouseReport
-{	
-	uint8_t button;
-	uint8_t x_l8:8;
-	uint8_t x_m4:4; 
-	uint8_t y_l4:4;	
-	uint8_t y_m8:8;	
-	uint8_t wheel;
-	uint8_t twheel;
-}hid_mouse_report_t;
+// typedef struct HidMouseReport
+// {	
+// 	uint8_t button;
+// 	uint8_t x_l8:8;
+// 	uint8_t x_m4:4; 
+// 	uint8_t y_l4:4;	
+// 	uint8_t y_m8:8;	
+// 	uint8_t wheel;
+// 	uint8_t twheel;
+// }report_mouse_t;
 
 typedef struct AntiMistouchData {
     uint8_t is_new; // 是否新数据

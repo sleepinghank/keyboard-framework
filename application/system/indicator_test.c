@@ -1,12 +1,13 @@
 #include "indicator_test.h"
 #include "gpio.h"
+#include "debug.h"
 #ifdef INDICATOR_TEST_ENABLE
 
 #include <stdint.h>
 
 #include "event_manager.h"
 #include "indicator.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 typedef enum {
     TEST_PHASE_WHITE_ON = 0,

@@ -17,7 +17,9 @@
 #include "hidkbdservice.h"
 #include "hiddev.h"
 #include "battservice.h"
+#include "kb904/config_product.h"
 #include "CH585SFR.h"
+#include "touchpad.h"
 /*********************************************************************
  * MACROS
  */
@@ -80,12 +82,12 @@ const uint8_t hidProtocolModeUUID[ATT_BT_UUID_SIZE] = {
 // HID Information characteristic value
 static const uint8_t hidInfo[HID_INFORMATION_LEN] = {
     LO_UINT16(0x0111), HI_UINT16(0x0111), // bcdHID (USB HID version)
-    0x00,                                 // bCountryCode
+    HID_COUNTRY_CODE,                     // bCountryCode（编译时配置）
     HID_FEATURE_FLAGS                     // Flags
 };
 #define APPLE   0
 //#define ENABLE_MAC_FN_REPORT   1
-#define MOUSE   0
+#define MOUSE   1
 //#define SMART_WHEEL   1
 #define TOUCH    1
 
@@ -234,66 +236,22 @@ static const uint8_t hidReportMap[] = {
 //    0x09, 0x83,        //   Usage (Sys Wake Up)
 //    0x81, 0x06,        //   Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
 //    0xC0,              // End Collection
-#if TOUCH
-    0x05, 0x0D , // USAGE PAGE (Digitizer Device Page)
-    0x09, 0x05 , // USAGE (Touch Pad)
-    0xA1, 0x01 , // COLLECTION (Application)
-    0x85, 0x03, //  REPORT_ID (2) 先使用鼠标一样的
-
-    FINGER_IOS(0)  FINGER_IOS(1) FINGER_IOS(2) FINGER_IOS(3)
-
-    0x05, 0x0D,        //   Usage Page (Digitizer)
-	// 0x55, 0x0C,        //   Unit Exponent (-4)
-	// 0x66, 0x01, 0x10,  //   Unit (System: SI Linear, Time: Seconds)
-	// 0x47, 0xFF, 0xFF, 0x00, 0x00,  //   Physical Maximum (65534)
-	0x27, 0xFF, 0xFF, 0x00, 0x00,  //   Logical Maximum (65534)
-	0x75, 0x10,        //   Report Size (16)
-	0x95, 0x01,        //   Report Count (1)
-	0x09, 0x56,        //   Usage (0x56)
-	0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    0x05, 0x09 , //  USAGE PAGE (Button Page)
-    0x25, 0x01 , //  LOGICAL MAXIMUM (1)
-    0x19, 0x01 , //  USAGE MINIMUM (Button 1)
-    0x29, 0x02 , //  USAGE MAXIMUM (Button 2)
-    0x95, 0x02 , //  REPORT COUNT (2)
-    0x75, 0x01 , //  REPORT SIZE (1)
-    0x81, 0x02 , //  INPUT (Data,Var,Abs)
-    0x95, 0x06 , //  REPORT COUNT (6)
-    0x81, 0x01 , //  INPUT (Cost, Ary, Abs)
-    0xC0,  // END COLLECTION (Application)
-
-    0x05, 0x0D , // USAGE PAGE (Digitizer Device Page)
-    0x09, 0x05 , // USAGE (Touch Pad)
-    0xA1, 0x01 , // COLLECTION (Application)
-    0x85, 0x07, //  REPORT_ID (8) 待定 先使用不重复的
-    0x25, 0x01 , //  LOGICAL MAXIMUM (1)
-    0x75, 0x01 , //  REPORT SIZE (1)
-    0x95, 0x01,  //REPORT COUNT (1)
-    0x09, 0x57 , //  USAGE (Surface Switch)
-    0xB1, 0x02 , //  FEATURE (Data,Var,Abs)
-    0x26, 0xFF ,0x7F , //  LOGICAL MAXIMUM (32767)
-    0x75, 0x0F , //  REPORT SIZE (15)
-    0x95, 0x01,  //REPORT COUNT (1)
-    0x09, 0xA1 , //  USAGE (Report Rate)
-    0xB1, 0x02 , //  FEATURE (Data,Var,Abs)
-    0xC0,  // END COLLECTION (Application)
-#endif
 #if MOUSE
     0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
     0x09, 0x02,        // Usage (Mouse)
     0xA1, 0x01,        // Collection (Application)
-    0x85,HID_RPT_ID_MOUSE_IN,                  //6     GLOBAL_REPORT_ID(3)
+    0x85, HID_RPT_ID_MOUSE_IN, //   Report ID (4)
     0x09, 0x01,        //   Usage (Pointer)
     0xA1, 0x00,        //   Collection (Physical)
     0x05, 0x09,        //     Usage Page (Button)
     0x19, 0x01,        //     Usage Minimum (0x01)
-    0x29, 0x03,        //     Usage Maximum (0x03)
+    0x29, 0x05,        //     Usage Maximum (0x05)
     0x15, 0x00,        //     Logical Minimum (0)
     0x25, 0x01,        //     Logical Maximum (1)
     0x75, 0x01,        //     Report Size (1)
-    0x95, 0x03,        //     Report Count (3)
+    0x95, 0x05,        //     Report Count (5)
     0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    0x75, 0x05,        //     Report Size (5)
+    0x75, 0x03,        //     Report Size (3)
     0x95, 0x01,        //     Report Count (1)
     0x81, 0x01,        //     Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
     0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
@@ -305,50 +263,143 @@ static const uint8_t hidReportMap[] = {
     0x75, 0x08,        //     Report Size (8)
     0x95, 0x03,        //     Report Count (3)
     0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x0C,        //     Usage Page (Consumer)
+    0x0A, 0x38, 0x02,  //     Usage (AC Pan)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
     0xC0,              //   End Collection
     0xC0,              // End Collection
-
-//        0x05,0x01,                  //81    GLOBAL_USAGE_PAGE(Generic Desktop Controls)
-//        0x09,0x02,                  //83    LOCAL_USAGE(Mouse)
-//        0xA1,0x01,                  //85    MAIN_COLLECTION(Applicatior)
-//        0x09,0x01,                  //89    LOCAL_USAGE(Pointer)
-//        0xA1,0x00,                  //91    MAIN_COLLECTION(Physical)
-//        0x85,HID_RPT_ID_MOUSE_IN,                  //6     GLOBAL_REPORT_ID(3)
-//        0x05,0x09,                  //93    GLOBAL_USAGE_PAGE(Button)
-//        0x19,0x01,                  //95    LOCAL_USAGE_MINIMUM(1)
-//        0x29,0x05,                  //97    LOCAL_USAGE_MAXIMUM(5)
-//        0x15,0x00,                  //99    GLOBAL_LOGICAL_MINIMUM(0)
-//        0x25,0x01,                  //101   GLOBAL_LOCAL_MAXIMUM(1)
-//        0x95,0x05,                  //103   GLOBAL_REPORT_COUNT(5)
-//        0x75,0x01,                  //105   GLOBAL_REPORT_SIZE(1)
-//        0x81,0x02,                  //107   MAIN_INPUT(data var absolute NoWrap linear PreferredState NoNullPosition NonVolatile )  Input 18.5
-//        0x95,0x01,                  //109   GLOBAL_REPORT_COUNT(1)
-//        0x75,0x03,                  //111   GLOBAL_REPORT_SIZE(3)
-//        0x81,0x01,                  //113   MAIN_INPUT(const array absolute NoWrap linear PreferredState NoNullPosition NonVolatile )   Input 19.0
-//        0x05,0x01,                  //115   GLOBAL_USAGE_PAGE(Generic Desktop Controls)
-//        0x09,0x30,                  //117   LOCAL_USAGE(X)
-//        0x09,0x31,                  //119   LOCAL_USAGE(Y)
-//        0x16, 0x00, 0x80,  //     Logical Minimum (-32768)
-//        0x26, 0xFF, 0x7F,  //     Logical Maximum (32767)
-//        0x75,0x10,                  //127   GLOBAL_REPORT_SIZE(16)
-//        0x95,0x02,                  //129   GLOBAL_REPORT_COUNT(2)
-//        0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
-//        0x09,0x38,                  //121   LOCAL_USAGE(Wheel)
-//        0x15,0x81,                  //123   GLOBAL_LOGICAL_MINIMUM(-127)
-//        0x25,0x7F,                  //125   GLOBAL_LOCAL_MAXIMUM(127)
-//        0x75,0x08,                  //127   GLOBAL_REPORT_SIZE(8)
-//        0x95,0x01,                  //129   GLOBAL_REPORT_COUNT(1)
-//        0x81,0x06,                  //131   MAIN_INPUT(data var relative NoWrap linear PreferredState NoNullPosition NonVolatile )  Input 22.0
-//        0x95, 0x01,        //     Report Count (1)
-//        0x05, 0x0C,        //     Usage Page (Consumer)
-//        0x0A, 0x38, 0x02,  //     Usage (AC Pan)
-//        0x81, 0x06,        //     Input (Data,Var,Rel,No Wrap,Linear,Preferred State,No Null Position)
-//        0xC0,                       //133   MAIN_COLLECTION_END
-//        0xC0,                       //134   MAIN_COLLECTION_END
-
-
 #endif
-
+#if TOUCH
+    0x05, 0x0D,        // Usage Page (Digitizer)
+    0x09, 0x05,        // Usage (Touch Pad)
+    0xA1, 0x01,        // Collection (Application)
+    0x85, 0x03,        //   Report ID (2)
+    0x27, 0xFF, 0xFF, 0x00, 0x00,  //   Logical Maximum (65534)
+    0x09, 0x56,        //   Usage (0x56)
+    0x75, 0x10,        //   Report Size (16)
+    0x95, 0x01,        //   Report Count (1)
+    0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x25, 0x01,        //   Logical Maximum (1)
+    0x75, 0x01,        //   Report Size (1)
+    0x09, 0x57,        //   Usage (0x57)
+    0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+    0x26, 0xFF, 0x7F,  //   Logical Maximum (32767)
+    0x75, 0x0F,        //   Report Size (15)
+    0x09, 0xA1,        //   Usage (0xA1)
+    0xB1, 0x02,        //   Feature (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position,Non-volatile)
+    0x05, 0x09,        //   Usage Page (Button)
+    0x25, 0x01,        //   Logical Maximum (1)
+    0x19, 0x01,        //   Usage Minimum (0x01)
+    0x29, 0x02,        //   Usage Maximum (0x02)
+    0x95, 0x02,        //   Report Count (2)
+    0x75, 0x01,        //   Report Size (1)
+    0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x95, 0x06,        //   Report Count (6)
+    0x81, 0x01,        //   Input (Const,Array,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x0D,        //   Usage Page (Digitizer)
+    0x09, 0x22,        //   Usage (Finger)
+    0xA1, 0x00,        //   Collection (Physical)
+    0x09, 0x42,        //     Usage (Tip Switch)
+    0x09, 0x47,        //     Usage (0x47)
+    0x95, 0x02,        //     Report Count (2)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x25, 0x04,        //     Logical Maximum (4)
+    0x09, 0x38,        //     Usage (Transducer Index)
+    0x75, 0x06,        //     Report Size (6)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X >> 8,//     Physical Maximum (1016)
+    0x35, 0x00,        //     Physical Minimum (0)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_X >> 8,//     Logical Maximum (1727)
+    0x75, 0x0C,        //     Report Size (12)
+    0x55, 0x0E,        //     Unit Exponent (-2)
+    0x65, 0x11,        //     Unit (System: SI Linear, Length: Centimeter)
+    0x09, 0x30,        //     Usage (X)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y >> 8, //     Physical Maximum (555)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y >> 8,//     Logical Maximum (943)
+    0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0xC0,              //   End Collection
+    0x05, 0x0D,        //   Usage Page (Digitizer)
+    0x09, 0x22,        //   Usage (Finger)
+    0xA1, 0x00,        //   Collection (Physical)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x09, 0x42,        //     Usage (Tip Switch)
+    0x09, 0x47,        //     Usage (0x47)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x02,        //     Report Count (2)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x09, 0x38,        //     Usage (Transducer Index)
+    0x25, 0x04,        //     Logical Maximum (4)
+    0x75, 0x06,        //     Report Size (6)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X >> 8,//     Physical Maximum (1016)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_X >> 8,//     Logical Maximum (1727)
+    0x75, 0x0C,        //     Report Size (12)
+    0x09, 0x30,        //     Usage (X)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y >> 8, //     Physical Maximum (555)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y >> 8,//     Logical Maximum (943)
+    0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0xC0,              //   End Collection
+    0x05, 0x0D,        //   Usage Page (Digitizer)
+    0x09, 0x22,        //   Usage (Finger)
+    0xA1, 0x00,        //   Collection (Physical)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x09, 0x42,        //     Usage (Tip Switch)
+    0x09, 0x47,        //     Usage (0x47)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x02,        //     Report Count (2)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x09, 0x38,        //     Usage (Transducer Index)
+    0x25, 0x04,        //     Logical Maximum (4)
+    0x75, 0x06,        //     Report Size (6)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X >> 8,//     Physical Maximum (1016)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_X >> 8,//     Logical Maximum (1727)
+    0x75, 0x0C,        //     Report Size (12)
+    0x09, 0x30,        //     Usage (X)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y >> 8, //     Physical Maximum (555)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y >> 8,//     Logical Maximum (943)
+    0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0xC0,              //   End Collection
+    0x05, 0x0D,        //   Usage Page (Digitizer)
+    0x09, 0x22,        //   Usage (Finger)
+    0xA1, 0x00,        //   Collection (Physical)
+    0x25, 0x01,        //     Logical Maximum (1)
+    0x09, 0x42,        //     Usage (Tip Switch)
+    0x09, 0x47,        //     Usage (0x47)
+    0x75, 0x01,        //     Report Size (1)
+    0x95, 0x02,        //     Report Count (2)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x09, 0x38,        //     Usage (Transducer Index)
+    0x25, 0x04,        //     Logical Maximum (4)
+    0x75, 0x06,        //     Report Size (6)
+    0x95, 0x01,        //     Report Count (1)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_X >> 8,//     Physical Maximum (1016)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_X & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_X >> 8,//     Logical Maximum (1727)
+    0x75, 0x0C,        //     Report Size (12)
+    0x09, 0x30,        //     Usage (X)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0x46, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_PHYSICAL_Y >> 8, //     Physical Maximum (555)
+    0x26, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y & 0xff, IOS_HID_TOUCHPAD_MAX_LOGICAL_Y >> 8,//     Logical Maximum (943)
+    0x09, 0x31,        //     Usage (Y)
+    0x81, 0x02,        //     Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
+    0xC0,              //   End Collection
+    0xC0,              // End Collection
+#endif
     0x05,0x0C,                  //0     GLOBAL_USAGE_PAGE(Consumer)
     0x09,0x01,                  //2     LOCAL_USAGE(    Consumer Control    )
     0xA1,0x01,                  //4     MAIN_COLLECTION(Applicatior)
@@ -1190,11 +1241,11 @@ bStatus_t Hid_AddService(void)//HID Over GATT Profile
 #endif
 #if MOUSE
     // Mouse input report
-    hidRptMap[2].id = hidReportRefMouseIn[0];
-    hidRptMap[2].type = hidReportRefMouseIn[1];
-    hidRptMap[2].handle = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
-    hidRptMap[2].cccdHandle = hidAttrTbl[HID_REPORT_MOUSE_IN_CCCD_IDX].handle;
-    hidRptMap[2].mode = HID_PROTOCOL_MODE_REPORT;
+    hidRptMap[12].id = hidReportRefMouseIn[0];
+    hidRptMap[12].type = hidReportRefMouseIn[1];
+    hidRptMap[12].handle = hidAttrTbl[HID_REPORT_MOUSE_IN_IDX].handle;
+    hidRptMap[12].cccdHandle = hidAttrTbl[HID_REPORT_MOUSE_IN_CCCD_IDX].handle;
+    hidRptMap[12].mode = HID_PROTOCOL_MODE_REPORT;
 //    PRINT("%x \n",hidRptMap[0].cccdHandle);
 #endif
     // consumer input report
@@ -1264,7 +1315,7 @@ bStatus_t Hid_AddService(void)//HID Over GATT Profile
     hidRptMap[11].mode = HID_PROTOCOL_MODE_REPORT;
 
     // Battery level input report
-    Batt_GetParameter(BATT_PARAM_BATT_LEVEL_IN_REPORT, &(hidRptMap[12]));
+    Batt_GetParameter(BATT_PARAM_BATT_LEVEL_IN_REPORT, &(hidRptMap[13]));
 
     // Setup report ID map
     HidDev_RegisterReports(HID_NUM_REPORTS, hidRptMap);
@@ -1313,6 +1364,7 @@ uint8_t Hid_SetParameter(uint8_t id, uint8_t type, uint16_t uuid, uint8_t len, v
                     hidReportFeature = *((uint8_t *)pValue);
                 } else if (id == HID_RPT_ID_TOUCHPAD_FEATURE){
                     memcpy(hidReportTouchpadFeature, pValue, 2);
+                    touchpad_set_mode(3);
                     PRINT("Touchpad feature: %x %x\n", hidReportTouchpadFeature[0], hidReportTouchpadFeature[1]);
                 }
                 else
@@ -1376,6 +1428,8 @@ uint8_t Hid_GetParameter(uint8_t id, uint8_t type, uint16_t uuid, uint16_t *pLen
             {
                 
                 if (id == HID_RPT_ID_TOUCHPAD_FEATURE ){
+                    hidReportTouchpadFeature[0] = 0x85;
+                    hidReportTouchpadFeature[1] = 0x00;
                     PRINT("Touchpad get feature: %x %x\n", hidReportTouchpadFeature[0], hidReportTouchpadFeature[1]);
                     memcpy(pValue, hidReportTouchpadFeature, 2);
                     *pLen = 2;

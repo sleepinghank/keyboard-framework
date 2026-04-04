@@ -51,6 +51,11 @@
       <type>2</type>
       <location>PARENT-2-PROJECT_LOC/keyboards</location>
     </link>
+    <link>
+      <name>component</name>
+      <type>2</type>
+      <location>PARENT-2-PROJECT_LOC/component</location>
+    </link>
   </linkedResources>
   <filteredResources>
     <filter>

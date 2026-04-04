@@ -20,8 +20,9 @@ extern "C" {
  * - 其他平台: 需要提供对应实现
  */
 
-#if defined(CH584) || defined(CH585)
+#if 1
     /* CH584/CH585 平台 - 使用SDK延时函数 */
+    #include "kb904/config_product.h"
     #include "CH58x_common.h"
 
     /**

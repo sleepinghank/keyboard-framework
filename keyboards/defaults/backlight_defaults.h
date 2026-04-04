@@ -3,7 +3,7 @@
 /**
  * @file backlight_defaults.h
  * @brief 背光模块默认配置
- * @note 产品可通过在 config.h 中 #define 覆盖默认值
+ * @note 产品可通过在 config_product.h 中 #define 覆盖默认值
  */
 
 /* ========== 背光类型 ========== */
@@ -47,15 +47,15 @@
 
 /* ========== 预设亮度值 ========== */
 #ifndef BACKLIGHT_LEVEL_LOW
-#define BACKLIGHT_LEVEL_LOW      30
+#define BACKLIGHT_LEVEL_LOW      10
 #endif
 
 #ifndef BACKLIGHT_LEVEL_MEDIUM
-#define BACKLIGHT_LEVEL_MEDIUM   60
+#define BACKLIGHT_LEVEL_MEDIUM   15
 #endif
 
 #ifndef BACKLIGHT_LEVEL_HIGH
-#define BACKLIGHT_LEVEL_HIGH     100
+#define BACKLIGHT_LEVEL_HIGH     20
 #endif
 
 /* ========== LED 极性 ========== */

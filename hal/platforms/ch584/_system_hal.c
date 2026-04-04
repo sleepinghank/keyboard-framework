@@ -7,10 +7,12 @@
  */
 
 #include "system_hal.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include "_pin_defs.h"
 #include "pwm.h"
 #include "uart.h"
+#include "gpio.h"
 
 /* 模块初始化标志 */
 static bool g_system_initialized = false;
@@ -36,25 +38,22 @@ system_result_t system_hal_init(void)
     //时钟相关
     HSECFG_Capacitance(HSECap_18p);//负载电容配置
     HSECFG_Current(HSE_RCur_100);//晶振的驱动电流
-    SetSysClock( CLK_SOURCE_HSE_PLL_78MHz );//设置系统时钟源和频率
+    SetSysClock(SYSTEM_CLOCK_SOURCE);//设置系统时钟源和频率
     SysTick_Config(0xFFFFFFFF);//系统滴答定时器，tmos所需基准时间片
     PFIC_DisableIRQ(SysTick_IRQn);//禁用系统滴答定时器中断
     mDelaymS(2);
-    //GPIO配置 0输入1输出
+    //GPIO配置 0输入1输出 
     R32_PA_DIR &= 0;
     R32_PB_DIR &= 0;//io方向
-    R32_PA_PU |= 0xFFFFFFFF;//去掉复位脚PB23配置
-    R32_PB_PU |= 0xfffff3ff;//上拉使能，除了usb的引脚PB11,PB10,去掉PB19
-
-    GPIOA_ModeCfg(GPIO_Pin_11, GPIO_ModeIN_PD);//触摸板供电使能
-
+    R32_PA_PU |= 0xFFFFFFFF; 
+    R32_PB_PU |= 0xFFFFFFFF;
+    GPIOA_ModeCfg(GPIO_Pin_2, GPIO_ModeIN_Floating);//PA2 未使用
+    GPIOB_ModeCfg(GPIO_Pin_18, GPIO_ModeIN_Floating);//PA18 未使用
+    GPIOB_ModeCfg(GPIO_Pin_19, GPIO_ModeIN_Floating);//PA19 未使用
+    GPIOADigitalCfg(DISABLE, GPIO_Pin_2);
+    GPIOBDigitalCfg(DISABLE, GPIO_Pin_18 | GPIO_Pin_19);
     g_system_initialized = true;
-    // PWM 示例配置（可选）
 
-
-
-
-    // PRINT("System HAL Init OK!\n");
     
     // PRINT("main-----\n");
     return SYSTEM_OK;

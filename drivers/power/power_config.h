@@ -19,17 +19,17 @@
  * @brief 电源管理模块配置
  *
  * 配置加载顺序：
- * 1. 产品配置 (keyboards/kb904/config.h) - 定义覆盖值
+ * 1. 产品配置 (keyboards/kb904/config_product.h) - 定义覆盖值
  * 2. 默认配置 (defaults/power_defaults.h) - 使用 #ifndef 保护
  * 3. 本文件 - 电源驱动配置
  */
 
 #pragma once
 
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 /* ============ 默认配置加载 ============ */
-/* 如果使用新的配置系统，defaults 在产品 config.h 中已包含 */
+/* 如果使用新的配置系统，defaults 在产品 config_product.h 中已包含 */
 /* 否则使用以下默认值 */
 
 #ifndef POWER_DEEP_SLEEP_MS

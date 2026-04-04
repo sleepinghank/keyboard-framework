@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sys_config.h"
+#include "kb904/config_product.h"
 #include <stdint.h>
 
 // 编译器兼容性处理：inline 关键字

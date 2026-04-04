@@ -191,129 +191,6 @@
 正常状态下。上位机关闭触控板后功耗会降到4.1-5.2mA跳动，符合预期。异常情况，当滑动触控板，主控还未进入IDLE状态时，上位机关闭触控板，进入idle状态后，功耗会恒定在5.2mA。并不会继续下降。
 请帮我分析一下可能是哪里的原因，或者告诉我怎样快速排查问题。
 异常日志如下：
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=41
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=40
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=39
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=38
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=37
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=36
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=35
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=34
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=33
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=32
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=31
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=30
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=29
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=28
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=27
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=26
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=25
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=24
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=23
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=22
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=21
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=20
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=19
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=18
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=17
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=16
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=15
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=14
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=13
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=12
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=11
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=10
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=9
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=8
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=7
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=6
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=5
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=4
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=3
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=2
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=1
-DEBUG:SYS_IDLE
-DEBUG:_touch_pd_cnt=0
-DEBUG:Touch power off
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:[TIMEOUT] backlight timeout, turning off
-
-DEBUG:back_sleep_state=0
-
-INFO:
---------------------Backlight_Disable[TIMER] disable[5]
-
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLEDEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-INFO:[TIMEOUT] sleep timeout, entering sleep mode
-[TIMER] disable[0]
-[TIMER] === SWITCH: 5ms->5000ms, sync_sys=170146, cnt=24 ===
-[TIMER] switch interval to 5000 ms (163840 ticks)
-[TIMER] disable[1]
-
-INFO:SYS_ENTER_SLA_LCY
-
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-DEBUG:SYS_IDLE
-
-
 
 
 HID 报告描述符如下，请分析一下该报告的数据结构是怎么样的，我需要确认一下发送数据是否正确
@@ -506,3 +383,312 @@ keyboards\product_config.h
 2. DEBUG 是在编译时上下文注入的，改动串口时也同步从1改成了3。
 3. B21原本是触控板I2C 脚，现在没有接触控板，默认电压3.3v。
 4. 芯片启动失败表现为没有任何串口输出，无法进入正常的程序流程。
+
+
+
+当前项目如何做中断管理，现在中断函数注册在input_service.c，这是不合理的，应该是在hal层，在gpio.h 层的gpio_enable_interrupt中有单独的GPIO 中断注册函数，请先阅读项目架构，再设计一个合理的中断管理方案，要求如下：
+1. 中断函数注册在hal层，gpio_enable_interrupt中注册GPIO中断，
+2. 最好屏蔽内部复杂的中断处理逻辑，提供一个简单的接口供上层调用，例如注册一个回调函数，GPIO中断触发时直接调用回调函数。
+3. 需要考虑进入idle 或深度睡眠后，需要给所有row行 批量注册同一个回调函数的中断，唤醒后再批量注销中断。
+
+
+继续使用pyramid-design 
+
+
+不需要你直接实现，你只需要把文档提交，然后输出一段使用这文档进行实施的提示词，以便我在其他claude code 实现该方案。
+
+
+
+/pyramid-design 针对kb_sys_action.c中触发组合键后的事件，其中有未实现的空引用  ，请将所有组合事件都实现。   
+例如：SYS_EVT_STORAGE_WRITE 并没有绑定到OSAL 事件，并没有触发功能。检查当前文件下所有其他的OSAL 事件。将未实现的都实现一下。实现时需要先分析每个事件的触发条件和预期功能，设计一个合理的实现方案，确保每个事件都能够正确触发对应的功能。需要结合现有代码结构，提出一个合理的事件处理流程设计方案，并分析该方案是否满足项目需求，是否存在潜在问题，以及如何解决这些问题。
+
+
+请分析2860sdk.xml 关于CountryCode 的逻辑，需要在这个项目上实现同样的逻辑。其中主要的动作如下：
+1. 国家语言是编译时确定，同一个产品可能会有多个国家版本，编译时通过宏定义来区分不同的国家版本。
+2. 根据不同的国家版本，设置不同的CountryCode，CountryCode 主要影响键芯中个别键的键值，同时不同国家也有特定的组合键功能。
+3. CountryCode 可能也会在蓝牙Profile中使用，影响蓝牙连接时的行为。
+请设计一个合理的CountryCode实现方案，确保能够满足上述需求，并且能够方便后续维护和扩展。需要结合现有代码结构，提出一个合理的CountryCode实现方案，并分析该方案是否满足项目需求，是否存在潜在问题，以及如何解决这些问题。
+
+当前目录下skills:pyramid-design 还有如下需要优化的点，请评估。
+1.使用了agent 没有使用agent team，当前不可查看和管理每个agent
+2.最后实施时没有新开上下文，继续原有的上下文会导致上下文过大，影响效果和速度。应该以需求和实施文档作为入口，新开上下文来实施，避免带入过多无关信息。
+3.实施时请使用skill：superpowers:executing-plans，来进行实施。
+4.遵循金字塔原则，方案展示时首先需要展示关键核心流程，最好有流程图或者伪代码来展示核心逻辑，帮助快速理解。
+
+AskUserQuestion
+
+
+1. 系统识别后切换层
+2. Fn 定义 和 组合键。切换背光，颜色、重新配对，重置，检查电量。
+3.	蓝牙配对，回连、重新广播，忘记配对测试
+4. 触控板接入 pass
+5. Fn 与 地球键共用测试
+6. idle 功耗测试。 spike
+7. OSAL 定时器时间计算错误，需要根据时间片间隔计算。
+
+
+
+  请阅读设计文档 docs/plans/2026-03-21-kb-sys-action-events-design.md，按照第 5 节「实施计划」的 10     
+  个步骤逐步实现。                             
+
+  关键规则：
+  1. 严格按步骤顺序执行，Step 1-2 可并行，Step 3-4 可并行，Step 5-9 串行
+  2. 每步修改前先读取目标文件，确认当前内容
+  3. 代码实现必须与设计文档第 3 节的代码示例完全一致
+  4. kb_fn_action.c 中的 3 个重叠函数（Backlight_Level_Up/Backlight_Color_Next/Battery_Check）及
+  battery_blink_count 直接删除，不做委托调用
+  1. kb_combo_map.c 替换引用后，确认文件已 include kb_sys_action.h
+  2. 全部修改完成后，使用 /wch-riscv-build 进行编译验证
+  3. 编译通过后再提交，commit message 用英文
+
+  请新开一个会话，输入以下指令开始实施：                                                           
+                                               
+  请按照 DOCS/plans/2026-03-23-combo-timer-elapsed-design.md 的实施计划进行开发。
+  使用 /superpowers:executing-plans 来执行实施。
+
+当前项目的蓝牙功能广播和回连不稳定，配对模式经常连不上，连接成功后重新开关机没有回连。需要重新分析bt_driver_connect_ex方法和bt_driver_pairing_ex的实现。现在已知另一个demo工程（pcl004-ch59x.xml 中包含了所有代码）可正常实现蓝牙的广播回连，请分析一下两个项目中这两个方法的实现差异，找出可能导致当前项目蓝牙功能不稳定的原因，并提出解决方案。需要结合现有代码结构，提出一个合理的事件处理流程设计方案，并分析该方案是否满足项目需求，是否存在潜在问题，以及如何解决这些问题。
+
+请结合代码、沁恒CH584官方文档、BLE 协议栈和蓝牙连接流程和如下的日志，
+
+当前代码下，蓝牙连接不稳定，连接上后，过一段时间后会自动断开，然后会反复的尝试回连。请分析一下可能导致连接不稳定的原因。你可以从以下几个方面进行分析：
+1. 详细分析日志，找出疑问点。
+2. 代码层面， 是否有任务错误，或者是蓝牙事件处理不当导致连接不稳定。
+3. 沁恒CH584蓝牙配置，是否有不合理的地方，或者是与主机兼容性问题导致连接不稳定。
+4. 蓝牙连接流程，是否有不合理的地方，或者是与主机兼容性问题导致连接不稳定。
+5. 其他可能的原因，例如硬件问题，电源问题等。
+
+方法论
+使用金字塔原理，要拆分问题，逐层分析，先从高层的流程分析，再到具体的代码实现细节，最后结合日志进行排查。需要结合现有代码结构，提出一个合理的事件处理流程设计方案，并分析该方案是否满足项目需求，是否存在潜在问题，以及如何解决这些问题。
+
+对不确定的事情，你需要先确认问题，可以添加日志、修改代码烧录、查阅资料等方式来验证你的猜想，直到完全理解问题为止。不要直接修改代码，要先分析问题，提出解决方案，再实施。
+
+异常断连打印的日志如下：
+[Rx][08:49:31.410] storage_init: ble_bond_flag=0,ble_addr_ver[0][0][0]
+[Rx][08:49:31.550] [SYS_INIT] bt_driver_init before commu_service_init
+[Rx][08:49:31.550] [BT] init wakeup=0
+[Rx][08:49:31.569] GAP: adv_mode=1 adv_event_type=0x00 adv_len=17 scan_len=31 name_len=20
+[Rx][08:49:31.569] [BT] init done
+[Rx][08:49:31.569] HW Timer: Initialized successfully
+[Rx][08:49:31.579] Hardware timer initialized
+[Rx][08:49:31.579] Debounce: Initialized for 8 rows
+[Rx][08:49:31.579] Debounce: Initialized for 8 rows
+[Rx][08:49:31.579] System: Service initialized with task ID 14
+[Rx][08:49:31.579] Input: Service initialized with task ID 15
+[Rx][08:49:31.579] HW Timer: Starting timer 0, interval=5ms, ticks=390000
+[Rx][08:49:31.579] HW Timer: Starting TMR0 with 390000 ticks
+[Rx][08:49:31.579] Input: Matrix scan timer started
+[Rx][08:49:31.579] Output service init start
+[Rx][08:49:31.579] Task registered, ID=16
+[Rx][08:49:31.579] Output service init done
+[Rx][08:49:31.579] Communication: Service initialized with task ID 17
+[Rx][08:49:31.579] PMU: initialized, taskID=18
+[Rx][08:49:31.579] System initialized successfully
+[Rx][08:49:31.579] [BT_CB] state=1 opcode=0 work_mode=0 pairing=0 ble_idx=0 con_work_mode=1 disc_mode=1
+[Rx][08:49:31.579] Wireless: BLE initialization completed:17
+[Rx][08:49:31.589] [WT_SYNC] init_done task=17 will_post=1
+[Rx][08:49:31.589] Initialized..
+[Rx][08:49:31.589] [COMMU_EVT] WL_INIT_EVT state_before=1 evt_type=0 task=17
+[Rx][08:49:31.589] Transport: Switching toWireless: Switched to BT driver
+[Rx][08:49:31.589] wireless_connect_ex 1
+[Rx][08:49:31.589] GAP State: 1
+[Rx][08:49:31.589] [BT] connect_ex req host_idx=1 timeout=0 con_work_mode=1 work_mode=0 state=1 pairing=0 ble_idx=0
+[Rx][08:49:31.589] [BT] connect_ex: starting connect_adv for host_idx=1
+[Rx][08:49:31.589] [BT] connect_ex reuse host_idx=1 pairing=0 ble_idx=1 work_mode=0
+[Rx][08:49:31.599] [BT_ADV] reconnect idx=1 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:49:31.599] BLE: reconnect purpose but no bond (idx=1), use initial adv
+[Rx][08:49:31.599] BLE: traceable static addr idx=1 ver=1 adv=1 => E4:66:E8:47:9C:FE
+[Rx][08:49:31.599] GAP: adv_mode=1 adv_event_type=0x00 adv_len=17 scan_len=31 name_len=20
+[Rx][08:49:31.599] [WT_SYNC] adv pairing=0 host=1
+[Rx][08:49:31.599] [WT_SYNC] queue adv task=17 state=1
+[Rx][08:49:31.599] transport_changed 2
+[Rx][08:49:31.599] Communication: Wireless module initialization
+[Rx][08:49:31.599] [COMMU_EVT] WL_DISCOVERABLE_EVT host=1 state_before=5 evt_type=2
+[Rx][08:49:31.609] [WT_STATE] -> WT_PARING host=1
+[Rx][08:49:31.609] wireless_enter_discoverable: 1
+[Rx][08:49:31.609] Communication: Wireless discoverable entered
+[Rx][08:49:31.609] [BT_CB] state=2 opcode=3 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=1
+[Rx][08:49:31.609] Advertising..
+[Rx][08:49:43.879] uuid 2902 handle 3e
+[Rx][08:49:43.879] uuid 2902 handle 42
+[Rx][08:49:43.879] uuid 2902 handle 49
+[Rx][08:49:43.879] uuid 2902 handle 50
+[Rx][08:49:43.879] uuid 2902 handle 54
+[Rx][08:49:43.879] uuid 2902 handle 58
+[Rx][08:49:43.879] uuid 2902 handle 5c
+[Rx][08:49:43.879] [WT_SYNC] connected host=1
+[Rx][08:49:43.879] [WT_SYNC] queue connected task=17 state=4
+[Rx][08:49:43.889] [BT_CB] state=4 opcode=5 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=1
+[Rx][08:49:43.889] [BT_CONN] established handle=1 interval=24 latency=0 timeout=72 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:49:43.889] Connected..
+[Rx][08:49:43.889] [COMMU_EVT] WL_CONNECTED_EVT host=1 state_before=4 evt_type=4
+[Rx][08:49:43.889] [WT_STATE] -> WT_CONNECTED host=1
+[Rx][08:49:43.889] wireless_connected 1
+[Rx][08:49:43.889] Communication: Wireless connected
+[Rx][08:49:44.359] Phy update Rx:2 Tx:2 ..
+[Rx][08:49:46.290] [BT_CONN_UPD] handle=1 int=12 lat=6 to=300
+[Rx][08:49:46.610] [BT_PAIR] handle=1 state=0 status=0
+[Rx][08:49:46.610] [BT_PASSCODE] handle=1 ui_in=0 ui_out=0
+[Rx][08:49:46.889] Send Security Req ...
+[Rx][08:49:49.649] [BT_PAIR] handle=1 state=1 status=0
+[Rx][08:49:49.649] [BT_PAIR] handle=1 state=3 status=0
+[Rx][08:49:49.649] [BOND] save: idx=1 bond_flag=01  ver=[1,0,0]
+[Rx][08:49:49.661] storage_save: success=1
+[Rx][08:49:51.040] uuid 2902 handle 3e
+[Rx][08:49:51.100] uuid 2902 handle 42
+[Rx][08:49:51.130] uuid 2902 handle 49
+[Rx][08:49:51.159] uuid 2902 handle 50
+[Rx][08:49:51.189] uuid 2902 handle 54
+[Rx][08:49:51.219] uuid 2902 handle 58
+[Rx][08:49:51.259] uuid 2902 handle 5c
+[Rx][08:49:51.282] [BT_CONN_UPD] handle=1 int=12 lat=4 to=100
+[Rx][08:49:51.289] Get parameter: 2a4d 
+[Rx][08:49:51.289] Touchpad get feature: 85 0
+[Rx][08:49:51.379] uuid 2a4d handle 45
+[Rx][08:49:51.379] Set parameter: 2a4d 
+[Rx][08:49:51.499] uuid 2a4d handle 45
+[Rx][08:49:51.499] Set parameter: 2a4d 
+[Rx][08:49:51.530] uuid 2a4d handle 45
+[Rx][08:49:51.530] Set parameter: 2a4d 
+[Rx][08:49:51.560] uuid 2a4d handle 45
+[Rx][08:49:51.560] Set parameter: 2a4d 
+[Rx][08:49:51.590] uuid 2a4d handle 45
+[Rx][08:49:51.590] Set parameter: 2a4d 
+[Rx][08:49:51.689] uuid 2a4d handle 4c
+[Rx][08:49:51.689] Set parameter: 2a4d 
+[Rx][08:49:51.700] Touchpad feature: 85 42
+[Rx][08:49:51.730] uuid 2a4d handle 45
+[Rx][08:49:51.730] Set parameter: 2a4d 
+[Rx][08:49:56.781] [BT_CONN_UPD] handle=1 int=12 lat=2 to=500
+[Rx][08:50:31.610] @Deep_sleep
+[Rx][08:50:31.610] System: Enter Deep sleep
+[Rx][08:53:18.380] [BT_CB] state=3 opcode=6 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=1
+[Rx][08:53:18.380] Disconnected.. Reason:8
+[Rx][08:53:18.380] GAP State: 3
+[Rx][08:53:18.380] [BT_DISC] reason=8 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 hid_state=3
+[Rx][08:53:18.390] [WT_SYNC] disconnected host=1 reason=8
+[Rx][08:53:18.390] [WT_SYNC] queue disconnected task=17 state=3
+[Rx][08:53:18.390] [COMMU_EVT] WL_DISCONNECTED_EVT host=1 reason=8 state_before=3 evt_type=5
+[Rx][08:53:18.390] [WT_STATE] -> WT_DISCONNECTED host=1 reason=8
+[Rx][08:53:18.390] wireless_disconnected 1, 8
+[Rx][08:53:18.400] 
+Communication: Wireless disconnected
+[Rx][08:53:18.400] [COMMU_EVT] WL_RECONNECT_EVT host=1 state_before=2
+[Rx][08:53:18.400] wireless_connect_ex 1
+[Rx][08:53:18.400] GAP State: 3
+[Rx][08:53:18.400] [BT] connect_ex req host_idx=1 timeout=0 con_work_mode=1 work_mode=0 state=3 pairing=0 ble_idx=1
+[Rx][08:53:18.400] [BT] connect_ex: starting connect_adv for host_idx=1
+[Rx][08:53:18.400] [BT] connect_ex reuse host_idx=1 pairing=0 ble_idx=1 work_mode=0
+[Rx][08:53:18.400] [BT_ADV] reconnect idx=1 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:53:18.410] BLE: traceable static addr idx=1 ver=1 adv=0 => E4:66:E8:47:9C:FE
+[Rx][08:53:18.410] GAP: adv_mode=1 adv_event_type=0x00 adv_len=17 scan_len=31 name_len=20
+[Rx][08:53:18.410] [WT_SYNC] adv pairing=1 host=1
+[Rx][08:53:18.410] [WT_SYNC] queue adv task=17 state=2
+[Rx][08:53:18.410] Communication: Wireless reconnect
+[Rx][08:53:18.410] [COMMU_EVT] WL_RECONNECTING_EVT host=1 state_before=5 evt_type=3
+[Rx][08:53:18.410] [WT_STATE] -> WT_RECONNECTING host=1
+[Rx][08:53:18.410] wireless_reconnecting 1
+[Rx][08:53:18.410] Communication: Wireless reconnecting
+[Rx][08:53:18.420] [BT_CB] state=2 opcode=3 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:18.420] Advertising..
+[Rx][08:53:18.420] uuid 2902 handle 3e
+[Rx][08:53:18.420] uuid 2902 handle 42
+[Rx][08:53:18.420] uuid 2902 handle 49
+[Rx][08:53:18.420] uuid 2902 handle 50
+[Rx][08:53:18.420] uuid 2902 handle 54
+[Rx][08:53:18.420] uuid 2902 handle 58
+[Rx][08:53:18.420] uuid 2902 handle 5c
+[Rx][08:53:18.420] [WT_SYNC] connected host=1
+[Rx][08:53:18.430] [WT_SYNC] queue connected task=17 state=5
+[Rx][08:53:18.430] [BT_CB] state=4 opcode=5 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:18.430] [BT_CONN] established handle=1 interval=24 latency=0 timeout=72 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:53:18.430] Connected..
+[Rx][08:53:18.430] [COMMU_EVT] WL_CONNECTED_EVT host=1 state_before=5 evt_type=4
+[Rx][08:53:18.430] [WT_STATE] -> WT_CONNECTED host=1
+[Rx][08:53:18.430] wireless_connected 1
+[Rx][08:53:18.430] Communication: Wireless connected
+[Rx][08:53:19.169] [BT_CB] state=3 opcode=6 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:19.169] Disconnected.. Reason:8
+[Rx][08:53:19.169] GAP State: 3
+[Rx][08:53:19.169] [BT_DISC] reason=8 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 hid_state=3
+[Rx][08:53:19.179] [WT_SYNC] disconnected host=1 reason=8
+[Rx][08:53:19.179] [WT_SYNC] queue disconnected task=17 state=3
+[Rx][08:53:19.179] [COMMU_EVT] WL_DISCONNECTED_EVT host=1 reason=8 state_before=3 evt_type=5
+[Rx][08:53:19.179] [WT_STATE] -> WT_DISCONNECTED host=1 reason=8
+[Rx][08:53:19.179] wireless_disconnected 1, 8
+[Rx][08:53:19.189] 
+Communication: Wireless disconnected
+[Rx][08:53:19.189] [COMMU_EVT] WL_RECONNECT_EVT host=1 state_before=2
+[Rx][08:53:19.189] wireless_connect_ex 1
+[Rx][08:53:19.189] GAP State: 3
+[Rx][08:53:19.189] [BT] connect_ex req host_idx=1 timeout=0 con_work_mode=1 work_mode=0 state=3 pairing=0 ble_idx=1
+[Rx][08:53:19.189] [BT] connect_ex: starting connect_adv for host_idx=1
+[Rx][08:53:19.189] [BT] connect_ex reuse host_idx=1 pairing=0 ble_idx=1 work_mode=0
+[Rx][08:53:19.189] [BT_ADV] reconnect idx=1 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:53:19.199] BLE: traceable static addr idx=1 ver=1 adv=0 => E4:66:E8:47:9C:FE
+[Rx][08:53:19.199] GAP: adv_mode=1 adv_event_type=0x00 adv_len=17 scan_len=31 name_len=20
+[Rx][08:53:19.199] [WT_SYNC] adv pairing=1 host=1
+[Rx][08:53:19.199] [WT_SYNC] queue adv task=17 state=2
+[Rx][08:53:19.199] Communication: Wireless reconnect
+[Rx][08:53:19.199] [COMMU_EVT] WL_RECONNECTING_EVT host=1 state_before=5 evt_type=3
+[Rx][08:53:19.199] [WT_STATE] -> WT_RECONNECTING host=1
+[Rx][08:53:19.199] wireless_reconnecting 1
+[Rx][08:53:19.209] Communication: Wireless reconnecting
+[Rx][08:53:19.209] [BT_CB] state=2 opcode=3 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:19.209] Advertising..
+[Rx][08:53:19.259] uuid 2902 handle 3e
+[Rx][08:53:19.259] uuid 2902 handle 42
+[Rx][08:53:19.259] uuid 2902 handle 49
+[Rx][08:53:19.259] uuid 2902 handle 50
+[Rx][08:53:19.259] uuid 2902 handle 54
+[Rx][08:53:19.259] uuid 2902 handle 58
+[Rx][08:53:19.259] uuid 2902 handle 5c
+[Rx][08:53:19.259] [WT_SYNC] connected host=1
+[Rx][08:53:19.259] [WT_SYNC] queue connected task=17 state=5
+[Rx][08:53:19.259] [BT_CB] state=4 opcode=5 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:19.259] [BT_CONN] established handle=1 interval=24 latency=0 timeout=72 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:53:19.271] Connected..
+[Rx][08:53:19.271] [COMMU_EVT] WL_CONNECTED_EVT host=1 state_before=5 evt_type=4
+[Rx][08:53:19.271] [WT_STATE] -> WT_CONNECTED host=1
+[Rx][08:53:19.271] wireless_connected 1
+[Rx][08:53:19.271] Communication: Wireless connected
+[Rx][08:53:20.009] [BT_CB] state=3 opcode=6 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:20.009] Disconnected.. Reason:8
+[Rx][08:53:20.009] GAP State: 3
+[Rx][08:53:20.009] [BT_DISC] reason=8 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 hid_state=3
+[Rx][08:53:20.019] [WT_SYNC] disconnected host=1 reason=8
+[Rx][08:53:20.019] [WT_SYNC] queue disconnected task=17 state=3
+[Rx][08:53:20.019] [COMMU_EVT] WL_DISCONNECTED_EVT host=1 reason=8 state_before=3 evt_type=5
+[Rx][08:53:20.019] [WT_STATE] -> WT_DISCONNECTED host=1 reason=8
+[Rx][08:53:20.019] wireless_disconnected 1, 8
+[Rx][08:53:20.029] 
+Communication: Wireless disconnected
+[Rx][08:53:20.029] [COMMU_EVT] WL_RECONNECT_EVT host=1 state_before=2
+[Rx][08:53:20.029] wireless_connect_ex 1
+[Rx][08:53:20.029] GAP State: 3
+[Rx][08:53:20.029] [BT] connect_ex req host_idx=1 timeout=0 con_work_mode=1 work_mode=0 state=3 pairing=0 ble_idx=1
+[Rx][08:53:20.029] [BT] connect_ex: starting connect_adv for host_idx=1
+[Rx][08:53:20.029] [BT] connect_ex reuse host_idx=1 pairing=0 ble_idx=1 work_mode=0
+[Rx][08:53:20.029] [BT_ADV] reconnect idx=1 work_mode=0 pairing=0 ble_idx=1
+[Rx][08:53:20.039] BLE: traceable static addr idx=1 ver=1 adv=0 => E4:66:E8:47:9C:FE
+[Rx][08:53:20.039] GAP: adv_mode=1 adv_event_type=0x00 adv_len=17 scan_len=31 name_len=20
+[Rx][08:53:20.039] [WT_SYNC] adv pairing=1 host=1
+[Rx][08:53:20.039] [WT_SYNC] queue adv task=17 state=2
+[Rx][08:53:20.039] Communication: Wireless reconnect
+[Rx][08:53:20.039] [COMMU_EVT] WL_RECONNECTING_EVT host=1 state_before=5 evt_type=3
+[Rx][08:53:20.039] [WT_STATE] -> WT_RECONNECTING host=1
+[Rx][08:53:20.039] wireless_reconnecting 1
+[Rx][08:53:20.039] Communication: Wireless reconnecting
+[Rx][08:53:20.049] [BT_CB] state=2 opcode=3 work_mode=0 pairing=0 ble_idx=1 con_work_mode=1 disc_mode=2
+[Rx][08:53:20.049] Advertising..
+
+
+
+kb_fn_action.c 中的 Lock_Screen 在iOS下需要重新修改，需要发送KC_IPOW键后，200ms再抬起键才能生效，在现有框架下实现比较麻烦，请分析一下现有的实现方案，提出一个合理的修改方案来适配iOS系统的锁屏功能。需要结合现有代码结构，提出一个合理的事件处理流程设计方案，并分析该方案是否满足项目需求，是否存在潜在问题，以及如何解决这些问题。
+
+
+请按照 docs/plans/2026-03-29-touchpad-polling-design.md 的实施计划进行开发。
+  使用 /superpowers:executing-plans 来执行实施。
+
+
+请按照 docs/plans/2026-03-29-led-callback-design.md 的实施计划进行开发。                                                                                                                                       
+使用 /superpowers:executing-plans 来执行实施。

@@ -16,6 +16,7 @@
 
 #include "pwm.h"
 #include "gpio.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -53,7 +54,13 @@ static PWMX_CycleTypeDef g_pwm_cycle = PWMX_Cycle_64;  /* 默认64周期 */
  * @return CH584 PWM通道掩码 (CH_PWM4-CH_PWM11)
  */
 static uint8_t hal_to_ch584_channel(pwm_channel_t channel) {
-    return (uint8_t)(channel << 4);  /* PWM_CHANNEL_0->CH_PWM4, PWM_CHANNEL_1->CH_PWM5, ... */
+    /* HAL 的 PWM_CHANNEL_0-7 位定义与 CH584 标准库的 CH_PWM4-CH_PWM11 掩码值一致：
+     * PWM_CHANNEL_0 (1<<0) -> CH_PWM4  (0x01)
+     * PWM_CHANNEL_1 (1<<1) -> CH_PWM5  (0x02)
+     * ...
+     * 因此这里不需要再做位移转换。
+     */
+    return (uint8_t)channel;
 }
 
 /**
@@ -63,7 +70,8 @@ static uint8_t hal_to_ch584_channel(pwm_channel_t channel) {
  * @return HAL PWM通道号 (PWM_CHANNEL_0-7)
  */
 static pwm_channel_t ch584_to_hal_channel(uint8_t ch584_channel) {
-    return (pwm_channel_t)(ch584_channel >> 4);
+    /* 见 hal_to_ch584_channel()：两个掩码体系数值一致 */
+    return (pwm_channel_t)ch584_channel;
 }
 
 /**

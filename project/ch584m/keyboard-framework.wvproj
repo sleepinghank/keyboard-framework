@@ -41,6 +41,10 @@
 			{
 				"name": "keyboards",
 				"location": "../../keyboards"
+			},
+			{
+				"name": "component",
+				"location": "../../component"
 			}
 		],
 		"removedResources": [
@@ -239,9 +243,9 @@
 						"defined_symbols": [
 							"CLK_OSC32K=1",
 							"DCDC_ENABLE=1",
-							"DEBUG=1",
 							"HAL_SLEEP=0",
-							"FREQ_SYS=78000000"
+							"BLE_SNV_NUM=1",
+							"FREQ_SYS=62400000"
 						],
 						"undefined_symbols": []
 					},
@@ -273,6 +277,7 @@
 							"${project}/middleware",
 							"${project}/middleware/communication",
 							"${project}/middleware/keyboard",
+							"${project}/middleware/touchpad",
 							"${project}/drivers/output/backlight",
 							"${project}/drivers/output/indicators",
 							"${project}/drivers/output/logging",
@@ -288,7 +293,18 @@
 							"${project}/Profile",
 							"${project}",
 							"${project}/drivers/communication/bluetooth/ch584",
-							"${project}/drivers/storage/ch584"
+							"${project}/drivers/storage/ch584",
+							"${project}/component",
+							"${project}/component/touch_component",
+							"${project}/component/touch_component/include",
+							"E:\\spike_workspace\\all\\keyboard-framework\\keyboards\\kb904",
+							"E:\\spike_workspace\\all\\keyboard-framework\\drivers\\ota",
+							"E:\\spike_workspace\\all\\keyboard-framework\\component\\ota_component",
+							"${project}/keyboards/defaults",
+							"${project}/keyboards/kb904",
+							"${project}/keyboards/kb904/keymaps",
+							"${project}/component/ota_component",
+							"${project}/drivers/ota"
 						],
 						"include_system_paths": [],
 						"include_files": []
@@ -596,7 +612,8 @@
 						"do_not_search_system_directories": false,
 						"preprocess_only": false,
 						"defined_symbols": [
-							"DEBUG=0"
+							"DEBUG=0",
+							"FREQ_SYS=62400000"
 						],
 						"undefined_symbols": []
 					},

@@ -18,9 +18,8 @@
 #include <string.h>
 
 /* 存储配置 */
-#define STORAGE_EEPROM_BASE_ADDR   0    // EEPROM基地址
 #define STORAGE_MAGIC_NUMBER      0xABCD // 存储魔术数字
-#define STORAGE_VERSION           1     // 配置版本号
+#define STORAGE_VERSION           2     // 配置版本号
 
 
 
@@ -90,38 +89,31 @@ typedef struct {
 
 // 所有配置的集合结构体
 typedef struct {
-    // 系统配置
-    uint8_t fn_lock_state;              // Fn锁状态 (0-1)
-    uint8_t device_type;                // 设备类型 (0-7)
-    uint8_t backlight_brightness;       // 背光亮度 (0-100)
-    uint8_t language;                   // 语言设置 (0-255)
-    uint8_t led_mode;                   // LED模式 (0-255)
-    uint8_t   check_val_A;
-    uint8_t   check_val_B;
-    uint8_t   led_onoff;
+    // 基础配置
     uint8_t   ble_idx;
     uint8_t   ble_bond_flag;
     uint8_t   ble_mac_flag;
+    uint8_t   ble_addr_ver[3];
     uint8_t   ble_irk_flag[5];
     uint8_t   ble_name_len;
     uint8_t   ble_name_data[22];
-    uint8_t   led_light;
     uint8_t   work_mode;
-    uint8_t   rf_device_id;
-    uint8_t   peer_mac[6];
-    uint8_t   usb_vid_pid[4];
-    uint8_t   usb_prod_info_len;
-    uint8_t   usb_prod_info[31];
-    uint8_t   capacitance;
-    // >>> 新增字段：背光颜色 / 范围
-    uint8_t   led_blink_range;
-    // 校验和放在最后
-    uint8_t   check_sum;
+    // 系统配置
+    uint8_t device_type;                // 设备类型 (0-7)
+    uint8_t backlight_brightness;       // 背光亮度档位 (BL_LEVEL_*)
+    uint8_t backlight_color;            // bit7:开关, bit0~6:颜色索引
+    uint8_t language;                   // 语言设置 (0-255)
     // 用户配置
     uint16_t gesture_map[32];           // 手势映射数组 (64字节)
     uint8_t macro_data[32];             // 宏数据 (32字节)
     uint16_t shortcuts[16];             // 快捷键数组 (32字节)
     uint32_t user_preferences[4];       // 用户偏好设置 (16字节)
+    // 扩展
+    // uint8_t   rf_device_id;
+    // uint8_t   peer_mac[6];
+    // uint8_t   usb_vid_pid[4];
+    // uint8_t   usb_prod_info_len;
+    // uint8_t   usb_prod_info[31];
 } storage_config_t;
 
 // 存储池结构
@@ -154,9 +146,6 @@ bool storage_save_config(const storage_config_t *config);
 // 直接保存当前配置到EEPROM (无需传参，直接保存g_storage_pool)
 bool storage_save(void);
 
-// 获取默认配置
-void storage_get_default_config(storage_config_t *config);
-
 // 直接获取配置指针 (最高效)
 storage_config_t* storage_get_config_ptr(void);
 
@@ -184,8 +173,6 @@ uint16_t storage_calculate_crc16(const storage_config_t *config);
 /* 便捷宏 */
 
 // 快速访问配置字段
-#define STORAGE_GET_FN_LOCK()           (storage_get_config_ptr()->fn_lock_state)
-#define STORAGE_SET_FN_LOCK(val)        (storage_get_config_ptr()->fn_lock_state = (val))
 
 #define STORAGE_GET_DEVICE_TYPE()       (storage_get_config_ptr()->device_type)
 #define STORAGE_SET_DEVICE_TYPE(val)    (storage_get_config_ptr()->device_type = (val))
@@ -196,8 +183,8 @@ uint16_t storage_calculate_crc16(const storage_config_t *config);
 #define STORAGE_GET_LANGUAGE()          (storage_get_config_ptr()->language)
 #define STORAGE_SET_LANGUAGE(val)       (storage_get_config_ptr()->language = (val))
 
-#define STORAGE_GET_LED_MODE()          (storage_get_config_ptr()->led_mode)
-#define STORAGE_SET_LED_MODE(val)       (storage_get_config_ptr()->led_mode = (val))
+#define STORAGE_GET_BLE_IDX()           (storage_get_config_ptr()->ble_idx)
+#define STORAGE_SET_BLE_IDX(val)        (storage_get_config_ptr()->ble_idx = (val))
 
 // 获取手势映射数组指针
 #define STORAGE_GET_GESTURE_MAP_PTR()   (storage_get_config_ptr()->gesture_map)

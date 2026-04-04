@@ -3,7 +3,7 @@
 /**
  * @file indicator_defaults.h
  * @brief 指示灯模块默认配置
- * @note 产品可通过在 config.h 中 #define 覆盖默认值
+ * @note 产品可通过在 config_product.h 中 #define 覆盖默认值
  */
 
 /* ========== 指示灯数量 ========== */

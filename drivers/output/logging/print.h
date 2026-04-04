@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "kb904/config_product.h"
 #include "util.h"
 #include "sendchar.h"
 
@@ -48,7 +49,7 @@ void print_set_sendchar(sendchar_func_t func);
         _Pragma("GCC diagnostic pop");                             \
     } while (0)
 
-#ifndef NO_PRINT
+#if (PRINTF_ENABLE == TRUE)
 #    if __has_include_next("_print.h")
 #        include_next "_print.h" /* Include the platforms print.h */
 #    else
@@ -64,7 +65,7 @@ void print_set_sendchar(sendchar_func_t func);
 #        define uprintf printf
 
 #    endif /* __has_include_next("_print.h") */
-#else      /* NO_PRINT */
+#else
 #    undef xprintf
 // Remove print defines
 #    define print(s)
@@ -74,7 +75,7 @@ void print_set_sendchar(sendchar_func_t func);
 #    define uprint(s)
 #    define uprintln(s)
 
-#endif /* NO_PRINT */
+#endif /* PRINTF_ENABLE */
 
 #ifdef USER_PRINT
 // Remove normal print defines

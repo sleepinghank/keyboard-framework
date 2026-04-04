@@ -58,10 +58,6 @@ typedef enum {
     BL_COLOR_COUNT
 } bl_preset_color_t;
 
-/* 旧枚举兼容别名 */
-#define BL_COLOR_YELLOW  BL_COLOR_LIGHT_YELLOW
-#define BL_COLOR_CYAN    BL_COLOR_CYAN_GREEN
-#define BL_COLOR_MAGENTA BL_COLOR_PURPLE
 
 /**
  * @brief 预设亮度枚举
@@ -139,6 +135,7 @@ void backlight_set_preset_level(bl_preset_level_t level);
  * @brief 切换到下一档亮度
  */
 void backlight_level_step(void);
+bl_preset_level_t backlight_get_preset_level(void);
 
 /* ============ 颜色控制 (仅RGB模式) ============ */
 
@@ -179,6 +176,7 @@ void backlight_set_preset_color(bl_preset_color_t color);
  * @brief 切换到下一个预设颜色
  */
 void backlight_color_step(void);
+bl_preset_color_t backlight_get_preset_color(void);
 
 /* ============ 状态管理 ============ */
 

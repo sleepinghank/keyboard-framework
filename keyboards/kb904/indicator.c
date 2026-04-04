@@ -22,7 +22,7 @@
  * 类型定义和别名宏在 config_hw.h 中
  */
 
-#include "config.h"
+#include "kb904/config_product.h"
 #include "config_hw.h"
 
 /**

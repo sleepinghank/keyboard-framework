@@ -8,6 +8,7 @@
 #include "kb904/config_hw.h"
 #include <stddef.h>
 #include "debug.h"
+#include "report.h"
 
 // 外部变量
 extern uint8_t FN_st;
@@ -123,8 +124,8 @@ static uint8_t has_normal_key_in_list(list_t* key_list) {
 
 void earth_post_loop_decision(uint8_t fn_fired, list_t* key_list, list_t* key_list_extend) {
     if (earth_state == EARTH_PENDING) {
-        if (fn_fired) {
-            // Fn 功能键被激活，Earth 不发送
+        if (fn_fired || active_fn_combo == 1) {
+            // 只要共享 Fn 已被任意系统组合键占用，就必须立即禁止 Earth
             earth_state = EARTH_FN_TAKEN;
             return;
         }
@@ -160,6 +161,7 @@ void earth_set_fn_taken(void) {
 
 // Fn 键按下
 uint8_t FN_DOWN_KEY(uint16_t* add_keys) {
+    (void)add_keys;
     FN_st = 1;
     combinations_flag = 1;
     // 设置 Earth 状态为等待决策
@@ -184,7 +186,6 @@ uint8_t FN_UP_KEY(uint16_t* add_keys) {
     uint8_t idx = 0;
     FN_st = 0;
     combinations_flag = 0;
-    dprintf("FN_UP_KEY called, current Earth state: %d\r\n", earth_state);
     // 根据 Earth 状态机决定发送动作
     switch (earth_state) {
         case EARTH_PENDING:
@@ -304,7 +305,7 @@ uint8_t Print_Screen(uint16_t* add_keys) {
         // Windows: Win+Shift+S
         add_keys[idx++] = KC_LEFT_GUI;
         add_keys[idx++] = KC_LEFT_SHIFT;
-        add_keys[idx++] = KC_S;
+        add_keys[idx++] = KC_3;
     }
     return idx;
 }
@@ -314,10 +315,13 @@ uint8_t Lock_Screen(uint16_t* add_keys) {
     uint8_t idx = 0;
     if (FN_st == 1) {
         add_keys[idx++] = KC_F12;
+    } else if (host_system_type == IOS) {
+        // iOS 锁屏：发送 KC_IPOW，保持 200ms 后自动抬起
+        add_keys[idx++] = KC_IPOW;
+        report_hold_consumer(KEYCODE2CONSUMER(KC_IPOW), 200);
     } else {
         // Windows: Win+L
         add_keys[idx++] = KC_LEFT_GUI;
-        add_keys[idx++] = KC_L;
     }
     return idx;
 }

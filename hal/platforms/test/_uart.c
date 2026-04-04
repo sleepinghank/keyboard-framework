@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "uart.h"
-#include "sys_config.h"
+#include "kb904/config_product.h"
 
 // UART通道状态结构体
 typedef struct {

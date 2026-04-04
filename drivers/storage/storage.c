@@ -5,7 +5,9 @@
 
 #include "storage.h"
 #include "eeprom.h"  // 使用eeprom.h中的底层读写函数
-
+#include "debug.h"
+#include "kb904/config_product.h"  // 产品配置（BLE_PAIRING_NAME 等）
+#include "backlight.h"     // 背光颜色定义（BL_COLOR_WHITE）
 /* 全局变量 */
 static storage_pool_t g_storage_pool;
 static storage_lock_t g_storage_lock;
@@ -62,34 +64,56 @@ static uint16_t calculate_crc16(const uint8_t *data, uint16_t length) {
     return crc;
 }
 
-/* 默认配置 */
+// 默认配置结构体（运行时初始化）
+static storage_config_t default_config;
+static bool default_config_initialized = false;
 
-static const storage_config_t default_config = {
+// 初始化默认配置（从 config_product.h 读取）
+static void set_default_config(void) {
+
+    // 清零
+    memset(&g_storage_pool.config, 0, sizeof(storage_config_t));
+
     // 系统配置默认值
-    .fn_lock_state = 0,
-    .device_type = 0,
-    .backlight_brightness = 80,
-    .language = 0,
-    .led_mode = 1,
+    g_storage_pool.config.ble_idx = 0;
+    g_storage_pool.config.ble_bond_flag = 0;
+    g_storage_pool.config.ble_mac_flag = 0;
+    g_storage_pool.config.ble_irk_flag[0] = 0;
+    // g_storage_pool.config.ble_addr_ver[0] = 0;
+    // g_storage_pool.config.ble_addr_ver[1] = 0;
+    // g_storage_pool.config.ble_addr_ver[2] = 0;
+    
+    // 从 config_product.h 读取蓝牙名称
+    g_storage_pool.config.ble_name_len = strlen(BLE_PAIRING_NAME);
+    memset(g_storage_pool.config.ble_name_data, 0, sizeof(g_storage_pool.config.ble_name_data));
+    if (g_storage_pool.config.ble_name_len > sizeof(g_storage_pool.config.ble_name_data)) {
+        g_storage_pool.config.ble_name_len = sizeof(g_storage_pool.config.ble_name_data);
+    }
+    memcpy(g_storage_pool.config.ble_name_data, BLE_PAIRING_NAME, g_storage_pool.config.ble_name_len);
 
-    // 用户配置默认值
-    .gesture_map = {0},
-    .macro_data = {0},
-    .shortcuts = {0},
-    .user_preferences = {0}
-};
+    g_storage_pool.config.work_mode = 0;
+    g_storage_pool.config.device_type = 0;
+    g_storage_pool.config.backlight_brightness = BACKLIGHT_DEFAULT_LEVEL;
+    g_storage_pool.config.backlight_color = (uint8_t)BACKLIGHT_DEFAULT_COLOR;
+    if (BACKLIGHT_DEFAULT_ON) {
+        g_storage_pool.config.backlight_color |= 0x80u;
+    }
+    g_storage_pool.config.language = 0;
+
+    default_config_initialized = true;
+}
 
 /* 存储读写函数 */
 
-// 从EEPROM读取数据
+// 从EEPROM读取数据 地址传了两次
 static bool storage_read_from_eeprom(void) {
-    eeprom_read_block(&g_storage_pool, (void*)STORAGE_EEPROM_BASE_ADDR, sizeof(storage_pool_t));
+    eeprom_read_block(&g_storage_pool, (void*)0, sizeof(storage_pool_t));
     return true;
 }
 
 // 向EEPROM写入数据
 static bool storage_write_to_eeprom(void) {
-    eeprom_write_block(&g_storage_pool, (void*)STORAGE_EEPROM_BASE_ADDR, sizeof(storage_pool_t));
+    eeprom_write_block(&g_storage_pool, (void*)0, sizeof(storage_pool_t));
     return true;
 }
 
@@ -97,13 +121,14 @@ static bool storage_write_to_eeprom(void) {
 
 // 初始化存储模块
 void storage_init(void) {
+    // 初始化默认配置（从 config_product.h 读取）
+    set_default_config();
+
     // 初始化锁
     g_storage_lock.write_lock = false;
     g_storage_lock.owner_id = 0;
     g_storage_lock.pending_write = false;
 
-    // 加载默认配置
-    memcpy(&g_storage_pool.config, &default_config, sizeof(storage_config_t));
 
     // 设置默认头部
     g_storage_pool.header.length = sizeof(storage_config_t);
@@ -111,7 +136,9 @@ void storage_init(void) {
 
     // 读取EEPROM数据
     storage_read_from_eeprom();
-
+    LOG_I("[STOR] init bond=%d ver=[%d,%d,%d]", g_storage_pool.config.ble_bond_flag,
+          g_storage_pool.config.ble_addr_ver[0], g_storage_pool.config.ble_addr_ver[1],
+          g_storage_pool.config.ble_addr_ver[2]);
     // 验证数据有效性
     if (!storage_validate_eeprom_data()) {
         // 数据无效，加载默认配置
@@ -172,7 +199,6 @@ bool storage_save(void) {
 
     // 写入EEPROM
     bool success = storage_write_to_eeprom();
-
     // 调用回调并释放锁
     if (g_write_callback != NULL) {
         g_write_callback(success);
@@ -182,12 +208,6 @@ bool storage_save(void) {
     return success;
 }
 
-// 获取默认配置
-void storage_get_default_config(storage_config_t *config) {
-    if (config != NULL) {
-        memcpy(config, &default_config, sizeof(storage_config_t));
-    }
-}
 
 // 直接获取配置指针
 storage_config_t* storage_get_config_ptr(void) {
@@ -248,7 +268,7 @@ bool storage_validate_eeprom_data(void) {
 // 重置为出厂设置
 void storage_factory_reset(void) {
     // 重置为默认配置
-    memcpy(&g_storage_pool.config, &default_config, sizeof(storage_config_t));
+    set_default_config();
 
     // 更新头部
     g_storage_pool.header.length = sizeof(storage_config_t);

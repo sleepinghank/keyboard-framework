@@ -24,7 +24,7 @@ void keyboard_init(void);
  * 执行矩阵扫描、防抖处理、组合键检测和 HID 报告生成
  * 应在主循环中周期性调用
  */
-void keyboard_task(void);
+void keyboard_scan(void);
 
 /**
  * @brief 获取上一次按键更新状态

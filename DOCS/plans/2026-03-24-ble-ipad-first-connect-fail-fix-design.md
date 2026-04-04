@@ -226,3 +226,31 @@
    - 不引入额外断链或错误状态
 
 本轮本地仅能完成代码路径与构建层面的回归检查，真机蓝牙验证仍需依赖烧录后实测。
+
+
+
+
+
+
+
+```mermaid
+  graph TD                                                                            
+      A[上层调用 bt_driver_pairing_ex] --> B{当前 GAP 状态}                           
+      B -- 已连接 --> C[设 intent=PAIRING\n调 hidEmu_disconnect]                      
+      B -- 广播中 --> D[调 hidEmu_stop_adv\n直接调 hidEmu_high_adv]                   
+      B -- 空闲 --> E[直接调 hidEmu_high_adv]                                         
+      C --> F[GAP_LINK_TERMINATED_EVENT\n检查 pairing_failed_flag]                    
+      F -- intent=PAIRING --> G[hidEmu_high_adv\n全开放过滤 30s]                      
+      F -- 正常断开 --> H[access_ble_notify_disconnected\n仅通知不决策]               
+
+      I[上层调用 bt_driver_connect_ex] --> J{当前 GAP 状态}
+      J -- 已绑定且空闲 --> K[hidEmu_low_adv\n白名单过滤]
+      J -- 广播中 --> L[hidEmu_stop_adv\n切换后重新 hidEmu_low_adv]
+      J -- 已连接同一 idx --> M[不操作]
+      J -- 已连接不同 idx --> N[设 intent=RECONNECT\n调 hidEmu_disconnect]
+      N --> F
+
+      G --> O[配对广播运行\n30s 超时 hidEmu_stop_adv]
+      K --> P[回连广播运行\n主机连上或超时停播]
+```
+

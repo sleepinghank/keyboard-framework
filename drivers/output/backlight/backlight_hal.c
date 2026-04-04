@@ -22,6 +22,7 @@
 #include "backlight_hal.h"
 #include "backlight_config.h"
 #include "pwm.h"
+#include "debug.h"
 
 /* ============ 内部变量 ============ */
 

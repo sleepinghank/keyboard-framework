@@ -48,3 +48,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef S_FN_KEY
 #define S_FN_KEY QK_USER_0
 #endif
+
+// 截屏
+#ifndef KC_SCRE 
+#define KC_SCRE QK_USER_1
+#endif
+
+// F5 自定义按键
+#ifndef KC_DIY 
+#define KC_DIY QK_USER_2
+#endif
+
+// F5 锁屏
+#ifndef KC_LOCK 
+#define KC_LOCK QK_USER_3
+#endif
+
+
+// F5 锁屏
+#ifndef KC_TUBT 
+#define KC_TUBT QK_USER_4
+#endif

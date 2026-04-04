@@ -9,7 +9,7 @@
 #include "progmem.h"
 #include <stdint.h>
 #include "combo.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 enum layers {
     MAC_BASE,

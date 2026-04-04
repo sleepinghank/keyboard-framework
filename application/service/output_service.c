@@ -2,15 +2,19 @@
 #include <stdint.h>
 #include "event_manager.h"
 #include "debug.h"
+
+#if (CHIP_TYPE == CHIP_CH584M)
 #include "CH585SFR.h"
+#endif
+
 #include "report_buffer.h"
 #include "transport.h"
 #include "indicator.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "backlight.h"
 #include "battery.h"
-#include "lpm.h"
 #include "system_service.h"
+#include "storage.h"
 
 #ifdef P2P4G_ENABLE_FLAG
 #include "p24g_driver.h"
@@ -22,7 +26,7 @@ extern "C" {
 
 uint8_t output_taskID = 0;
 
-#define BACKLIGHT_SLEEP_TIMEOUT_MS 5000UL
+#define BACKLIGHT_SLEEP_TIMEOUT_MS 1600*5
 
 typedef struct {
     const ind_effect_t* effect;
@@ -39,8 +43,12 @@ static ind_pending_t ind_pending[IND_LED_COUNT];
 static bool          output_service_ready = false;
 static bool          backlight_sleeping = false;
 static bool          backlight_low_battery = false;
-static bool          backlight_lpm_disabled = false;
 static bool          backlight_enabled_before_low_battery = true;
+static bool          backlight_sleeping_before_low_battery = false;
+static bool          backlight_restored_from_storage = false;
+
+#define STORAGE_BACKLIGHT_ENABLE_MASK 0x80u//bit7 为开关
+#define STORAGE_BACKLIGHT_COLOR_MASK  0x7Fu//bit0~6 为颜色索引
 
 static const ind_req_map_t ind_req_map[] = {
 #if PRODUCT_ID == 0x0904
@@ -63,15 +71,54 @@ static const ind_req_map_t ind_req_map[] = {
  * 在以下情况下不启动定时器：
  * - 服务未就绪
  * - 低电量模式下（背光应保持关闭）
- * - LPM 禁用状态下
  */
 static void output_service_arm_backlight_sleep_timer(void) {
-    if (!output_service_ready || backlight_low_battery || backlight_lpm_disabled) {
+    if (!output_service_ready || backlight_low_battery) {
         return;
     }
 
     (void)OSAL_StopTask(output_taskID, OUTPUT_BACKLIGHT_SLEEP_EVT);
     (void)OSAL_SetDelayedEvent(output_taskID, OUTPUT_BACKLIGHT_SLEEP_EVT, BACKLIGHT_SLEEP_TIMEOUT_MS);
+}
+
+static uint8_t output_service_clamp_backlight_level(uint8_t level) {
+    if (level >= BL_LEVEL_COUNT) {
+        return (uint8_t)BACKLIGHT_DEFAULT_LEVEL;
+    }
+    return level;
+}
+
+static uint8_t output_service_clamp_color_index(uint8_t color_index) {
+    if (color_index >= BL_COLOR_COUNT) {
+        return (uint8_t)BACKLIGHT_DEFAULT_COLOR;
+    }
+    return color_index;
+}
+
+static void output_service_decode_backlight_setting(const storage_config_t *cfg,
+                                                    uint8_t *color_index,
+                                                    bool *enabled) {
+    uint8_t packed = cfg->backlight_color;
+    *color_index = output_service_clamp_color_index((uint8_t)(packed & STORAGE_BACKLIGHT_COLOR_MASK));
+    *enabled = (packed & STORAGE_BACKLIGHT_ENABLE_MASK) != 0u;
+}
+
+static void output_service_sync_backlight_to_storage_and_save(void) {
+    storage_config_t *cfg = storage_get_config_ptr();
+    uint8_t color_index = (uint8_t)backlight_get_preset_color();
+    uint8_t level = (uint8_t)backlight_get_preset_level();
+    bool enabled = backlight_is_enabled();
+
+    if (cfg == NULL) {
+        return;
+    }
+
+    cfg->backlight_brightness = output_service_clamp_backlight_level(level);
+    cfg->backlight_color = (uint8_t)(output_service_clamp_color_index(color_index) & STORAGE_BACKLIGHT_COLOR_MASK);
+    if (enabled) {
+        cfg->backlight_color |= STORAGE_BACKLIGHT_ENABLE_MASK;
+    }
+    (void)storage_save();
 }
 
 /**
@@ -122,7 +169,7 @@ void output_service_request_indicator(ind_req_type_t type, uint8_t param) {
  * @note 供 keyboard.c 的 keyboard_note_backlight_activity() 包装函数调用
  */
 void output_service_note_backlight_activity(void) {
-    if (!output_service_ready || backlight_low_battery || backlight_lpm_disabled) {
+    if (!output_service_ready || backlight_low_battery) {
         return;
     }
 
@@ -158,11 +205,20 @@ void output_service_set_backlight_low_battery(bool enable) {
     if (enable) {
         // 幂等检查：已处于低电量模式则跳过
         if (backlight_low_battery) {
+            LOG_I("[OUTPUT] low battery enter ignored(idempotent): flag=%d",
+                  (int)backlight_low_battery);
             return;
         }
 
-        // 记忆当前背光状态
+        LOG_I("[OUTPUT] low battery enter: before_flag=%d, before_restore=%d, backlight_en=%d, sleeping=%d",
+              (int)backlight_low_battery,
+              (int)backlight_enabled_before_low_battery,
+              (int)backlight_is_enabled(),
+              (int)backlight_sleeping);
+
+        // 记忆当前背光状态（低电恢复要区分：背光是“开着”还是“正处于休眠关灯”）
         backlight_enabled_before_low_battery = backlight_is_enabled();
+        backlight_sleeping_before_low_battery = backlight_sleeping;
         backlight_low_battery = true;
         backlight_sleeping = false;
 
@@ -173,13 +229,26 @@ void output_service_set_backlight_low_battery(bool enable) {
         if (backlight_enabled_before_low_battery) {
             backlight_disable();
         }
+
+        LOG_I("[OUTPUT] low battery enter done: flag=%d, restore_en=%d, backlight_en=%d",
+              (int)backlight_low_battery,
+              (int)backlight_enabled_before_low_battery,
+              (int)backlight_is_enabled());
         return;
     }
 
     // 幂等检查：未处于低电量模式则跳过
     if (!backlight_low_battery) {
+        LOG_I("[OUTPUT] low battery exit ignored(idempotent): flag=%d",
+              (int)backlight_low_battery);
         return;
     }
+
+    LOG_I("[OUTPUT] low battery exit start: flag=%d, restore_en=%d, backlight_en=%d, sleeping=%d",
+          (int)backlight_low_battery,
+          (int)backlight_enabled_before_low_battery,
+          (int)backlight_is_enabled(),
+          (int)backlight_sleeping);
 
     // 退出低电量模式
     backlight_low_battery = false;
@@ -188,13 +257,28 @@ void output_service_set_backlight_low_battery(bool enable) {
     if (backlight_enabled_before_low_battery) {
         backlight_enable();
         output_service_note_backlight_activity();
+    } else if (backlight_sleeping_before_low_battery) {
+        /*
+         * 低电进入时背光处于休眠关灯：
+         * 恢复时不强制点亮（避免立即耗电），
+         * 但需要把 backlight_sleeping 置回 true，
+         * 让下一次普通按键触发 note_backlight_activity() 时能唤醒点亮。
+         */
+        backlight_sleeping = true;
     }
+
+    LOG_I("[OUTPUT] low battery exit done: flag=%d, restore_en=%d, backlight_en=%d, sleeping=%d",
+          (int)backlight_low_battery,
+          (int)backlight_enabled_before_low_battery,
+          (int)backlight_is_enabled(),
+          (int)backlight_sleeping);
 }
 
 uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     (void)task_id;
 
     if (events & OUTPUT_INDICATOR_EVT) {
+        LOG_I("[OUTPUT] indicator update event");
         for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
             if (ind_pending[i].dirty && ind_pending[i].effect != NULL) {
                 indicator_set(i, ind_pending[i].effect);
@@ -205,20 +289,29 @@ uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     }
 
     if (events & OUTPUT_BACKLIGHT_BRIGHTNESS_EVT) {
-        backlight_level_step();
+        LOG_I("[OUTPUT] backlight brightness event");
+         /* 低电/LPM 禁用：禁止档位切换点亮背光（与 note_backlight_activity 策略一致） */
+        if (!backlight_low_battery ) {
+            backlight_level_step();
+            output_service_sync_backlight_to_storage_and_save();
+        }
         output_service_note_backlight_activity();
         return (events ^ OUTPUT_BACKLIGHT_BRIGHTNESS_EVT);
     }
 
     if (events & OUTPUT_BACKLIGHT_COLOR_EVT) {
-        if (backlight_is_enabled()) {
+        LOG_I("[OUTPUT] backlight color event");
+
+        if (backlight_is_enabled() && !backlight_low_battery) {
             backlight_color_step();
+            output_service_sync_backlight_to_storage_and_save();
         }
         output_service_note_backlight_activity();
         return (events ^ OUTPUT_BACKLIGHT_COLOR_EVT);
     }
 
     if (events & OUTPUT_BATTERY_CHECK_EVT) {
+        LOG_I("[OUTPUT] battery check event");
         uint8_t percentage = battery_get_percentage();
         uint8_t blink_count;
         if (percentage >= 75)      blink_count = 4;
@@ -247,87 +340,58 @@ uint16_t output_process_event(uint8_t task_id, uint16_t events) {
     }
 
     if (events & OUTPUT_BACKLIGHT_SLEEP_EVT) {
-        if (!backlight_low_battery && !backlight_lpm_disabled && backlight_is_enabled()) {
+        LOG_I("[OUTPUT] backlight sleep event");
+        if (!backlight_low_battery && backlight_is_enabled()) {
             backlight_sleeping = true;
             backlight_disable();
         }
         return (events ^ OUTPUT_BACKLIGHT_SLEEP_EVT);
     }
 
-    /*========================================
-     * LPM prepare/resume 事件处理
-     *========================================*/
-
-    // 处理 LPM prepare 事件（仅 Deep 模式需要关灯）
-    if (events & OUTPUT_LPM_PREPARE_EVT) {
-        lpm_mode_t mode = lpm_get_mode();
-        dprintf("Output: LPM prepare start (mode=%d)\r\n", mode);
-
-        if (mode == LPM_MODE_DEEP) {
-            /* Deep：关闭背光和指示灯 */
-            backlight_lpm_disabled = backlight_is_enabled();
-            if (backlight_lpm_disabled) {
-                backlight_disable();
-            }
-            (void)OSAL_StopTask(output_taskID, OUTPUT_BACKLIGHT_SLEEP_EVT);
-            indicator_off_all();
-            dprintf("Output: LEDs off for deep sleep\r\n");
-        }
-        /* Idle：不关灯，直接标记完成 */
-
-        /* 标记 output prepare 完成，通知 system_service 汇聚 */
-        lpm_mark_prepare_done(LPM_PREPARE_OUTPUT);
-        OSAL_SetEvent(system_taskID, SYSTEM_LPM_STEP_DONE_EVT);
-
-        dprintf("Output: LPM prepare done\r\n");
-        return (events ^ OUTPUT_LPM_PREPARE_EVT);
-    }
-
-    // 处理 LPM resume 事件（Deep 唤醒后恢复灯效）
-    if (events & OUTPUT_LPM_RESUME_EVT) {
-        dprintf("Output: LPM resume start\r\n");
-
-        if (backlight_lpm_disabled) {
-            backlight_lpm_disabled = false;
-            if (!backlight_low_battery) {
-                backlight_enable();
-                output_service_note_backlight_activity();
-            }
-        }
-
-        for (uint8_t i = 0; i < IND_LED_COUNT; i++) {
-            if (ind_pending[i].effect != NULL) {
-                indicator_set(i, ind_pending[i].effect);
-            }
-        }
-
-        dprintf("Output: Resume LEDs after deep wake\r\n");
-        return (events ^ OUTPUT_LPM_RESUME_EVT);
-    }
-
     return 0;
 }
 
 void output_service_init(void) {
-    PRINT("Output service init start\r\n");
+    storage_config_t *cfg;
+    uint8_t level;
+    uint8_t color_index;
+    bool enabled;
 
     output_taskID = OSAL_ProcessEventRegister(output_process_event);
-    // backlight_init(NULL);  // 已移至 system_init_drivers() - 驱动层初始化应在驱动层完成
-    backlight_set_preset_color(BL_COLOR_WHITE);
-    backlight_set_preset_level(BL_LEVEL_MEDIUM);
+
+    cfg = storage_get_config_ptr();
+    level = (uint8_t)BACKLIGHT_DEFAULT_LEVEL;
+    color_index = (uint8_t)BACKLIGHT_DEFAULT_COLOR;
+    enabled = BACKLIGHT_DEFAULT_ON;
+
+    if (cfg != NULL) {
+        level = output_service_clamp_backlight_level(cfg->backlight_brightness);
+        output_service_decode_backlight_setting(cfg, &color_index, &enabled);
+        backlight_restored_from_storage = true;
+    } else {
+        backlight_restored_from_storage = false;
+    }
+
+    backlight_set_preset_color((bl_preset_color_t)color_index);
+    backlight_set_preset_level((bl_preset_level_t)level);
+    if (enabled) {
+        backlight_enable();
+    } else {
+        backlight_disable();
+    }
+
     output_service_ready = (output_taskID != 0xFF);
     backlight_sleeping = false;
-    backlight_low_battery = false;
-    backlight_lpm_disabled = false;
+    backlight_low_battery = false;//低电上电检测不及时会点亮背光再熄灭
     backlight_enabled_before_low_battery = backlight_is_enabled();
+    LOG_I("[OUTPUT] backlight restore: %s level=%d color=%d en=%d",
+          backlight_restored_from_storage ? "from_storage" : "default",
+          level, color_index, enabled);
     if (output_service_ready) {
         output_service_note_backlight_activity();
     } else {
-        PRINT("Output service task register failed\r\n");
+        LOG_E("[OUTPUT] task register failed");
     }
-
-    PRINT("Task registered, ID=%d\r\n", output_taskID);
-    PRINT("Output service init done\r\n");
 }
 
 #ifdef __cplusplus

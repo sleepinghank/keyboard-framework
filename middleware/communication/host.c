@@ -85,29 +85,21 @@ void host_keyboard_send(report_keyboard_t *report) {
     report->report_id = REPORT_ID_KEYBOARD;
 #endif
     (*driver->send_keyboard)(report);
-
-    if (debug_keyboard) {
-        dprintf("keyboard_report: %02X | ", report->mods);
-        for (uint8_t i = 0; i < KEYBOARD_REPORT_KEYS; i++) {
-            dprintf("%02X ", report->keys[i]);
-        }
-        dprint("\n");
-    }
 }
 
-void host_nkro_send(report_nkro_t *report) {
-    if (!driver) return;
-    report->report_id = REPORT_ID_NKRO;
-    (*driver->send_nkro)(report);
+// void host_nkro_send(report_nkro_t *report) {
+//     if (!driver) return;
+//     report->report_id = REPORT_ID_NKRO;
+//     (*driver->send_nkro)(report);
 
-    if (debug_keyboard) {
-        dprintf("nkro_report: %02X | ", report->mods);
-        for (uint8_t i = 0; i < NKRO_REPORT_BITS; i++) {
-            dprintf("%02X ", report->bits[i]);
-        }
-        dprint("\n");
-    }
-}
+//     if (debug_keyboard) {
+//         dprintf("nkro_report: %02X | ", report->mods);
+//         for (uint8_t i = 0; i < NKRO_REPORT_BITS; i++) {
+//             dprintf("%02X ", report->bits[i]);
+//         }
+//         dprint("\n");
+//     }
+// }
 
 void host_mouse_send(report_mouse_t *report) {
 #ifdef BLUETOOTH_ENABLE
@@ -219,7 +211,7 @@ __attribute__((weak)) void send_joystick(report_joystick_t *report) {}
 
 #ifdef DIGITIZER_ENABLE
 void host_digitizer_send(digitizer_t *digitizer) {
-    report_digitizer_t report = {
+    report_ptp_t report = {
 #    ifdef DIGITIZER_SHARED_EP
         .report_id = REPORT_ID_DIGITIZER,
 #    endif
@@ -234,7 +226,7 @@ void host_digitizer_send(digitizer_t *digitizer) {
 }
 #endif
 
-__attribute__((weak)) void send_digitizer(report_digitizer_t *report) {}
+__attribute__((weak)) void send_digitizer(report_ptp_t *report) {}
 
 #ifdef PROGRAMMABLE_BUTTON_ENABLE
 void host_programmable_button_send(uint32_t data) {

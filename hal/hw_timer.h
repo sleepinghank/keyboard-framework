@@ -8,14 +8,14 @@
  * - 支持 CH584、PAR2860、nRF52 等平台
  * - 时间单位为毫秒 (ms)
  * - 仅支持周期模式，长时间定时请使用 OSAL 软件定时器
- * - 硬件限制: 最大定时周期约 860ms (78MHz 时钟)
+ * - 硬件限制: 最大定时周期由平台主频决定
  */
 
 #pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "../application/sys_error.h"
+#include "system_enums.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,8 +32,12 @@ extern "C" {
 #define HW_TIMER_INVALID_ID     0xFF
 
 // 硬件定时器最大定时周期 (毫秒)
-// 78MHz 时钟，26位计数器: 67108864 / 78000 ≈ 860ms
-#define HW_TIMER_MAX_MS         860
+// 26位计数器上限为 67108864 ticks，实际毫秒上限由 FREQ_SYS 决定
+#if defined(FREQ_SYS) && (FREQ_SYS >= 1000UL)
+#define HW_TIMER_MAX_MS         (67108864UL / (FREQ_SYS / 1000UL))
+#else
+#define HW_TIMER_MAX_MS         860UL
+#endif
 
 /*==========================================
  * 类型定义
@@ -79,10 +83,10 @@ error_code_t hw_timer_deinit(void);
 /**
  * @brief 启动周期定时器
  * @param timer_id 定时器 ID
- * @param interval_ms 定时间隔 (毫秒, 最大 860ms)
+ * @param interval_ms 定时间隔 (毫秒, 最大由 HW_TIMER_MAX_MS 决定)
  * @param callback 回调函数
  * @return error_code_t 错误码
- * @note 超过 860ms 的定时请使用 OSAL 软件定时器
+ * @note 超过 HW_TIMER_MAX_MS 的定时请使用 OSAL 软件定时器
  */
 error_code_t hw_timer_start(hw_timer_id_t timer_id, uint32_t interval_ms, hw_timer_callback_t callback);
 
@@ -100,7 +104,7 @@ error_code_t hw_timer_stop(hw_timer_id_t timer_id);
 /**
  * @brief 修改定时间隔
  * @param timer_id 定时器 ID
- * @param interval_ms 定时间隔 (毫秒, 最大 860ms)
+ * @param interval_ms 定时间隔 (毫秒, 最大由 HW_TIMER_MAX_MS 决定)
  * @return error_code_t 错误码
  */
 error_code_t hw_timer_set_interval(hw_timer_id_t timer_id, uint32_t interval_ms);

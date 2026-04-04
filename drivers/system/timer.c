@@ -1,11 +1,19 @@
 #include "timer.h"
-#include "sys_config.h"
+#include "kb904/config_product.h"
 #include "atomic_util.h"
 #include <stdint.h>
 
-#if(CHIP_TYPE == CHIP_CH584M)
+#if (CHIP_TYPE == CHIP_CH584M)
     #include "CH58x_common.h"
     #include "CH58x_clk.h"
+#else
+    /* 测试平台使用简单的软件计数器模拟 RTC */
+    #include <time.h>
+    static uint32_t test_rtc_counter = 0;
+    static uint32_t RTC_GetCycle32k(void) {
+        /* 使用系统时间模拟 RTC 周期 */
+        return (uint32_t)(clock() * 32768UL / CLOCKS_PER_SEC);
+    }
 #endif
 
 // RTC频率：32kHz = 32768 Hz
@@ -19,7 +27,7 @@
 
 // 溢出调整：最大的32768的倍数，使得结果不超过UINT32_MAX
 // 这样可以确保在转换为毫秒时不会溢出
-#if(CHIP_TYPE == CHIP_CH584M)
+#if (CHIP_TYPE == CHIP_CH584M)
 #define RTC_COUNTER_MOD 0xA8C00000UL
 #define RTC_WRAP_CYCLES UINT64_C(0xA8C00000)
 #else
@@ -40,11 +48,10 @@ volatile uint32_t timer_count = 0;
 // 此函数必须在原子操作保护下调用
 static inline uint32_t get_rtc_cycles(void) {
     return RTC_GetCycle32k();
-    // return 1;
 }
 
 static inline uint32_t rtc_cycles_diff(uint32_t current, uint32_t base) {
-#if(CHIP_TYPE == CHIP_CH584M)
+#if (CHIP_TYPE == CHIP_CH584M)
     if (current >= base) {
         return current - base;
     }

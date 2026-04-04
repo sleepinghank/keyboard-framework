@@ -11,6 +11,7 @@
  */
 
 #include "watchdog.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 
 /* 看门狗配置参数 */

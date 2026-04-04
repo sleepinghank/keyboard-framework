@@ -1,6 +1,7 @@
 // middleware/keyboard/combo/Special_Combo.c
+#include "kb904/config_product.h"
 #include "kb_sys_action.h"
-#include "country_codes.h"
+#include "config_product.h"
 #include "event_manager.h"
 #include "output_service.h"
 #include "input_service.h"
@@ -25,16 +26,14 @@ uint8_t Set_FN_Lock(uint16_t* add_keys) {
 uint8_t Backlight_Color(uint16_t* add_keys) {
     dprintf("Backlight_Color triggered\n");
 
-    // OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_COLOR_EVT);
-    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
+    OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_COLOR_EVT);
     return 0;
 }
 
 // 切换背光亮度
 uint8_t Backlight_Light(uint16_t* add_keys) {
     dprintf("Backlight_Light triggered\n");
-    // OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_BRIGHTNESS_EVT);
-    // OSAL_SetEvent(system_taskID, SYSTEM_STORAGE_EVT);
+    OSAL_SetEvent(output_taskID, OUTPUT_BACKLIGHT_BRIGHTNESS_EVT);
     return 0;
 }
 
@@ -49,23 +48,24 @@ uint8_t Touch_Locked(uint16_t* add_keys) {
 // 恢复出厂设置
 uint8_t Factory_Reset(uint16_t* add_keys) {
     dprintf("Factory_Reset triggered\n");
-    // OSAL_SetEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT);
+    OSAL_SetEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT);
     return 0;
 }
 
 // 电池检测
 uint8_t Bat_Check(uint16_t* add_keys) {
     dprintf("Bat_Check triggered\n");
-    // OSAL_SetEvent(output_taskID, OUTPUT_BATTERY_CHECK_EVT);
+    OSAL_SetEvent(output_taskID, OUTPUT_BATTERY_CHECK_EVT);
     return 0;
 }
 
 // 配对按钮
 uint8_t Pair_button(uint16_t* add_keys) {
     dprintf("Pair_button triggered\n");
-    // OSAL_SetEvent(commu_taskID, WL_PAIR_EVT);
+    OSAL_SetEvent(commu_taskID, WL_REQ_PAIR);
     return 0;
 }
+
 
 /* =====================================================
  * 特殊组合键（按国家差异）
@@ -193,3 +193,12 @@ uint8_t Z_Special_Combo(uint16_t* add_keys) {
 //     add_keys[idx++] = KB_PAGEDOWN;
 //     return idx;
 // }
+
+uint8_t Touch_Button_down(uint16_t* add_keys){
+    writePinHigh(TOUCHPAD_BUTTON_PIN);
+    return 0; 
+}
+uint8_t Touch_Button_up(uint16_t* add_keys){
+    writePinLow(TOUCHPAD_BUTTON_PIN);
+    return 0;
+}

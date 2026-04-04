@@ -14,9 +14,9 @@
 #include "pct1336_driver.h"
 #include "gpio.h"
 #include "wait.h"
-#include "bt_driver.h"
+#include "wireless.h"
 #include "debug.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "util.h"
 #include "i2c_master.h"
 #include <math.h>
@@ -26,11 +26,7 @@
  * MACROS 宏定义
  */
 // 调试打印宏
-#if 1
-#define TOUCHPAD_log(...) dprintf(__VA_ARGS__)
-#else
-#define TOUCHPAD_log(...)
-#endif
+
 
 // 触控板逻辑
 #define SPECIAL_EDGE_X_MIN 5
@@ -70,31 +66,20 @@ typedef struct _OTHER_TOUCH_DATA {
 uint8_t touch_en = 0; // 触摸板状态
 uint8_t touch_mode = 1; // 触摸板模式
 /*********************************************************************
- * EXTERNAL VARIABLES   外部变量
- */
-// 操作系统类型定义 (用于 Y 轴翻转判断)
-#ifndef IOS
-#define IOS 1
-#endif
 
-// 默认操作系统类型 (0: Windows/Android, 1: iOS/macOS)
-#ifndef TOUCHPAD_DEFAULT_OS_TYPE
-#define TOUCHPAD_DEFAULT_OS_TYPE 0
-#endif
-static uint8_t keycode_type = TOUCHPAD_DEFAULT_OS_TYPE;
 
 // 触控板手势开关配置
 static uint8_t touch_gesture_switch_bitmap = 0;
 /*********************************************************************
  * EXTERNAL FUNCTIONS 外部函数
  */
-
+extern uint8_t host_system_type;
 /*********************************************************************
  * LOCAL VARIABLES 本地变量
  */
 static uint16_t scan_time =0; // 扫描时间
-static hid_ptp_report_t ptp_reports; // PTP报文
-static hid_ptp_report_t ptp_reports_clone; // PTP报文
+static report_ptp_t ptp_reports; // PTP报文
+static report_ptp_t ptp_reports_clone; // PTP报文
 static touchpad_data_t original_reports;
 uint8_t motion[4]= {0};
 uint8_t motion_btn=0;
@@ -138,7 +123,7 @@ GestureType act_gesture = GESTURE_UNKNOWN;
 
 /*****鼠标报文*******/
 static uint8_t Touchkeybuf[KEYBOARD_REPORT_SIZE];
-static hid_mouse_report_t mouse_reports; // 鼠标报文
+static report_mouse_t mouse_reports; // 鼠标报文
 static uint8_t mouse_button_flag = 0; // 鼠标按键状态
 /*********************************************************************
  * LOCAL FUNCTIONS 本地函数
@@ -151,42 +136,46 @@ void gesture_judgment(){
         return;
     }
     result = recognize_gesture(touch_arr,touch_idx);
-    TOUCHPAD_log("Recognized gesture: %d\n",result);
+    LOG_I("Recognized gesture: %d\n",result);
     if (result != GESTURE_UNKNOWN){
         act_gesture = result;
     }
 }
 #endif
 
-static void send_ptp_data(hid_ptp_report_t *ptp){
-    uint8_t send_len = sizeof(hid_ptp_report_t);
-    if (keycode_type == IOS)
+static void send_ptp_data(report_ptp_t *ptp){
+    uint8_t send_len = sizeof(report_ptp_t);
+    if (host_system_type == IOS)
     {
         send_len--;
     }
-    bt_driver_send_ptp((uint8_t*)ptp, send_len);
+    
+    wireless_send_ptp((uint8_t*)ptp, send_len);
+    // bt_driver_send_ptp((uint8_t*)ptp, send_len);
 
-    #ifdef CONFIG_UART_ENABLE
-    uint8_t i;
-    uint16_t t = (uint16_t)ptp ->scantime_l8+((uint16_t)ptp ->scantime_m8<<8);
-    TOUCHPAD_log("cnt:%d,button:%d,button2:%d,time:%d",ptp ->contactCnt,ptp ->button,ptp ->button1,t);
-    for(i=0;i<4;i++)
-    {
-        TOUCHPAD_log("%d %x %x %d %d",ptp ->contact_rpt[i].contact_id,ptp ->contact_rpt[i].tip,ptp ->contact_rpt[i].confidence,
-        (uint16_t)(ptp ->contact_rpt[i].x_l8+(ptp ->contact_rpt[i].x_m4<<8)),(uint16_t)(ptp ->contact_rpt[i].y_l4+(ptp ->contact_rpt[i].y_m8<<4)));
-    }
-    TOUCHPAD_log("-----------------------------------------");
-    #endif
+    // #if (PRINTF_ENABLE == TRUE)
+    // uint8_t i;
+    // uint16_t t = (uint16_t)ptp ->scantime_l8+((uint16_t)ptp ->scantime_m8<<8);
+    // LOG_I("cnt:%d,button:%d,button2:%d,time:%d",ptp ->contactCnt,ptp ->button,ptp ->button1,t);
+    // for(i=0;i<4;i++)
+    // {
+    //     LOG_I("%d %x %x %d %d",ptp ->contact_rpt[i].contact_id,ptp ->contact_rpt[i].tip,ptp ->contact_rpt[i].confidence,
+    //     (uint16_t)(ptp ->contact_rpt[i].x_l8+(ptp ->contact_rpt[i].x_m4<<8)),(uint16_t)(ptp ->contact_rpt[i].y_l4+(ptp ->contact_rpt[i].y_m8<<4)));
+    // }
+    // LOG_I("-----------------------------------------");
+    // #endif
 }
 
 static uint8_t send_touch_data(){
     if (touch_mode == TOUCH_MODE_MOUSE){
-        bt_driver_send_mouse((uint8_t*)&mouse_reports);
-        #ifdef CONFIG_UART_ENABLE
-        TOUCHPAD_log("button:%d,x:%d,y:%d,wheel:%d,twheel:%d",mouse_reports.button,mouse_reports.x_l8,mouse_reports.y_l4,mouse_reports.wheel,mouse_reports.twheel);
+        LOG_I("send mouse data");
+        wireless_send_mouse((uint8_t*)&mouse_reports);
+        #if (PRINTF_ENABLE == TRUE)
+        LOG_I("button:%d,x:%d,y:%d,wheel:%d,twheel:%d",mouse_reports.button,mouse_reports.x_l8,mouse_reports.y_l4,mouse_reports.wheel,mouse_reports.twheel);
         #endif
     }
     else if (touch_mode == TOUCH_MODE_PTP){
+        LOG_I("send ptp data");
         send_ptp_data(&ptp_reports);
     }
     return 0;
@@ -202,9 +191,9 @@ uint8_t ProcessMouseData(void)
     if(pct1336_read_status(&st,&button_st,&gesture_st)  == 0){
         return 0;  // 设备读取失败直接返回
     }
-    // TOUCHPAD_log("st:%x,button_st:%x,gesture_st:%x\n",st,button_st,gesture_st);
+    // LOG_I("st:%x,button_st:%x,gesture_st:%x\n",st,button_st,gesture_st);
     // 清空鼠标报文
-    memset((uint8_t*)&mouse_reports,0x00, sizeof(hid_mouse_report_t));
+    memset((uint8_t*)&mouse_reports,0x00, sizeof(report_mouse_t));
     memset(Touchkeybuf, 0x00, KEYBOARD_REPORT_SIZE);
     // 触摸板错误
     if ((st & TOUCH_STATUS_ERROR) == TOUCH_STATUS_ERROR) {
@@ -388,9 +377,9 @@ uint8_t unite_filtration(touchpad_data_t *ptp){
         if (ptp -> contacts[i].confidence == 0 || ptp -> contacts[i].tip == 0){
 			continue;
 		}
-        // TOUCHPAD_log("distance_valid:%d,is_new:%d",mistouch_datas[ptp -> contacts[i].contact_id].distance_valid,mistouch_datas[ptp -> contacts[i].contact_id].is_new);
+        // LOG_I("distance_valid:%d,is_new:%d",mistouch_datas[ptp -> contacts[i].contact_id].distance_valid,mistouch_datas[ptp -> contacts[i].contact_id].is_new);
         if (mistouch_datas[ptp -> contacts[i].contact_id].distance_valid == 0 &&  mistouch_datas[ptp -> contacts[i].contact_id].is_new > 0){
-            // TOUCHPAD_log("contact_id:%d,set tip:0",ptp -> contacts[i].contact_id);
+            // LOG_I("contact_id:%d,set tip:0",ptp -> contacts[i].contact_id);
             // 第一次接触 并且没验证完成
             ptp -> contacts[i].x = 0;
             ptp -> contacts[i].y = 0;
@@ -406,7 +395,7 @@ uint8_t unite_filtration(touchpad_data_t *ptp){
         }
         if (mistouch_datas[ptp -> contacts[i].contact_id].is_new > 0){
             mistouch_datas[ptp -> contacts[i].contact_id].is_new --;
-            // TOUCHPAD_log("is_new:%d",mistouch_datas[ptp -> contacts[i].contact_id].is_new);
+            // LOG_I("is_new:%d",mistouch_datas[ptp -> contacts[i].contact_id].is_new);
         }
     }
     return is_activate;
@@ -429,14 +418,14 @@ uint8_t has_no_confidence(void){
 }
 #ifdef DOUBLE_CLICK_TO_RIGHT_BUTTON
 void send_clone_ptp_report(void){ 
-    TOUCHPAD_log("send_clone_ptp_report");  
+    LOG_I("send_clone_ptp_report");  
     send_ptp_data(&ptp_reports_clone);
 }
 
 void auto_release_right_button(){
     uint16_t t = scan_time + 200;
-    TOUCHPAD_log("Auto release right button at time:%d",t);
-    memcpy(&ptp_reports_clone, &ptp_reports, sizeof(hid_ptp_report_t));
+    LOG_I("Auto release right button at time:%d",t);
+    memcpy(&ptp_reports_clone, &ptp_reports, sizeof(report_ptp_t));
     ptp_reports_clone.button = 0;
     ptp_reports_clone.button1 = 0;
     ptp_reports_clone.button2 = 0;
@@ -455,7 +444,7 @@ uint8_t ProcessGetPTPData(void){
     if(pct1336_read_status(&st,&button_st,NULL) == 0){
         return 0;  // 设备读取失败直接返回
     }
-    // TOUCHPAD_log("st:%x,button_st:%x",st,button_st);
+    // LOG_I("st:%x,button_st:%x",st,button_st);
     if ((st & TOUCH_STATUS_ERROR) == TOUCH_STATUS_ERROR || (st &TOUCH_STATUS_WATCHDOG_RESET) == TOUCH_STATUS_WATCHDOG_RESET) {
         pct1336_resume();
         return 0;
@@ -475,18 +464,18 @@ uint8_t ProcessGetPTPData(void){
         }
         // 存在触摸点
         touch_out_flag = 1;
-        #ifdef CONFIG_UART_ENABLE
-        {
-            uint8_t i;
-            TOUCHPAD_log("Original cnt:%d",original_reports.contact_count);
-            for(i=0;i<4;i++)
-            {
-                TOUCHPAD_log("%d %x %x %d %d %d ",original_reports.contacts[i].contact_id,original_reports.contacts[i].tip,original_reports.contacts[i].confidence,
-                original_reports.contacts[i].x,original_reports.contacts[i].y,original_reports.contacts[i].size);
-            }
-            TOUCHPAD_log("**************************");
-        }
-        #endif
+        // #if (PRINTF_ENABLE == TRUE)
+        // {
+        //     uint8_t i;
+        //     LOG_I("Original cnt:%d",original_reports.contact_count);
+        //     for(i=0;i<4;i++)
+        //     {
+        //         LOG_I("%d %x %x %d %d %d ",original_reports.contacts[i].contact_id,original_reports.contacts[i].tip,original_reports.contacts[i].confidence,
+        //         original_reports.contacts[i].x,original_reports.contacts[i].y,original_reports.contacts[i].size);
+        //     }
+        //     LOG_I("**************************");
+        // }
+        // #endif
         #ifdef EDGE_MISTOUCH
         if (cnt == 1 && button_st == 0){
             if (Pre_Tip[original_reports.contacts[0].contact_id] == 1 || original_reports.contacts[0].tip == 0){
@@ -521,7 +510,7 @@ uint8_t ProcessGetPTPData(void){
             ptp_reports.contact_rpt[u8tmp].confidence=original_reports.contacts[u8tmp].confidence;
             ptp_reports.contact_rpt[u8tmp].contact_id= contact_id;
             // windows下需要反转Y轴
-            if (keycode_type == IOS){
+            if (host_system_type == IOS){
                 if (y_offset == 0 && ptp_reports.contact_rpt[u8tmp].confidence == 0 && ptp_reports.contact_rpt[u8tmp].tip == 0){
                     y_offset = 0;
                 } else {
@@ -546,7 +535,7 @@ uint8_t ProcessGetPTPData(void){
                         (ptp_reports.contact_rpt[u8tmp].y_m8!=0)) && ptp_reports.contact_rpt[u8tmp].tip == 1)||
                         ((ptp_reports.contact_rpt[u8tmp].tip != Pre_Tip[contact_id]) && (Pre_Tip[contact_id]==1))) {
                     motion[u8tmp] = 1;
-                    // TOUCHPAD_log("motion[%d] id:%d,:%d",u8tmp,contact_id,motion[u8tmp]);
+                    // LOG_I("motion[%d] id:%d,:%d",u8tmp,contact_id,motion[u8tmp]);
                     // 判断有上报数据即为有触摸
                 }
             }
@@ -623,7 +612,7 @@ uint8_t ProcessGetPTPData(void){
     }
     #endif
     if (Pre_Tip[0] == 0 && Pre_Tip[1] == 0 &&Pre_Tip[2] == 0 &&Pre_Tip[3] == 0&&Pre_Tip[4] == 0&&Pre_Tip[5] == 0){
-        TOUCHPAD_log("All fingers no touch");
+        LOG_I("All fingers no touch");
         ptp_reports.button=0;
         ptp_reports.button1=0;
         motion_btn = 0;
@@ -634,7 +623,7 @@ uint8_t ProcessGetPTPData(void){
         touch_out_flag |= 0x80;
     }
     if (original_reports.contact_count == 0 && original_reports.contacts[0].tip == 0 && original_reports.contacts[0].confidence == 0){
-        TOUCHPAD_log("All fingers leave");
+        LOG_I("All fingers leave");
         #ifdef HOLD_BUTTON
         memset(&pre_contact, 0, sizeof(contact_data_t));
         #endif
@@ -703,7 +692,7 @@ uint8_t ProcessPTPData(void){
                     ( (uint16_t)(ptp_reports.contact_rpt[0].y_m8 & 0xFF) << 4 ) |
                     (ptp_reports.contact_rpt[0].y_l4 & 0x0F)
                 );
-                if (keycode_type == IOS){
+                if (host_system_type == IOS){
                     touch_arr[touch_idx].y = TOUCHPAD_MAX_Y - touch_arr[touch_idx].y;
                 }
                 touch_idx++;
@@ -718,7 +707,7 @@ uint8_t ProcessPTPData(void){
     }
     // 判断为接触后离开
     if (touch_out_flag == 0x81 && motion_btn == 0){
-        TOUCHPAD_log("Touch out");
+        LOG_I("Touch out");
         scan_time = 0;
         #ifdef BAYES_MISTOUCH
         memset(mistouch_datas, 0, sizeof(mistouch_datas));
@@ -750,6 +739,7 @@ __HIGH_CODE
 void _touch_cb(pin_t pin)
 {
     (void)pin;  /* 未使用，保留参数以匹配回调签名 */
+    // LOG_I("Touch interrupt triggered");
     if (touch_en == 1) {
         touchpad_notify_int();
     }
@@ -767,11 +757,12 @@ void touch_gpio_init(void){
     gpio_set_pin_input_high(TOUCHPAD_SDA);
     // 初始化 I2C
     i2c_init();
-    TOUCHPAD_log("Touch GPIO init \r\n");
+    LOG_I("Touch GPIO init \r\n");
     int16_t status = i2c_init_channel_with_pins(I2C_CHANNEL_0, TOUCHPAD_SDA, TOUCHPAD_SCL, 400000);
-    TOUCHPAD_log("i2c init status: %d\r\n", status);
+    LOG_I("i2c init status: %d\r\n", status);
     // 启用中断
     gpio_enable_interrupt(TOUCHPAD_INT, GPIO_INT_FALLING, _touch_cb);
+    LOG_I("Touch GPIO init complete\r\n");
 }
 
 /// @brief 触摸板 物理断电
@@ -792,18 +783,18 @@ void touch_gpio_uninit(void){
 void touch_Init(void)
 {  
     int8_t result;
-
+    LOG_I("Touch Init");
     result = pct1336_init();
     
     if (result == 1)
     {
         touch_en = 1;
-        TOUCHPAD_log("touch_Init success\r\n");
+        LOG_I("touch_Init success\r\n");
     }
     else
     {
         touch_en = 0;
-        TOUCHPAD_log("touch_Init fail\r\n");
+        LOG_I("touch_Init fail\r\n");
     }
     
     // 可选：释放参数内存（如果参数是动态分配的）
@@ -825,6 +816,7 @@ int8_t touch_power_on_with_params(pct1336_params_t* params, uint8_t len)
     pct1336_set_init_params(params, len);
 
     touch_gpio_init();
+    LOG_I("Touch power on");
     touch_Init();
 
     return (touch_en == 1) ? 1 : 0;
@@ -834,7 +826,7 @@ int8_t touch_power_on(void){
 }
 
 int8_t touch_power_off(void){
-    TOUCHPAD_log("Touch power off");
+    LOG_I("Touch power off");
     pct1336_sleep();
     touch_en = 0;
     wait_us(200);
@@ -852,7 +844,7 @@ void set_touch_mode(touch_mode_t mode){
             break;
         default:
             // 记录错误日志并设置默认模式
-            TOUCHPAD_log("Invalid touch mode: %d, setting to default MOUSE mode", mode);
+            LOG_I("Invalid touch mode: %d, setting to default MOUSE mode", mode);
             touch_mode = TOUCH_MODE_MOUSE;
             break;
     }

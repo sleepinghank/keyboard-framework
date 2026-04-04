@@ -12,6 +12,7 @@
  *******************************************************************************/
 
 #include "i2c_master.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -633,7 +634,7 @@ static int i2c_read_from_channel(i2c_channel_t channel, uint8_t addr_7bit, uint8
 
     // wait for read operation to complete
     while (ch->state == I2C_MRX) {
-        mDelaymS(1);
+        mDelayuS(50);
         to++;
         if (!forever && (to >= timeout)) {
             break;

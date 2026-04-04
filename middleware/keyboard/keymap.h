@@ -3,7 +3,7 @@
 #define __KEYMAP_H__
 
 #include <stdint.h>
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 // 层类型
 typedef enum {

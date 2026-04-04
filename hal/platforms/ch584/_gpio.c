@@ -19,7 +19,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "debug.h"
-
+#include "input_service.h"
+#include "kb904/config_product.h"
 /* 引入CH584标准外设库头文件 */
 #include "CH58x_gpio.h"
 #include "CH58x_common.h"
@@ -284,7 +285,8 @@ static void _remove_pin_from_all_slots(gpio_int_slot_t *slots, uint32_t mask) {
  */
 static void _config_interrupt(uint8_t port, uint32_t mask, gpio_int_trigger_t trigger) {
     GPIOITModeTpDef mode = s_trigger_map[trigger];
-
+    dprintf("Configuring GPIO interrupt: port=%c mask=0x%08X trigger=%d\n",
+            (port == PORTA) ? 'A' : 'B', mask, trigger);
     if (port == PORTA) {
         GPIOA_ModeCfg(mask, GPIO_ModeIN_PU);
         GPIOA_ITModeCfg(mask, mode);

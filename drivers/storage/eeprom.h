@@ -7,7 +7,7 @@
 #else
 #    include <stdint.h>
 #    include <stdlib.h>
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 
 uint8_t  eeprom_read_byte(const uint8_t *__p);
 uint16_t eeprom_read_word(const uint16_t *__p);

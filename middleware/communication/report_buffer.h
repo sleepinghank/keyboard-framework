@@ -17,6 +17,7 @@
 #pragma once
 
 #include "report.h"
+#include "touchpad_service.h"
 
 /* Default report interval value */
 #ifndef DEFAULT_BLE_REPORT_INVERVAL_MS
@@ -38,14 +39,18 @@ enum {
     REPORT_TYPE_KB,
     REPORT_TYPE_NKRO,
     REPORT_TYPE_CONSUMER,
+    REPORT_TYPE_PTP,
+    REPORT_TYPE_MOUSE,
 };
 
 typedef struct {
     uint8_t type;
+    uint8_t payload_len;
     union {
         report_keyboard_t keyboard;
-        report_nkro_t     nkro;
         uint16_t          consumer;
+        report_ptp_t        ptp;
+        report_mouse_t      mouse;
     };
 } report_buffer_t;
 
@@ -53,9 +58,11 @@ void    report_buffer_init(void);
 bool    report_buffer_enqueue(report_buffer_t *report);
 bool    report_buffer_dequeue(report_buffer_t *report);
 bool    report_buffer_is_empty(void);
-void    report_buffer_update_timer(void);
-bool    report_buffer_next_inverval(void);
-void    report_buffer_set_inverval(uint8_t interval);
-uint8_t report_buffer_get_retry(void);
-void    report_buffer_set_retry(uint8_t times);
-void    report_buffer_task(void);
+// void    report_buffer_update_timer(void);
+// bool    report_buffer_next_inverval(void);
+// void    report_buffer_set_inverval(uint8_t interval);
+// uint8_t report_buffer_get_retry(void);
+// void    report_buffer_set_retry(uint8_t times);
+bool    report_buffer_task(void);
+bool    report_buffer_waiting_send(void);
+uint8_t report_buffer_delete_pending(void);

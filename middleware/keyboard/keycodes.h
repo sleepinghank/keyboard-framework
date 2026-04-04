@@ -920,6 +920,8 @@ enum qk_keycode_defines {
     KC_TRUP    = KC_TREBLE_UP,
     KC_TRDN    = KC_TREBLE_DOWN,
     KC_KBLY    = KC_KEYBOARD_LAYOUT,
+    KC_IPOW    = KC_IOS_POWER,
+    KC_IMNU    = KC_IOS_MENU,
     KC_MS_U    = KC_MS_UP,
     KC_MS_D    = KC_MS_DOWN,
     KC_MS_L    = KC_MS_LEFT,

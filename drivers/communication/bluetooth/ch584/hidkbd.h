@@ -9,8 +9,9 @@
  * Attention: This software (modified or not) and binary are used for 
  * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
-#pragma once
 
+#ifndef HIDKBD_H
+#define HIDKBD_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -18,51 +19,30 @@ extern "C" {
 /*********************************************************************
  * INCLUDES
  */
+#include <stdint.h>
 
 #include "storage.h"
+
 /*********************************************************************
  * CONSTANTS
  */
-typedef enum {
-    BLE_INTENT_NONE     = 0,
-    BLE_INTENT_PAIRING  = 1,
-    BLE_INTENT_RECONNECT = 2,
-} ble_intent_t;
 
-typedef struct
-{
-    ble_intent_t intent;    /* 操作意图（已请求的意图，非当前 GAP 状态） */
-    uint8_t Fn_state;
-    volatile uint8_t sleep_en;
-    uint8_t deep_sleep_flag;
-    uint8_t idel_sleep_flag;
-    access_ble_idx_t  ble_idx;
-} access_state_t;
 // Task Events
 #define START_DEVICE_EVT          0x0001
-//#define START_REPORT_EVT          0x0002
-#define START_PARAM_UPDATE_EVT    0x0004
-#define START_PHY_UPDATE_EVT      0x0008
+#define START_PARAM_UPDATE_EVT    0x0002
+#define START_PHY_UPDATE_EVT      0x0004
+#define WAIT_TERMINATE_EVT          0x0010
+#define SEND_PACKET_EVT          0x0040
+#define DELETE_PACKET_EVT          0x0080
+#define SEND_DISCONNECT_EVT          0x0100
+#define BLE_CLEAR_BUF_EVT         0x0200
+#define PERI_SECURITY_REQ_EVT         0x0400
 
-#define WAIT_TERMINATE_EVT          1<<5
-#define SEND_PACKET_EVT          1<<6
-#define DELETE_PACKET_EVT          1<<7
-#define SEND_DISCONNECT_EVT          1<<8
-#define BLE_CLEAR_BUF_EVT         1<<9
-#define PERI_SECURITY_REQ_EVT         1<<10
 
-#define START_SVC_DISCOVERY_EVT       0x0008
-#define START_READ_OR_WRITE_EVT       0x0080
-#define START_WRITE_CCCD_EVT          0x0100
-#define RF_DATA_LED                 0x81
-
-/*********************************************************************
- * MACROS
- */
-typedef void (*pfnHidEmuReceiveCB_t)( uint8_t *pData, uint8_t len );
+#define TERMINATE_EVT_TIMEOUT                160
 
 // Minimum connection interval (units of 1.25ms)
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL    12
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL    9
 
 // Maximum connection interval (units of 1.25ms)
 #define DEFAULT_DESIRED_MAX_CONN_INTERVAL    12
@@ -73,22 +53,33 @@ typedef void (*pfnHidEmuReceiveCB_t)( uint8_t *pData, uint8_t len );
 // Supervision timeout value (units of 10ms)
 #define DEFAULT_DESIRED_CONN_TIMEOUT         300
 
-#define DISCONNECT_IDEL_SLEEP_EVT_TIMEOUT       (1600 * 2)
-#define LPM_DEEP_REQ_DELAY_TICKS              (1600 * 60)
+// iOS 连接参数申请目标
+#define IOS_DESIRED_MIN_CONN_INTERVAL        12
+#define IOS_DESIRED_MAX_CONN_INTERVAL        12
+#define IOS_DESIRED_SLAVE_LATENCY            4
+#define IOS_DESIRED_CONN_TIMEOUT             400
+
+/**
+ * 广播会话目的（与上层 BLE_INTENT_PAIRING / RECONNECT 对齐）。
+ *
+ * - PAIRING_NEW：重新配对窗口；Limited Discoverable、较快广播间隔；可选轮换 Random Static 地址。
+ * - RECONNECT：已有绑定下的回连；General Discoverable、低占空比广播；保持与绑定一致的设备身份。
+ */
+typedef enum {
+    BLE_ADV_PURPOSE_PAIRING_NEW = 0,
+    BLE_ADV_PURPOSE_RECONNECT   = 1,
+} ble_adv_purpose_t;
 /*********************************************************************
- * FUNCTIONS
+ * MACROS
  */
 
 /*********************************************************************
+ * FUNCTIONS
+ */
+/*********************************************************************
  * GLOBAL VARIABLES
  */
-extern uint8_t start_device_over;
-extern uint16_t hidEmuConnHandle;
-extern access_ble_idx_t con_work_mode;
-extern uint8_t adv_enable_process_flag;
-extern uint8_t hidEmuTaskId;
-extern uint8_t hidDevConnSecure;
-extern access_state_t access_state;
+
 /*
  * Task Initialization for the BLE Application
  */
@@ -99,50 +90,37 @@ extern void HidEmu_Init(void);
  */
 extern uint16_t HidEmu_ProcessEvent(uint8_t task_id, uint16_t events);
 
-extern void hidEmu_adv_enable(uint8_t enable);
-
-extern void hidEmu_prepare_reconnect_adv(void);
-
-extern uint8_t hidEmu_is_ble_bonded( access_ble_idx_t ble_idx );
-
-extern uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx );
-
-extern uint8_t hidEmu_update_device_name(void);
-
-extern uint8_t hidEmu_class_keyboard_report(uint8_t *pData,uint8_t len);
-
-extern uint8_t hidEmu_mouse_report(uint8_t *pData,uint8_t len);
-
-extern uint8_t hidEmu_all_keyboard_report(uint8_t *pData,uint8_t len);
-
-extern uint8_t hidEmu_fn_report(uint8_t *pData, uint8_t len);
-
-extern uint8_t hidEmu_consumer_report(uint8_t *pData,uint8_t len);
-
-extern uint8_t hidEmu_sys_ctl_report(uint8_t data);
-
-extern uint8_t hidEmu_smart_wheel_report(uint8_t *pData, uint8_t len);
-
-extern void hidEmu_receive_cb_register(pfnHidEmuReceiveCB_t cback);
-
-extern void hidEmu_save_ble_bonded(uint8_t is_pairing);
-
-extern void hidEmu_delete_ble_bonded(void);
+extern void update_conn_pamm(void);
 
 extern void hidEmu_disconnect(void);
+extern uint8_t hidEmu_GetGAP_State(void);
 
-extern void hidEmu_pairing_adv(access_ble_idx_t idx);
-extern void hidEmu_reconnect_adv(access_ble_idx_t idx);
-extern void hidEmu_stop_adv(void);
-extern void hidEmu_clear_pairing_failed_flag(void);
-extern void hidEmu_set_pairing_failed_flag(void);
+/** 设置广播 Flags 为 Limited / General Discoverable，实际载荷由统一 helper 下发。 */
+extern void hidEmu_apply_advert_discoverability_flags(uint8_t mode);
+
+/**
+ * 按会话目的启动广播（停播 → 地址/Flags/间隔策略 → 开播）。
+ * @param purpose 见 ble_adv_purpose_t
+ * @param idx     主机槽位（回连时用于校验绑定；配对时预留）
+ */
+extern void hidEmu_start_advertising_for_purpose(ble_adv_purpose_t purpose, uint8_t idx);
+
+extern void hidEmu_pairing_adv(uint8_t idx);
+
+extern void hidEmu_connect_adv(uint8_t idx);
+
+
+extern uint8_t hidEmu_is_ble_bonded(uint8_t ble_idx);
+extern void hidEmu_save_ble_bonded(access_ble_idx_t ble_idx,uint8_t is_pairing);
+extern uint8_t hidEmu_is_ble_mac_change( access_ble_idx_t ble_idx );
 extern void hidEmu_delete_ble_bonded_by_idx(access_ble_idx_t idx);
-
-extern uint8_t hidEmu_receive( uint8_t *pData, uint8_t len );
+extern void hidEmu_delete_ble_bonded(void);
 
 /*********************************************************************
 *********************************************************************/
 
 #ifdef __cplusplus
 }
+#endif
+
 #endif

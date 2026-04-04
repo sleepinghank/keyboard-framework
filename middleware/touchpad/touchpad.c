@@ -1,23 +1,21 @@
 #include "touchpad.h"
-#include "kb904/config.h"
-#ifdef TOUCHPAD_ENABLE
+#include "kb904/config_product.h"
+#include "gpio.h"
+#include "PMU.h"
+#if (TOUCHPAD_ENABLE == TRUE)
 #include "bayes_filtering.h"
 #include "touchpad_service.h"
 #include "pct1336_driver.h"
 #include "event_manager.h"
 #include "debug.h"
+#include "input_service.h"
 
 #include "i2c_master.h"
 
 #define TOUCHPAD_INVALID_TASK_ID      ((uint8_t)0xFF)
-#define TOUCHPAD_REG_INIT_DELAY_MS    15U // 触控寄存器初始化重试间隔，单位毫秒
+#define TOUCHPAD_REG_INIT_DELAY_MS    16*15U // 触控寄存器初始化重试间隔，单位毫秒
 #define TOUCHPAD_REG_INIT_MAX_COUNT    50U // 触控寄存器初始化最大重试次数，50次约等于750ms的重试窗口
 
-#if 1
-#define TOUCHPAD_MW_LOG(...) dprintf(__VA_ARGS__)
-#else
-#define TOUCHPAD_MW_LOG(...)
-#endif
 
 uint8_t touchpad_taskID = TOUCHPAD_INVALID_TASK_ID;
 
@@ -48,52 +46,6 @@ bayes_model_t KB04122_13A_model = {
 static uint16_t touchpad_process_event(uint8_t task_id, uint16_t events);
 
 
-/* touchpad middleware 的事件状态机，只负责自身生命周期推进。 */
-static uint16_t touchpad_process_event(uint8_t task_id, uint16_t events)
-{
-    (void)task_id;
-
-    if (events & TOUCHPAD_INIT_EVT) {
-        /* 阻塞上电已在 touchpad_power_on() 完成，这里只启动异步轮询。 */
-        TOUCHPAD_MW_LOG("Touchpad: INIT\r\n");
-        touchpad_power_on();
-        return (events ^ TOUCHPAD_INIT_EVT);
-    }
-
-    if (events & TOUCHPAD_DATA_EVT) {
-        /* HID 上报路径暂时保持 touch_component 原实现。 */
-        /* TODO: align touchpad HID reports with wireless_transport. */
-        TOUCHPAD_MW_LOG("Touchpad: data event\r\n");
-        touch_evt_task();
-        return (events ^ TOUCHPAD_DATA_EVT);
-    }
-
-    if (events & TOUCHPAD_KB_BREAK_EVT) {
-        set_kb_break_cnt(0);
-        return (events ^ TOUCHPAD_KB_BREAK_EVT);
-    }
-
-    if (events & TOUCHPAD_REG_INIT_EVT) {
-        static uint8_t retry_cnt = 0;
-        if (pct1336_register_cb()) {
-            TOUCHPAD_MW_LOG("Touchpad: register success\r\n");
-            retry_cnt = 0;
-            touch_en = 1;
-            touchpad_set_mode(3);
-            OSAL_StopTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT);
-        } else {
-            if (++retry_cnt > TOUCHPAD_REG_INIT_MAX_COUNT) {
-                TOUCHPAD_MW_LOG("Touchpad: register failed after max retries\r\n");
-                retry_cnt = 0;
-                touch_en = 0;
-                OSAL_StopTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT);
-            }
-        }
-
-        return (events ^ TOUCHPAD_REG_INIT_EVT);
-    }   
-    return 0;
-}
 
 /* 注册独立 taskID，供 input_service 只做事件转发。 */
 void touchpad_setup(void)
@@ -104,7 +56,7 @@ void touchpad_setup(void)
 
     touchpad_taskID = OSAL_ProcessEventRegister(touchpad_process_event);
     if (touchpad_taskID == TOUCHPAD_INVALID_TASK_ID) {
-        TOUCHPAD_MW_LOG("Touchpad: task registration failed\r\n");
+        LOG_E("[TP] task registration failed");
     }
 }
 
@@ -118,20 +70,26 @@ void touchpad_power_on(void)
     if (touchpad_taskID == TOUCHPAD_INVALID_TASK_ID) {
         return;
     }
-    TOUCHPAD_MW_LOG("Touchpad: powering on\r\n");
+    // 触控板上电 ,下拉输入
+    setPinInputLow(TOUCHPAD_POWER_PIN);
+    // 触控板按键,高有效
+    setPinOutput(TOUCHPAD_BUTTON_PIN);
+    writePinLow(TOUCHPAD_BUTTON_PIN);
+
     bayes_mode_init(&KB04122_13A_model);
     
-    if (sizeof(params) / sizeof(params[0]) > 0) {
+    if ((sizeof(params) / sizeof(params[0])) > 0) {
+
         if (touch_power_on_with_params(params,sizeof(params) / sizeof(params[0])) != 1) {
             touch_en = 0;
-            TOUCHPAD_MW_LOG("Touchpad: power on failed\r\n");
+            LOG_E("[TP] power on failed");
             return;
         }
         (void)OSAL_StartReloadTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT,TOUCHPAD_REG_INIT_DELAY_MS);
     } else {
         if (touch_power_on() != 1) {
             touch_en = 0;
-            TOUCHPAD_MW_LOG("Touchpad: power on failed\r\n");
+            LOG_E("[TP] power on failed");
             return;
         }
         touch_en = 1;
@@ -142,16 +100,27 @@ void touchpad_power_on(void)
 void touchpad_power_off(void)
 {
     (void)touch_power_off();
+    setPinInputHigh(TOUCHPAD_POWER_PIN);
+    setPinInputLow(TOUCHPAD_INT);
+    setPinInputLow(TOUCHPAD_SDA);
+    setPinInputLow(TOUCHPAD_SCL);
+    setPinInputLow(TOUCHPAD_BUTTON_PIN);
 }
 
-/* 中断回调不直接读 I2C，只投递数据处理事件。 */
+/* 中断回调不直接读 I2C，设置标志位由主循环轮询处理。 */
 void touchpad_notify_int(void)
 {
-    if (touchpad_taskID == TOUCHPAD_INVALID_TASK_ID) {
-        return;
-    }
+    input_set_touchpad_int_flag(true);
+}
 
-    (void)OSAL_SetEvent(touchpad_taskID, TOUCHPAD_DATA_EVT);
+/* 主循环轮询处理触控板数据，由 peripheral_process 调用。 */
+void touchpad_task(void)
+{
+    if (input_get_touchpad_int_flag()) {
+        input_clear_touchpad_int_flag();
+        PMU_Update();
+        touch_evt_task();
+    }
 }
 
 void touchpad_set_kb_break(uint16_t ms)
@@ -185,7 +154,7 @@ void touchpad_watchdog_check(void)
         return;
     }
 
-    TOUCHPAD_MW_LOG("Touchpad: watchdog abnormal, reinitializing\r\n");
+    LOG_W("[TP] watchdog abnormal, reinit");
     touchpad_power_off();
     touchpad_power_on();
 }
@@ -195,6 +164,57 @@ void touchpad_set_mode(uint8_t mode)
 {
     set_touch_mode((touch_mode_t)mode);
 }
+
+
+
+/* touchpad middleware 的事件状态机，只负责自身生命周期推进。 */
+static uint16_t touchpad_process_event(uint8_t task_id, uint16_t events)
+{
+    (void)task_id;
+
+    if (events & TOUCHPAD_INIT_EVT) {
+        /* 阻塞上电已在 touchpad_power_on() 完成，这里只启动异步轮询。 */
+        touchpad_power_on();
+        return (events ^ TOUCHPAD_INIT_EVT);
+    }
+
+    if (events & TOUCHPAD_DATA_EVT) {
+        /* HID 上报路径暂时保持 touch_component 原实现。 */
+        /* TODO: align touchpad HID reports with wireless_transport. */
+        touch_evt_task();
+        return (events ^ TOUCHPAD_DATA_EVT);
+    }
+
+    if (events & TOUCHPAD_KB_BREAK_EVT) {
+        set_kb_break_cnt(0);
+        return (events ^ TOUCHPAD_KB_BREAK_EVT);
+    }
+
+    if (events & TOUCHPAD_REG_INIT_EVT) {
+        static uint8_t retry_cnt = 0;
+        if (pct1336_register_cb()) {
+            retry_cnt = 0;
+            touch_en = 1;
+            touchpad_set_mode(3);
+            OSAL_StopTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT);
+        } else {
+            if (++retry_cnt > TOUCHPAD_REG_INIT_MAX_COUNT) {
+                LOG_E("[TP] register failed after max retries");
+                retry_cnt = 0;
+                touch_en = 0;
+                OSAL_StopTask(touchpad_taskID, TOUCHPAD_REG_INIT_EVT);
+            }
+        }
+
+        return (events ^ TOUCHPAD_REG_INIT_EVT);
+    }
+    if (events & TOUCHPAD_OFF_EVT) {
+        touchpad_power_off();
+        return (events ^ TOUCHPAD_OFF_EVT);
+    }
+    return 0;
+}
+
 
 #else
 
@@ -208,9 +228,18 @@ void touchpad_power_on(void)
 
 void touchpad_power_off(void)
 {
+    setPinInputHigh(TOUCHPAD_POWER_PIN);
+    setPinInputLow(TOUCHPAD_INT);
+    setPinInputLow(TOUCHPAD_SDA);
+    setPinInputLow(TOUCHPAD_SCL);
+    setPinInputLow(TOUCHPAD_BUTTON_PIN);
 }
 
 void touchpad_notify_int(void)
+{
+}
+
+void touchpad_task(void)
 {
 }
 

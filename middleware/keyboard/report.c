@@ -20,15 +20,17 @@
 #include "util.h"
 #include <string.h>
 #include "wireless.h"
+#include "timer.h"
+#include "gpio.h"
 
 // 外部变量
 extern uint8_t keyboard_protocol;
 
 // 全局键盘报告缓冲区
 static report_keyboard_t _keyboard_report_data;
-static report_nkro_t _nkro_report_data;
+// static report_nkro_t _nkro_report_data;
 report_keyboard_t* keyboard_report = &_keyboard_report_data;
-report_nkro_t* nkro_report = &_nkro_report_data;
+// report_nkro_t* nkro_report = &_nkro_report_data;
 
 // NKRO/6KRO 自适应模式计数器
 #ifdef APDAPTIVE_NKRO_ENABLE
@@ -402,6 +404,22 @@ extern list_t* _key_code_list_extend;
 static report_keyboard_t last_kb_report;
 static uint16_t last_consumer_report;
 
+// Consumer 保持状态机
+static struct {
+    bool active;
+    uint16_t keycode;       // 已转换的 consumer usage 值
+    uint32_t start_time;
+    uint32_t duration;
+} consumer_hold = {false, 0, 0, 0};
+
+void report_hold_consumer(uint16_t consumer_usage, uint32_t duration_ms) {
+    dprintf("Holding consumer key: 0x%04X for %d ms\r\n", consumer_usage, duration_ms);
+    consumer_hold.active = true;
+    consumer_hold.keycode = consumer_usage;
+    consumer_hold.start_time = timer_read32();
+    consumer_hold.duration = duration_ms;
+}
+
 void report_init(void) {
     memset(&last_kb_report, 0, sizeof(last_kb_report));
     last_consumer_report = 0;
@@ -436,7 +454,6 @@ static void classify_and_add_keycode(uint16_t keycode,
         return;
     }
 }
-extern wt_func_t wireless_transport;
 void report_update_proc(key_update_st_t key_st) {
     if (key_st == GHOST_KEY) {
         return;
@@ -452,7 +469,6 @@ void report_update_proc(key_update_st_t key_st) {
         while (current != NULL) {
             if (current->data.is_report != 0) {
                 uint16_t keycode = current->data.key_code;
-                dprintf("Processing keycode from _key_code_list: 0x%04X\r\n", keycode);
                 classify_and_add_keycode(keycode, &kb_report, &consumer_report, &key_idx);
             }
             current = current->next;
@@ -467,7 +483,6 @@ void report_update_proc(key_update_st_t key_st) {
                 // 跳过已在主列表中的键
                 if (!find_activate_key(_key_code_list, current->data.key_code)) {
                     uint16_t keycode = current->data.key_code;
-                    dprintf("Processing keycode from _key_code_list_extend: 0x%04X\r\n", keycode);
                     classify_and_add_keycode(keycode, &kb_report, &consumer_report, &key_idx);
                 }
             }
@@ -475,17 +490,21 @@ void report_update_proc(key_update_st_t key_st) {
         }
     }
 
-    // 检查并发送键盘报告
-    if (memcmp(&kb_report, &last_kb_report, sizeof(kb_report)) != 0) {
-        memcpy(&last_kb_report, &kb_report, sizeof(kb_report));
-        dprintf("sending keycode:%d,%d,%d,%d,%d,%d,%d,%d\r\n", kb_report.mods,kb_report.reserved,
-                kb_report.keys[0], kb_report.keys[1], kb_report.keys[2], kb_report.keys[3], kb_report.keys[4], kb_report.keys[5]);
-        // report_buffer_t report;
-        // report.type = REPORT_TYPE_KB;
-        // memcpy(&report.keyboard, &kb_report, sizeof(kb_report));
-        // report_buffer_enqueue(&report);
-        if (wireless_transport.send_keyboard) {
-            wireless_transport.send_keyboard((uint8_t *)&kb_report);
+
+
+    // hold 拦截：检测新 consumer 键冲突
+    if (consumer_hold.active) {
+        if (timer_elapsed32(consumer_hold.start_time) >= consumer_hold.duration) {
+            dprintf("Consumer hold expired for key: 0x%04X\r\n", consumer_hold.keycode);
+            // 超时，放行自然释放
+            consumer_hold.active = false;
+        } else if (consumer_report != 0 && consumer_report != consumer_hold.keycode) {
+            // 新 consumer 键出现，终止 hold（防吞键）
+            consumer_hold.active = false;
+        } else {
+            dprintf("Maintaining hold on consumer key: 0x%04X\r\n", consumer_hold.keycode);
+            // 未超时且无冲突，强制保持按下
+            consumer_report = consumer_hold.keycode;
         }
     }
 
@@ -493,12 +512,14 @@ void report_update_proc(key_update_st_t key_st) {
     if (consumer_report != last_consumer_report) {
         last_consumer_report = consumer_report;
         dprintf("Report: Consumer report changed, sending update:%04X\r\n", consumer_report);
-        if (wireless_transport.send_consumer) {
-            wireless_transport.send_consumer(consumer_report);
-        }
-        // report_buffer_t report;
-        // report.type = REPORT_TYPE_CONSUMER;
-        // report.consumer = consumer_report;
-        // report_buffer_enqueue(&report);
+        wireless_send_consumer(consumer_report);
+    }
+
+    // 检查并发送键盘报告
+    if (memcmp(&kb_report, &last_kb_report, sizeof(kb_report)) != 0) {
+        memcpy(&last_kb_report, &kb_report, sizeof(kb_report));
+        dprintf("sending keycode:%d,%d,%d,%d,%d,%d,%d,%d\r\n", kb_report.mods,kb_report.reserved,
+                kb_report.keys[0], kb_report.keys[1], kb_report.keys[2], kb_report.keys[3], kb_report.keys[4], kb_report.keys[5]);
+        wireless_send_keyboard(&kb_report);
     }
 }

@@ -7,9 +7,11 @@
 #include "report_buffer.h"
 #include "keycode.h"
 #include <string.h>
-#include "sys_config.h"
+#include "kb904/config_product.h"
 #include "debug.h"
 #include "wireless.h"
+#include "PMU.h"
+#include "gpio.h"
 
 // 按键列表（供 process_combo.c 使用）
 list_t* _key_code_list = NULL;
@@ -56,31 +58,31 @@ void keyboard_init(void) {
     memset(matrix_debounced, 0, sizeof(matrix_debounced));
 }
 
-__HIGH_CODE
-void keyboard_task(void) {
 
+void keyboard_scan(void) {
+    
     // 1. 矩阵扫描 + 驱动层防抖
+    
     key_update_st_t key_st = scan_and_debounce();
     last_update_state = key_st;
-
-    // 2. 幽灵键直接返回
-    if (key_st == GHOST_KEY) {
-        return;
-    }
 
     if (key_st == KEY_UPDATE) {
         // 4. 更新按键列表（基于防抖后的矩阵变化）
         update_key_code_list();
+
     }
-
-    // 在每个扫描周期推进 combo 状态机，保证长按/保持逻辑按时间生效
+    // 内部采用的标准时间计数
     combo_task(key_st);
-
-    // 生成并发送 HID 报告
+    // 生成并发送 HID 报告，有延迟触发事件，需要时刻在循环中调用
     report_update_proc(key_st);
-
     // 清空扩展键列表
     del_all_child(_key_code_list_extend);
+
+    /* 有按键时刷新 PMU 计时 */
+    if (is_empty(_key_code_list) == false || key_st == KEY_UPDATE) {
+        PMU_Update();
+        output_service_note_backlight_activity();
+    }
 }
 
 /**
@@ -105,6 +107,29 @@ void keyboard_note_backlight_activity(void) {
     output_service_note_backlight_activity();
 }
 
+// 检查是否有超过1个bit被置位（bit trick：清除最低位后非零 = 至少2个bit）
+static inline bool popcount_more_than_one(matrix_row_t rowdata) {
+    rowdata &= rowdata - 1;
+    return rowdata != 0;
+}
+
+// 鬼键检测（防抖后矩阵数据）
+// 累积已按下列的 bit mask，检测多行是否共享相同列（幽灵键特征）
+static bool detect_ghost_key(const matrix_row_t matrix[]) {
+    matrix_row_t ghost_detect_position = 0;
+
+    for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
+        matrix_row_t rowdata = matrix[row];
+        if (popcount_more_than_one(rowdata)) {
+            if ((ghost_detect_position & rowdata) != 0) {
+                return true;  // 检测到幽灵键
+            }
+            ghost_detect_position |= rowdata;
+        }
+    }
+    return false;
+}
+
 // 矩阵扫描 + 驱动层防抖处理
 static key_update_st_t scan_and_debounce(void) {
 
@@ -114,20 +139,20 @@ static key_update_st_t scan_and_debounce(void) {
     // if (debounced_changed) {
     //     dprintf("Matrix scan detected changes\r\n");
     // }
-
     // 获取已防抖的矩阵数据（matrix_scan 内部已调用 debounce）
     for (uint8_t row = 0; row < MATRIX_ROWS; row++) {
         matrix_debounced[row] = matrix_get_row(row);
     }
-
     if (!debounced_changed) {
         return NO_KEY_UPDATE;
     }
 
-    // TODO: 可选的幽灵键检测
-    // if (detect_ghost_key(matrix_debounced)) {
-    //     return GHOST_KEY;
-    // }
+    // 幽灵键检测
+#ifdef MATRIX_HAS_GHOST
+    if (detect_ghost_key(matrix_debounced)) {
+        return GHOST_KEY;
+    }
+#endif
 
     return KEY_UPDATE;
 }
@@ -150,7 +175,6 @@ static void update_key_code_list(void) {
             if (keycode == KC_NO) continue;
 
             if (current & col_mask) {
-                
                 // 按键按下：添加到列表
                 if (!find_key(_key_code_list, keycode)) {
                     dprintf("Key pressed\r\n");

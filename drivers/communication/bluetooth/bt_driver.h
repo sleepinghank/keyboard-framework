@@ -19,8 +19,8 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "sys_config.h"
-#include "sys_error.h"
+#include "kb904/config_product.h"
+#include "system_enums.h"
 
 /*********************************************************************
  * 蓝牙驱动接口方法 - CH584 蓝牙驱动实现
@@ -184,3 +184,29 @@ void bt_driver_set_advertising(bool enable);
  * @return  uint8_t - 发送状态（0:成功, 非0:失败）
  */
 uint8_t bt_driver_send_ptp(uint8_t *report, uint8_t len);
+
+/*********************************************************************
+ * @fn      bt_driver_get_unack_packets
+ *
+ * @brief   查询当前 BLE 连接的未确认包数
+ *          通过 LL_GetNumberOfUnAckPacket() 获取链路层未确认包数量
+ *
+ * @return  uint32_t - 未确认包数量（未连接或非 BLE 通道返回 0）
+ */
+uint32_t bt_driver_get_unack_packets(void);
+
+/*********************************************************************
+ * @brief   HID LED 状态回调函数类型
+ *
+ * @param   led_state - LED 状态位图 (bit0:NumLock, bit1:CapsLock, bit2:ScrollLock)
+ */
+typedef void (*bt_led_cb_t)(uint8_t led_state);
+
+/*********************************************************************
+ * @fn      bt_driver_register_led_cb
+ *
+ * @brief   注册 LED 状态回调函数，由 wireless 层调用
+ *
+ * @param   cb - 回调函数指针，NULL 表示注销
+ */
+void bt_driver_register_led_cb(bt_led_cb_t cb);

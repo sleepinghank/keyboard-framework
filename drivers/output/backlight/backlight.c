@@ -81,7 +81,7 @@ static void apply_output(void) {
 }
 
 /* ============ 初始化 ============ */
-
+//在main函数中的初始应该只做全局结构体的读取（flash）不做实际点亮
 void backlight_init(const bl_state_t* state) {
     if (bl_initialized) {
         return;
@@ -99,7 +99,7 @@ void backlight_init(const bl_state_t* state) {
         bl_current_level_index = BL_LEVEL_MEDIUM;
     }
 
-    apply_output();
+    //apply_output();
     bl_initialized = true;
 }
 
@@ -225,6 +225,10 @@ void backlight_level_step(void) {
     backlight_set_preset_level(bl_current_level_index);
 }
 
+bl_preset_level_t backlight_get_preset_level(void) {
+    return bl_current_level_index;
+}
+
 /* ============ 颜色控制 ============ */
 
 void backlight_set_color(const bl_rgb_t* rgb) {
@@ -308,6 +312,10 @@ void backlight_color_step(void) {
         bl_current_color_index = BL_COLOR_RED;
     }
     backlight_set_preset_color(bl_current_color_index);
+}
+
+bl_preset_color_t backlight_get_preset_color(void) {
+    return bl_current_color_index;
 }
 
 /* ============ 状态管理 ============ */

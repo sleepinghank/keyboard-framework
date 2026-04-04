@@ -20,6 +20,7 @@
 #include "adc.h"
 #include "pin_defs.h"
 #include "pin_mapper.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include <stdint.h>
 #include <stdbool.h>

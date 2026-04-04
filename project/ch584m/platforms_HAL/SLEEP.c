@@ -1,4 +1,4 @@
-﻿/********************************** (C) COPYRIGHT *******************************
+/********************************** (C) COPYRIGHT *******************************
  * File Name          : SLEEP.c
  * Author             : WCH
  * Version            : V1.2
@@ -13,7 +13,8 @@
 /******************************************************************************/
 /* 头文件包含 */
 #include "HAL.h"
-
+#include "_bt_driver.h"
+#include "PMU.h"
 /*******************************************************************************
  * @fn          CH58x_LowPower
  *
@@ -31,6 +32,11 @@ uint32_t CH58x_LowPower(uint32_t time)
     uint32_t time_tign, time_sleep, time_curr;
     unsigned long irq_status;
 
+    if (!access_state.sleep_en)
+    {
+        return 0;  /* 非睡眠状态，不执行 LowPower_Sleep */
+    }
+    
     // 提前唤醒
     if (time <= WAKE_UP_RTC_MAX_TIME) {
         time_tign = time + (RTC_MAX_COUNT - WAKE_UP_RTC_MAX_TIME);
@@ -56,6 +62,7 @@ uint32_t CH58x_LowPower(uint32_t time)
 
     RTC_SetTignTime(time_tign);
     SYS_RecoverIrq(irq_status);
+    //peripheral_enter_sleep();
 #if(DEBUG == Debug_UART0) // 使用其他串口输出打印信息需要修改这行代码
     while((R8_UART0_LSR & RB_LSR_TX_ALL_EMP) == 0)
     {
@@ -65,7 +72,7 @@ uint32_t CH58x_LowPower(uint32_t time)
     // LOW POWER-sleep模式
     if(!RTCTigFlag)
     {
-        LowPower_Sleep(RB_PWR_RAM32K | RB_PWR_RAM96K | RB_PWR_EXTEND |RB_XT_PRE_EN );
+        LowPower_Sleep(RB_PWR_RAM96K | RB_PWR_EXTEND |RB_XT_PRE_EN );
         HSECFG_Current(HSE_RCur_100); // 降为额定电流(低功耗函数中提升了HSE偏置电流)
         return 0;
     }

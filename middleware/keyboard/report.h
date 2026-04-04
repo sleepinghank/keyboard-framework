@@ -21,6 +21,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdbool.h>
 #include "util.h"
 #include "keycode.h"
+#include "kb904/config_product.h"
 
 // clang-format off
 
@@ -73,7 +74,7 @@ enum consumer_usages {
     // 15.5 Display Controls
     SNAPSHOT        = 0x065,
     BRIGHTNESS_UP   = 0x06F, // https://www.usb.org/sites/default/files/hutrr41_0.pdf
-    BRIGHTNESS_DOWN = 0x070,
+    BRIGHTNESS_DOWN = 0x070, // 亮度减
     // 15.7 Transport Controls
     TRANSPORT_RECORD       = 0x0B2,
     TRANSPORT_FAST_FORWARD = 0x0B3,
@@ -183,6 +184,18 @@ extern "C" {
  * desc |Lcontrol|Lshift  |Lalt    |Lgui    |Rcontrol|Rshift  |Ralt    |Rgui
  *
  */
+
+typedef struct ContactReport
+{	
+	uint8_t tip:1; // 是否离开表面开关
+	uint8_t confidence:1; // 置信度
+	uint8_t contact_id:6; // 接触ID
+	uint8_t x_l8;	// X坐标低8位
+	uint8_t x_m4:4; // X坐标高4位
+	uint8_t y_l4:4;	 //	Y坐标低4位
+	uint8_t y_m8; //	Y坐标高8位
+}contact_report_t;
+
 typedef struct {
 #ifdef KEYBOARD_SHARED_EP
     uint8_t report_id;
@@ -192,11 +205,11 @@ typedef struct {
     uint8_t keys[KEYBOARD_REPORT_KEYS];
 } PACKED report_keyboard_t;
 
-typedef struct {
-    uint8_t report_id;
-    uint8_t mods;
-    uint8_t bits[NKRO_REPORT_BITS];
-} PACKED report_nkro_t;
+// typedef struct {
+//     uint8_t report_id;
+//     uint8_t mods;
+//     uint8_t bits[NKRO_REPORT_BITS];
+// } PACKED report_nkro_t;
 
 typedef struct {
     uint8_t  report_id;
@@ -208,38 +221,34 @@ typedef struct {
     uint32_t usage;
 } PACKED report_programmable_button_t;
 
-#ifdef MOUSE_EXTENDED_REPORT
-typedef int16_t mouse_xy_report_t;
-#else
-typedef int8_t mouse_xy_report_t;
-#endif
 
-typedef struct {
+typedef struct{
 #ifdef MOUSE_SHARED_EP
     uint8_t report_id;
 #endif
-    uint8_t buttons;
-#ifdef MOUSE_EXTENDED_REPORT
-    int8_t boot_x;
-    int8_t boot_y;
-#endif
-    mouse_xy_report_t x;
-    mouse_xy_report_t y;
-    int8_t            v;
-    int8_t            h;
+	uint8_t button;
+	uint8_t x_l8:8;
+	uint8_t x_m4:4; 
+	uint8_t y_l4:4;	
+	uint8_t y_m8:8;	
+	uint8_t wheel;
+	uint8_t twheel;
 } PACKED report_mouse_t;
 
-typedef struct {
+typedef struct{
 #ifdef DIGITIZER_SHARED_EP
     uint8_t report_id;
 #endif
-    bool     in_range : 1;
-    bool     tip : 1;
-    bool     barrel : 1;
-    uint8_t  reserved : 5;
-    uint16_t x;
-    uint16_t y;
-} PACKED report_digitizer_t;
+	uint8_t scantime_l8;
+	uint8_t scantime_m8;
+    uint8_t button:1;
+    uint8_t button1:1;
+    uint8_t button2:1;
+    uint8_t Reserved:5;
+	contact_report_t contact_rpt[TP_MAX_CONTACT_COUNT];
+	uint8_t contactCnt;
+} PACKED report_ptp_t;
+
 
 #if JOYSTICK_AXIS_RESOLUTION > 8
 typedef int16_t joystick_axis_t;
@@ -382,6 +391,10 @@ void report_init(void);
 
 // 更新并发送报告
 void report_update_proc(key_update_st_t key_st);
+
+// 保持 consumer 键按下指定时长（超时后自动释放）
+// 参数为已转换的 consumer usage 值（通过 KEYCODE2CONSUMER 转换）
+void report_hold_consumer(uint16_t consumer_usage, uint32_t duration_ms);
 
 #ifdef __cplusplus
 }

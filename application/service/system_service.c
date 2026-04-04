@@ -3,12 +3,13 @@
 //
 #include "system_service.h"
 #include <stdint.h>
+#include "kb904/config_product.h"
+#include "CH58x_common.h"
 #include "event_manager.h"
 #include "debug.h"
 #include "print.h"
 #include "storage.h"
 #include "battery.h"
-#include "lpm.h"
 #include "wireless.h"
 #include "transport.h"
 #include "system_hal.h"
@@ -19,6 +20,12 @@
 #include "indicator.h"
 #include "kb904/config_hw.h"
 #include "backlight.h"
+#include "PMU.h"
+#include "hidkbd.h"
+#include "_bt_driver.h"
+
+/* 等待 BLE 断连完成的重试延迟（约 30ms，与参考工程 DISCONNECT_WAIT_REPORT_END_TIMEOUT 对应） */
+#define DISCONNECT_WAIT_TIMEOUT  48
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,7 +35,7 @@ uint8_t system_taskID = 0xFF;
 static bool g_factory_reset_pending = false;
 
 #ifndef FACTORY_RESET_REBOOT_DELAY_MS
-#define FACTORY_RESET_REBOOT_DELAY_MS  2000
+#define FACTORY_RESET_REBOOT_DELAY_MS  16*2000
 #endif
 
 /**
@@ -50,7 +57,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         // 3. 断开无线连接
         wireless_disconnect();
         // 4. 进入关机模式
-        enter_power_mode(PM_SHUTDOWN);
+        //enter_power_mode(PM_SHUTDOWN);
         return (events ^ SYSTEM_LOW_BATTERY_SHUTDOWN_EVT);
     }
 
@@ -65,7 +72,7 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         // 3. 断开无线连接
         wireless_disconnect();
         // 4. 执行关机
-        enter_power_mode(PM_SHUTDOWN);
+        //enter_power_mode(PM_SHUTDOWN);
         return (events ^ SYSTEM_SHUTDOWN_EVT);
     }
 
@@ -86,27 +93,25 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
             // 1. 断开无线连接
             wireless_disconnect();
 
-            // 1. 指示灯反馈（至少 CAPS 闪 3 次；若有 BT 则一起闪）
-            indicator_set(LED_CAPS, &IND_BLINK_3);
-#ifdef LED_BT
-            indicator_set(LED_BT, &IND_BLINK_3);
-#endif
-
             // 2. 清除蓝牙配对记录
             bt_driver_clear_bonding();
 
             // 3. 重置存储配置
             storage_factory_reset();
 
-            // 4. 背光重置为白光中档
+            // // 4. 背光重置为白光中档
             backlight_set_preset_color(BL_COLOR_WHITE);
             backlight_set_preset_level(BL_LEVEL_MEDIUM);
 
-            // 5. 二阶段复位：等待灯效跑完后再执行系统复位
+            // 5. 指示灯闪烁提示用户已进入工厂重置流程
+            indicator_set(LED_CAPS, &IND_BLINK_3);
+            indicator_set(LED_POWER_RED, &IND_BLINK_3);
+            indicator_set(LED_BT, &IND_BLINK_3);
+
+            // 6. 二阶段复位：等待灯效跑完后再执行系统复位
             if (OSAL_SetDelayedEvent(system_taskID, SYSTEM_FACTORY_RESET_EVT,
                                      FACTORY_RESET_REBOOT_DELAY_MS) != NO_ERROR) {
                 dprintf("System: Factory reset delay scheduling failed, resetting now\r\n");
-                g_factory_reset_pending = false;
                 system_hal_reset();
             }
         } else {
@@ -132,113 +137,122 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
         return (events ^ SYSTEM_OTA_EVT);
     }
 
-    /*========================================
-     * LPM 调度事件处理
-     *========================================*/
+    // 处理最终进入 Idle 睡眠事件
+    if (events & SYSTEM_ENTER_IDLE_EVT) {
+        println("System: Enter Idle sleep");
 
-    // 处理 Idle 睡眠请求
-    if (events & SYSTEM_LPM_IDLE_REQ_EVT) {
-        dprintf("System: Idle sleep requested\r\n");
-        lpm_set_state(LPM_STATE_IDLE_PENDING);
+        access_state.sleep_en = TRUE;
+        access_state.idel_sleep_flag = TRUE;
 
-        /* 扇出 prepare 事件到各 service */
-        OSAL_SetEvent(input_taskID,  INPUT_LPM_PREPARE_EVT);
-        OSAL_SetEvent(commu_taskID,  COMMU_LPM_PREPARE_EVT);
-        /* output_service Idle 无操作，直接标记完成 */
-        lpm_mark_prepare_done(LPM_PREPARE_OUTPUT);
+        // /* 关闭指示灯 */
+         //indicator_off_all();
 
-        return (events ^ SYSTEM_LPM_IDLE_REQ_EVT);
+        // /* 进入硬件睡眠（配置 GPIO 唤醒，使能 LowPower_Sleep） */
+         peripheral_enter_sleep();
+
+        return (events ^ SYSTEM_ENTER_IDLE_EVT);
     }
 
-    // 处理 Deep 睡眠请求
-    if (events & SYSTEM_LPM_DEEP_REQ_EVT) {
-        dprintf("System: Deep sleep requested\r\n");
-        lpm_set_state(LPM_STATE_DEEP_PENDING);
+    // 处理最终进入 Deep 睡眠事件
+    if (events & SYSTEM_ENTER_DEEP_EVT) {
+        println("System: Enter Deep sleep");
 
-        OSAL_SetEvent(input_taskID,  INPUT_LPM_PREPARE_EVT);
-        OSAL_SetEvent(commu_taskID,  COMMU_LPM_PREPARE_EVT);
-        OSAL_SetEvent(output_taskID, OUTPUT_LPM_PREPARE_EVT);
+        access_state.sleep_en =TRUE;
+        access_state.deep_sleep_flag = TRUE;
 
-        return (events ^ SYSTEM_LPM_DEEP_REQ_EVT);
-    }
-
-    // 处理 prepare 完成汇聚事件
-    if (events & SYSTEM_LPM_STEP_DONE_EVT) {
-        lpm_state_t cur = lpm_get_state();
-
-        if (!lpm_all_prepare_done()) {
-            /* 还有 service 未完成，继续等待 */
-            return (events ^ SYSTEM_LPM_STEP_DONE_EVT);
+        /* 停止 Idle 睡眠事件（防止 Idle/Deep 双重触发） */
+        OSAL_StopTask(pmu_taskID, IDLE_SLEEP_EVENT);//可以尝试注释看看
+        OSAL_StopTask(system_taskID, SYSTEM_ENTER_IDLE_EVT);
+        OSAL_StopTask(system_taskID, SYSTEM_WAKE_EVT);
+        // TODO: 应该调用communication_service 事件，或者封装方法
+        /* 检查是否处于有效 BLE 通道 */
+        //if ((access_state.ble_idx > BLE_INDEX_IDEL) && (access_state.ble_idx < BLE_INDEX_MAX))
+        {
+            wt_state_t wt = wireless_get_state();
+            dprintf("System: Enter Deep sleep: wt=%d\n", wt);
+            if (wt == WT_CONNECTED)
+            {
+                /* BLE 仍连接中：先断连，延迟重试等待断连完成 */
+                OSAL_SetEvent(commu_taskID, WL_REQ_DISCONNECT);
+                OSAL_SetDelayedEvent(system_taskID, SYSTEM_ENTER_DEEP_EVT, DISCONNECT_WAIT_TIMEOUT);
+                return (events ^ SYSTEM_ENTER_DEEP_EVT);
+            }
+            else if (wt == WT_PARING || wt == WT_RECONNECTING)
+            {
+                /* 广播/回连广播中：先停止，延迟重试等待停止完成 */
+                OSAL_SetEvent(commu_taskID, WL_REQ_DISCONNECT);
+                OSAL_SetDelayedEvent(system_taskID, SYSTEM_ENTER_DEEP_EVT, DISCONNECT_WAIT_TIMEOUT);
+                return (events ^ SYSTEM_ENTER_DEEP_EVT);
+            }
         }
 
-        /* 全部完成，投递最终进入事件（拆开汇聚与执行） */
-        if (cur == LPM_STATE_IDLE_PENDING) {
-            OSAL_SetEvent(system_taskID, SYSTEM_LPM_ENTER_IDLE_EVT);
-        } else if (cur == LPM_STATE_DEEP_PENDING) {
-            OSAL_SetEvent(system_taskID, SYSTEM_LPM_ENTER_DEEP_EVT);
-        }
+        /* 关闭指示灯 */
+        indicator_off_all();
 
-        return (events ^ SYSTEM_LPM_STEP_DONE_EVT);
-    }
+        // /* 进入硬件深度睡眠 */
+        peripheral_enter_sleep();
 
-    // 处理最终进入 Idle 睡眠事件（二次确认）
-    if (events & SYSTEM_LPM_ENTER_IDLE_EVT) {
-        /* 二次确认：若有新活动则取消本次睡眠 */
-        if (lpm_get_state() != LPM_STATE_IDLE_PENDING) {
-            dprintf("System: Idle enter cancelled (state changed)\r\n");
-            return (events ^ SYSTEM_LPM_ENTER_IDLE_EVT);
-        }
-
-        dprintf("System: Entering Idle sleep, waiting TMOS idleCB\r\n");
-        lpm_set_state(LPM_STATE_IDLE_SLEEP);
-        /* MCU 睡眠由 TMOS CH58x_LowPower() idleCB 自动触发，此处无需调用 LowPower_Sleep() */
-
-        return (events ^ SYSTEM_LPM_ENTER_IDLE_EVT);
-    }
-
-    // 处理最终进入 Deep 睡眠事件（二次确认）
-    if (events & SYSTEM_LPM_ENTER_DEEP_EVT) {
-        if (lpm_get_state() != LPM_STATE_DEEP_PENDING) {
-            dprintf("System: Deep enter cancelled (state changed)\r\n");
-            return (events ^ SYSTEM_LPM_ENTER_DEEP_EVT);
-        }
-
-        dprintf("System: Entering Deep sleep, waiting TMOS idleCB\r\n");
-        lpm_set_state(LPM_STATE_DEEP_SLEEP);
-
-        return (events ^ SYSTEM_LPM_ENTER_DEEP_EVT);
-    }
-
-    // LPM 周期检查（1s 定时驱动，替代主循环轮询）
-    if (events & SYSTEM_LPM_CHECK_EVT) {
-        lpm_task();
-        return (events ^ SYSTEM_LPM_CHECK_EVT);
+        return (events ^ SYSTEM_ENTER_DEEP_EVT);
     }
 
     // 处理唤醒恢复事件
-    if (events & SYSTEM_LPM_WAKE_EVT) {
-        lpm_mode_t mode = lpm_get_mode();
-        dprintf("System: WAKE event, mode=%s\r\n", mode == LPM_MODE_DEEP ? "DEEP" : "IDLE");
-        lpm_set_state(LPM_STATE_WAKE_RESUME);
+    if (events & SYSTEM_WAKE_EVT) {
+        println("System: Wake resume");
 
-        /* 先恢复输入侧（最关键，需要最快响应） */
-        OSAL_SetEvent(input_taskID, INPUT_LPM_RESUME_EVT);
-
-        if (mode == LPM_MODE_DEEP) {
-            /* Deep 唤醒需要恢复输出侧和通信侧 */
-            OSAL_SetEvent(output_taskID, OUTPUT_LPM_RESUME_EVT);
-            OSAL_SetEvent(commu_taskID,  COMMU_LPM_RESUME_EVT);
+        /* 深度睡眠唤醒：触发无线回连
+         * wireless 处于 WT_SUSPEND 时需主动发起 WL_REQ_RECONNECT，
+         * 否则 BLE 永远不会重新广播，按键报告无法发出 */
+        wt_state_t wt = wireless_get_state();
+        dprintf("System: Wake resume wt=%d\n", wt);
+        if (wt == WT_SUSPEND || wt == WT_DISCONNECTED) {
+            OSAL_SetEvent(commu_taskID, WL_REQ_RECONNECT);
         }
-        /* Idle 唤醒：通信侧保持（BLE 未断连），output 无需恢复 */
 
-        lpm_set_state(LPM_STATE_ACTIVE);
-        lpm_timer_reset();
-        dprintf("System: Wake complete, now ACTIVE\r\n");
+        access_state.sleep_en      = FALSE;
+        access_state.idel_sleep_flag = FALSE;
+        access_state.deep_sleep_flag = FALSE;
+        //OSAL_SetDelayedEvent(input_taskID, INPUT_BATTERY_DETE_EVT, 100);
 
-        return (events ^ SYSTEM_LPM_WAKE_EVT);
+        return (events ^ SYSTEM_WAKE_EVT);
     }
 
     return 0;
+}
+
+/*********************************************************************
+ * @fn      System_Enter_Idle_Sleep
+ *
+ * @brief
+ *
+ * @return  none
+ */
+void System_Enter_Idle_Sleep( void )
+{
+    OSAL_SetEvent(system_taskID, SYSTEM_ENTER_IDLE_EVT);
+}
+
+/*********************************************************************
+ * @fn      System_Enter_Deep_Sleep
+ *
+ * @brief
+ *
+ * @return  none
+ */
+void System_Enter_Deep_Sleep( void )
+{
+    OSAL_SetEvent(system_taskID, SYSTEM_ENTER_DEEP_EVT);
+}
+
+/*********************************************************************
+ * @fn      System_Wake_Up
+ *
+ * @brief
+ *
+ * @return  none
+ */
+void System_Wake_Up( void )
+{
+    OSAL_SetEvent(system_taskID, SYSTEM_WAKE_EVT);
 }
 
 /**
@@ -247,11 +261,8 @@ uint16_t system_process_event(uint8_t task_id, uint16_t events) {
 void system_service_init(void) {
     // 注册任务并获取任务ID
     system_taskID = OSAL_ProcessEventRegister(system_process_event);
+    dprintf("System: Service initialized with task ID %d\r\n", system_taskID);
 
-    // lpm_init() 已在 system_init_middleware() 中调用，此处不重复初始化
-
-    // 启动 LPM 周期检查任务（每 1000ms 调用一次 lpm_task）
-    OSAL_StartReloadTask(system_taskID, SYSTEM_LPM_CHECK_EVT, 1000);
 }
 
 #ifdef __cplusplus

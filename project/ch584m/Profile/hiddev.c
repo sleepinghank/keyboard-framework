@@ -21,8 +21,9 @@
 #include "scanparamservice.h"
 #include "devinfoservice.h"
 #include "hidkbd.h"
-
+#include "CH58xBLE_LIB.h"
 extern uint8_t centralTaskId;
+extern uint16_t hidEmuConnHandle;
 /*********************************************************************
  * MACROS
  */
@@ -31,7 +32,7 @@ extern uint8_t centralTaskId;
 #define DEFAULT_BATT_PERIOD               1600*5
 
 // TRUE to run scan parameters refresh notify test
-#define DEFAULT_SCAN_PARAM_NOTIFY_TEST    TRUE
+#define DEFAULT_SCAN_PARAM_NOTIFY_TEST    FALSE
 
 // Advertising intervals (units of 625us, 160=100ms)
 #define HID_INITIAL_ADV_INT_MIN           48
@@ -49,7 +50,7 @@ extern uint8_t centralTaskId;
 // Heart Rate Task Events
 #define START_DEVICE_EVT                  0x0001
 #define BATT_PERIODIC_EVT                 0x0002
-#define START_PARAM_UPDATE_EVT            0x0004
+// #define START_PARAM_UPDATE_EVT            0x0004
 
 // Param update delay
 #define START_PARAM_UPDATE_EVT_DELAY         160
@@ -71,7 +72,8 @@ uint8_t hidDevTaskId;
 /*********************************************************************
  * EXTERNAL VARIABLES
  */
-
+extern ble_adv_purpose_t adv_purpose;
+extern uint8_t hidEmuTaskId;
 /*********************************************************************
  * EXTERNAL FUNCTIONS
  */
@@ -103,6 +105,60 @@ static hidDevCfg_t *pHidDevCfg;
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
+
+static const char *hidDevPairStateName(uint8_t state)
+{
+    switch(state)
+    {
+        case GAPBOND_PAIRING_STATE_STARTED:
+            return "STARTED";
+        case GAPBOND_PAIRING_STATE_COMPLETE:
+            return "COMPLETE";
+        case GAPBOND_PAIRING_STATE_BONDED:
+            return "BONDED";
+        case GAPBOND_PAIRING_STATE_BOND_SAVED:
+            return "BOND_SAVED";
+        default:
+            return "UNKNOWN";
+    }
+}
+
+static const char *hidDevPairStatusName(uint8_t status)
+{
+    switch(status)
+    {
+        case SUCCESS:
+            return "SUCCESS";
+        case SMP_PAIRING_FAILED_PASSKEY_ENTRY_FAILED:
+            return "PASSKEY_ENTRY_FAILED";
+        case SMP_PAIRING_FAILED_OOB_NOT_AVAIL:
+            return "OOB_NOT_AVAIL";
+        case SMP_PAIRING_FAILED_AUTH_REQ:
+            return "AUTH_REQ";
+        case SMP_PAIRING_FAILED_CONFIRM_VALUE:
+            return "CONFIRM_VALUE";
+        case SMP_PAIRING_FAILED_NOT_SUPPORTED:
+            return "NOT_SUPPORTED";
+        case SMP_PAIRING_FAILED_ENC_KEY_SIZE:
+            return "ENC_KEY_SIZE";
+        case SMP_PAIRING_FAILED_CMD_NOT_SUPPORTED:
+            return "CMD_NOT_SUPPORTED";
+        case SMP_PAIRING_FAILED_UNSPECIFIED:
+            return "UNSPECIFIED";
+        case SMP_PAIRING_FAILED_REPEATED_ATTEMPTS:
+            return "REPEATED_ATTEMPTS";
+        case SMP_PAIRING_FAILED_INVALID_PARAMERERS:
+            return "INVALID_PARAMETERS";
+        case SMP_PAIRING_FAILED_DHKEY_CHECK_FAILED:
+            return "DHKEY_CHECK_FAILED";
+        case SMP_PAIRING_FAILED_NUMERIC_COMPARISON:
+            return "NUMERIC_COMPARISON";
+        case SMP_PAIRING_FAILED_KEY_REJECTED:
+            return "KEY_REJECTED";
+        default:
+            return "OTHER";
+    }
+}
 
 static void hidDev_ProcessTMOSMsg(tmos_event_hdr_t *pMsg);
 static void hidDevProcessGattMsg(gattMsgEvent_t *pMsg);
@@ -183,6 +239,7 @@ void HidDev_Init()
     GATTServApp_AddService(GATT_ALL_SERVICES); // GATT attributes
     DevInfo_AddService();
     Batt_AddService();
+    SimpleProfile_AddService();
     ScanParam_AddService();
 
     // Register for Battery service callback
@@ -240,10 +297,10 @@ uint16_t HidDev_ProcessEvent(uint8_t task_id, uint16_t events)
     {
         // Send connect param update request
         GAPRole_PeripheralConnParamUpdateReq(hidEmuConnHandle,
-                                             DEFAULT_DESIRED_MIN_CONN_INTERVAL,
-                                             DEFAULT_DESIRED_MAX_CONN_INTERVAL,
-                                             DEFAULT_DESIRED_SLAVE_LATENCY,
-                                             DEFAULT_DESIRED_CONN_TIMEOUT,
+                                             IOS_DESIRED_MIN_CONN_INTERVAL,
+                                             IOS_DESIRED_MIN_CONN_INTERVAL,
+                                             IOS_DESIRED_SLAVE_LATENCY,
+                                             IOS_DESIRED_CONN_TIMEOUT,
                                              hidDevTaskId);
         tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*5);
         return (events ^ START_PARAM_UPDATE_EVT);
@@ -392,7 +449,7 @@ bStatus_t HidDev_SetParameter(uint8_t param, uint8_t len, void *pValue)
                 {
                     GAPRole_TerminateLink(gapConnHandle);
                 }
-
+                PRINT("HID Device - Erase All Bonds\n");
                 // Erase bonding info
                 GAPBondMgr_SetParameter(GAPBOND_ERASE_ALLBONDS, 0, NULL);
             }
@@ -768,6 +825,8 @@ static void hidDevHandleConnStatusCB(uint16_t connHandle, uint8_t changeType)
  */
 static void hidDevDisconnected(void)
 {
+
+
     // Reset client characteristic configuration descriptors
     Batt_HandleConnStatusCB(gapConnHandle, LINKDB_STATUS_UPDATE_REMOVED);
     ScanParam_HandleConnStatusCB(gapConnHandle, LINKDB_STATUS_UPDATE_REMOVED);
@@ -798,6 +857,14 @@ static void hidDevDisconnected(void)
 static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 {
     uint8_t param;
+    uint8_t opcode = 0xFF;
+
+    if(pEvent != NULL)
+    {
+        opcode = pEvent->gap.opcode;
+    }
+
+
     // if connected
     if(newState == GAPROLE_CONNECTED)
     {
@@ -812,16 +879,19 @@ static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
         // don't start advertising when connection is closed
         param = FALSE;
         GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-
         if((event->connInterval) > DEFAULT_DESIRED_MAX_CONN_INTERVAL)
         {
             tmos_start_task(hidDevTaskId, START_PARAM_UPDATE_EVT, START_PARAM_UPDATE_EVT_DELAY*50);
         }
+        access_ble_notify_connected(1);
     }
     // if disconnected
     else if(hidDevGapState == GAPROLE_CONNECTED &&
             newState != GAPROLE_CONNECTED)
     {
+        // PRINT("[CONN_PARAM] stop retry timer on state change %x->%x handle=%x\n",
+        //       hidDevGapState, newState, hidEmuConnHandle);
+        // tmos_stop_task(hidDevTaskId, START_PARAM_UPDATE_EVT);
         hidDevDisconnected();
 
 //        if(pairingStatus == SMP_PAIRING_FAILED_CONFIRM_VALUE)
@@ -862,8 +932,12 @@ static void hidDevGapStateCB(gapRole_States_t newState, gapRoleEvent_t *pEvent)
 static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
                                 uint16_t connSlaveLatency, uint16_t connTimeout)
 {
-    PRINT("Update %d - Int 0x%x - Latency %d\n", connHandle, connInterval, connSlaveLatency);
-    if( connInterval<=DEFAULT_DESIRED_MAX_CONN_INTERVAL )
+    PRINT("[BT_CONN_UPD] handle=%x int=%u lat=%u to=%u\n",
+          connHandle,
+          connInterval,
+          connSlaveLatency,
+          connTimeout);
+    if( connInterval<=DEFAULT_DESIRED_MAX_CONN_INTERVAL && connTimeout>=IOS_DESIRED_CONN_TIMEOUT)
     {
         tmos_stop_task(hidDevTaskId, START_PARAM_UPDATE_EVT);
     }
@@ -881,18 +955,14 @@ static void hidDevParamUpdateCB(uint16_t connHandle, uint16_t connInterval,
  */
 static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status)
 {
-    // PRINT("Pair state %x ; led_data %x\n",state,last_led_data);
+    // 配对状态回调，配对完成后会调用应用层的回调
+    PRINT("[BT_PAIR] handle=%x state=%u status=%u\n", connHandle, state, status);
     if(state == GAPBOND_PAIRING_STATE_COMPLETE)
     {
         if(status == SUCCESS)
         {
             hidDevConnSecure = TRUE;
             tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
-        }
-        else
-        {
-            /* 配对失败：设置标志，GAP_LINK_TERMINATED_EVENT 处理时重新发起配对广播 */
-            hidEmu_set_pairing_failed_flag();
         }
 
         pairingStatus = status;
@@ -901,17 +971,7 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
     {
         if(status == SUCCESS)
         {
-            // 配对连接成功
-            if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/)
-            {
-                tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
-                tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);
-            }
-    //         else if(last_led_data == 0xFF)
-    //         {
-    //             // access_tran_report(REPORT_CMD_STATE, STATE_CONNECTED);
-    // //            access_tran_report(REPORT_CMD_BATT_INFO, batt_val);
-    //         }
+
             hidDevConnSecure = TRUE;
 #if DEFAULT_SCAN_PARAM_NOTIFY_TEST == TRUE
             ScanParam_RefreshNotify(gapConnHandle);
@@ -921,25 +981,14 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
     }
     else if(state == GAPBOND_PAIRING_STATE_BOND_SAVED)
     {
-        // 配对连接成功
-        if( tmos_get_task_timer( hidEmuTaskId, SEND_DISCONNECT_EVT ) /*|| (tmos_get_event(hidEmuTaskId)&SEND_DISCONNECT_EVT)*/)
-        {
-            tmos_stop_task(hidEmuTaskId, SEND_DISCONNECT_EVT);
-            tmos_set_event(hidEmuTaskId, SEND_PACKET_EVT);
-        }
-//         else if(last_led_data == 0xFF)
-//         {
-//             // access_tran_report(REPORT_CMD_STATE, STATE_CONNECTED);
-// //            access_tran_report(REPORT_CMD_BATT_INFO, batt_val);
-//         }
-        hidEmu_save_ble_bonded(access_state.intent == BLE_INTENT_PAIRING ? TRUE : FALSE);
-        access_state.intent = BLE_INTENT_NONE;
         tmos_stop_task(hidEmuTaskId, PERI_SECURITY_REQ_EVT);
-        //启动系统识别
         if(status == SUCCESS)
         {
-            tmos_start_task(centralTaskId, START_SVC_DISCOVERY_EVT, 1600);
-            PRINT("Bond save success\n");
+            hidEmu_save_ble_bonded(BLE_INDEX_1, (adv_purpose == BLE_ADV_PURPOSE_PAIRING_NEW ? 1 : 0));
+        }
+        else
+        {
+            PRINT("Bond save failed: %d\n", status);
         }
     }
 }
@@ -959,6 +1008,8 @@ static void hidDevPairStateCB(uint16_t connHandle, uint8_t state, uint8_t status
 static void hidDevPasscodeCB(uint8_t *deviceAddr, uint16_t connectionHandle,
                              uint8_t uiInputs, uint8_t uiOutputs)
 {
+    PRINT("[BT_PASSCODE] handle=%x ui_in=%u ui_out=%u\n",
+          connectionHandle, uiInputs, uiOutputs);
     if(pHidDevCB && pHidDevCB->passcodeCB)
     {
         // execute HID app passcode callback
@@ -1181,66 +1232,30 @@ static uint8_t HidDev_sendNoti(uint16_t handle, uint8_t len, uint8_t *pData)
     return status;
 }
 
-///*********************************************************************
-// * @fn      hidDevHighAdvertising
-// *
-// * @brief   Start advertising at a high duty cycle.
-//
-// * @param   None.
-// *
-// * @return  None.
-// */
-//static void hidDevHighAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_HIGH_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_HIGH_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_HIGH_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
+void hidDev_adv_enable(uint8_t enable)
+{
+    uint8_t param = enable ? (uint8_t)TRUE : (uint8_t)FALSE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
+}
 
-///*********************************************************************
-// * @fn      hidDevLowAdvertising
-// *
-// * @brief   Start advertising at a low duty cycle.
-// *
-// * @param   None.
-// *
-// * @return  None.
-// */
-//static void hidDevLowAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_LOW_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_LOW_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_LOW_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
-
-///*********************************************************************
-// * @fn      hidDevInitialAdvertising
-// *
-// * @brief   Start advertising for initial connection
-// *
-// * @return  None.
-// */
-//static void hidDevInitialAdvertising(void)
-//{
-//    uint8_t param;
-//
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_INITIAL_ADV_INT_MIN);
-//    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_INITIAL_ADV_INT_MAX);
-//    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_INITIAL_ADV_TIMEOUT);
-//
-//    param = TRUE;
-//    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
-//}
+/*********************************************************************
+ * @fn      hidDevInitialAdvertising
+ *
+ * @brief   Start advertising for initial connection
+ *
+ * @return  None.
+ */
+void hidDevInitialAdvertising(void)
+{
+    uint8_t param;
+    
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MIN, HID_INITIAL_ADV_INT_MIN);
+    GAP_SetParamValue(TGAP_DISC_ADV_INT_MAX, HID_INITIAL_ADV_INT_MAX);
+    GAP_SetParamValue(TGAP_LIM_ADV_TIMEOUT, HID_INITIAL_ADV_TIMEOUT);
+    
+    param = TRUE;
+    GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8_t), &param);
+}
 
 /*********************************************************************
  * @fn      hidDevBondCount

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sys_config.h"
+#include "kb904/config_product.h"
 
 #ifdef INDICATOR_TEST_ENABLE
 void indicator_test(void);

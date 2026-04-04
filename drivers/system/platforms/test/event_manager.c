@@ -15,7 +15,7 @@
  */
 
 #include "event_manager.h"
-#include "sys_config.h"
+#include "kb904/config_product.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>

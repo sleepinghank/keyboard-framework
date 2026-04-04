@@ -82,6 +82,15 @@ uint8_t system_get_init_status(void);
  */
 void system_select_default_transport(void);
 
+
+/*********************************************************************
+ * @fn      peripheral_process
+ *
+ * @brief   peripheral_process
+ *
+ * @return  none
+ */
+void peripheral_process(void);
 #ifdef __cplusplus
 }
 #endif

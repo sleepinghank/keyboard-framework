@@ -220,10 +220,6 @@ void combo_task(key_update_st_t _keyUpdateSt) {
         }
         // 判断是否触发组合
         apply_combo(i, combo);
-        if (combo->state > 0) {
-            // 如果组合键处于按下状态，进行状态机处理
-             dprintf("Combo %d state machine processing, event: %d\n", i, combo->event);
-        }
         // 按键状态机处理
         button_ticks(combo);
         // 判断是否执行事件

@@ -20,25 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <stdbool.h>
 #include "print.h"
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/*
- * Debug output control
- */
-typedef union {
-    struct {
-        bool    enable : 1;
-        bool    matrix : 1;
-        bool    keyboard : 1;
-        bool    mouse : 1;
-        uint8_t reserved : 4;
-    };
-    uint8_t raw;
-} debug_config_t;
-
-extern debug_config_t debug_config;
 
 #ifdef __cplusplus
 }
@@ -53,7 +38,7 @@ extern debug_config_t debug_config;
 /*
  * Debug print utils
  */
-#ifndef NO_DEBUG
+#if (PRINTF_ENABLE == TRUE)
 
 #    define dprint(s)                   \
         do {                            \
@@ -141,7 +126,7 @@ extern debug_config_t debug_config;
 #    define debug_bin(data) debug_bin8(data)
 #    define debug_bin_reverse(data) debug_bin8(data)
 
-#else /* NO_DEBUG */
+#else
 
 #    define dprint(s)
 #    define dprintln(s)
@@ -166,4 +151,53 @@ extern debug_config_t debug_config;
 #    define debug_bin(data)
 #    define debug_bin_reverse(data)
 
-#endif /* NO_DEBUG */
+#endif /* PRINTF_ENABLE */
+
+/* === 统一日志宏 (LOG_E / LOG_W / LOG_I / LOG_D) === */
+/* 日志级别定义，由 config_product.h 中的 LOG_LEVEL 选择 */
+#ifndef LOG_LEVEL_NONE
+#define LOG_LEVEL_NONE    0
+#endif
+#ifndef LOG_LEVEL_ERROR
+#define LOG_LEVEL_ERROR   1
+#endif
+#ifndef LOG_LEVEL_WARN
+#define LOG_LEVEL_WARN    2
+#endif
+#ifndef LOG_LEVEL_INFO
+#define LOG_LEVEL_INFO    3
+#endif
+#ifndef LOG_LEVEL_DEBUG
+#define LOG_LEVEL_DEBUG   4
+#endif
+
+/* 默认级别：未配置时仅输出 WARN 和 ERROR */
+#ifndef LOG_LEVEL
+#define LOG_LEVEL  LOG_LEVEL_WARN
+#endif
+
+#if (PRINTF_ENABLE == TRUE) && (LOG_LEVEL >= LOG_LEVEL_ERROR)
+#define LOG_E(fmt, ...) xprintf("[E] " fmt LOG_NEWLINE_SIGN, ##__VA_ARGS__)
+#else
+#define LOG_E(fmt, ...)
+#endif
+
+#if (PRINTF_ENABLE == TRUE) && (LOG_LEVEL >= LOG_LEVEL_WARN)
+#define LOG_W(fmt, ...) xprintf("[W] " fmt LOG_NEWLINE_SIGN, ##__VA_ARGS__)
+#else
+#define LOG_W(fmt, ...)
+#endif
+
+#if (PRINTF_ENABLE == TRUE) && (LOG_LEVEL >= LOG_LEVEL_INFO)
+#define LOG_I(fmt, ...) xprintf("[I] " fmt LOG_NEWLINE_SIGN, ##__VA_ARGS__)
+#else
+#define LOG_I(fmt, ...)
+#endif
+
+#if (PRINTF_ENABLE == TRUE) && (LOG_LEVEL >= LOG_LEVEL_DEBUG)
+#define LOG_D(fmt, ...) xprintf("[D] " fmt LOG_NEWLINE_SIGN, ##__VA_ARGS__)
+#else
+#define LOG_D(fmt, ...)
+#endif
+
+

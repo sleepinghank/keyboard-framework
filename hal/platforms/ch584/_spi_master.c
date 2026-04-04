@@ -15,6 +15,7 @@
  */
 
 #include "spi_master.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include "gpio.h"
 

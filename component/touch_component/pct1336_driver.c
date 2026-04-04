@@ -17,12 +17,6 @@
 /*********************************************************************
  * MACROS 宏定义
  */
-// 调试打印宏
-#if 1
-#define PCT1336_log(...) dprintf(__VA_ARGS__)
-#else
-#define PCT1336_log(...)
-#endif
 
 #define TOUCH_SLAVE_ID                              0x33 // 触摸板从机地址
 
@@ -165,9 +159,9 @@ int8_t pct1336_register_end(void){
 	pct1336_write_user_reg(0x00,0x09,state); 
 
 	pct1336_read_user_reg(0x00,0x09,&state); 
-    PCT1336_log("<< touch_Init state:%x\r\n",state);
+    dprintf("<< touch_Init state:%x\r\n",state);
 	pct1336_read_user_reg(0x00,0x27,&state); 
-    PCT1336_log("INT_LEVEL:%x\r\n",state);
+    dprintf("INT_LEVEL:%x\r\n",state);
     return 1;
 }
 
@@ -179,7 +173,7 @@ int8_t pct1336_reset(void)
 
     // Step 1: Disable sleep mode (Write 0x01 to 0x7c)
     if (!pct1336_write_reg(0x7c, 0x01)) {
-        PCT1336_log("pct1336_reset: Failed to disable sleep mode\r\n");
+        dprintf("pct1336_reset: Failed to disable sleep mode\r\n");
         return 0;
     }
 
@@ -187,7 +181,7 @@ int8_t pct1336_reset(void)
     // 注意：0x7c 寄存器中 bit[4] 是 sleep enable 标志
     do {
         if (!pct1336_read_reg(0x7c, &state)) {
-            PCT1336_log("pct1336_reset: Failed to read sleep status\r\n");
+            dprintf("pct1336_reset: Failed to read sleep status\r\n");
             return 0;
         }
         // 检查 bit[4] 是否为 0（表示 sleep 已禁用）
@@ -195,24 +189,24 @@ int8_t pct1336_reset(void)
 
     // Step 3: Enable reset (Write 0x00 to 0x7b)
     if (!pct1336_write_reg(0x7b, 0x00)) {
-        PCT1336_log("pct1336_reset: Failed to enable reset\r\n");
+        dprintf("pct1336_reset: Failed to enable reset\r\n");
         return 0;
     }
 
     // Step 4: Suspend (Write 0xaa to 0x7a)
     if (!pct1336_write_reg(0x7a, 0xaa)) {
-        PCT1336_log("pct1336_reset: Failed to suspend\r\n");
+        dprintf("pct1336_reset: Failed to suspend\r\n");
         return 0;
     }
 
     // Step 5: Reboot (Write 0xbb to 0x7a)
     if (!pct1336_write_reg(0x7a, 0xbb)) {
-        PCT1336_log("pct1336_reset: Failed to reboot\r\n");
+        dprintf("pct1336_reset: Failed to reboot\r\n");
         return 0;
     }
 
     // 成功完成复位流程
-    PCT1336_log("pct1336_reset: Success\r\n");
+    dprintf("pct1336_reset: Success\r\n");
     return 1;
 }
 
@@ -236,7 +230,7 @@ int8_t pct1336_register_params(pct1336_params_t *params, uint8_t len)
     if (len > 0) {
         uint8_t u8tmp = 0;
         for(u8tmp = 0; u8tmp < len; u8tmp++){
-            // PCT1336_log("<< touch_Init params:%x\r\n", params[u8tmp].params.data);
+            // dprintf("<< touch_Init params:%x\r\n", params[u8tmp].params.data);
             pct1336_write_user_reg(params[u8tmp].params.bank, params[u8tmp].params.address, params[u8tmp].params.data);
         }
     }
@@ -273,11 +267,11 @@ bool pct1336_fw_ready(void)
 }
 
 int8_t pct1336_init()
-{ 
+{
     // 参数有效性检查
     if (init_params_len != 0 && init_params == NULL )
     {
-        PCT1336_log("pct1336_init: params is NULL but len is not 0\r\n");
+        dprintf("pct1336_init: params is NULL but len is not 0\r\n");
         return 0;
     }
     if (init_params_len == 0){
@@ -296,10 +290,10 @@ int8_t pct1336_init()
         
         retry_cnt = 0;
         if (result != 1) {
-            PCT1336_log("pct1336_init: pct1336_write_reg fail\r\n");
+            dprintf("pct1336_init: pct1336_write_reg fail\r\n");
             return 0;
         }
-        PCT1336_log(">> touch_Init success\r\n");
+        dprintf(">> touch_Init success\r\n");
         return 1;
     } else {
         // while(1)
@@ -523,13 +517,13 @@ bool pct1336_watchdog_check(void)
         // 检查错误状态位 (bit 0) 或看门狗复位位 (bit 7)
         if ((status & TOUCH_STATUS_ERROR) == TOUCH_STATUS_ERROR || 
             (status & TOUCH_STATUS_WATCHDOG_RESET) == TOUCH_STATUS_WATCHDOG_RESET) {
-            PCT1336_log("Touchpad error detected, status: 0x%02X. Recovery handled by middleware.\r\n",
+            dprintf("Touchpad error detected, status: 0x%02X. Recovery handled by middleware.\r\n",
                         status);
             return false;
         } 
         return true; // 设备状态正常
     } else {
-        PCT1336_log("Failed to read touchpad status\r\n");
+        dprintf("Failed to read touchpad status\r\n");
         return false; // 读取失败，视为异常
     }
 }

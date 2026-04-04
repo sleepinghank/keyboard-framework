@@ -4,8 +4,8 @@
 extern "C" {
 #endif
 
-#include "sys_config.h"
-#include "sys_error.h"
+#include "kb904/config_product.h"
+#include "system_enums.h"
 
 //定义定时器类型枚举
 typedef enum{

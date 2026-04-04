@@ -17,18 +17,19 @@
 
 #include "wireless.h"
 #include "report_buffer.h"
-#include "lpm.h"
 #include "battery.h"
 #include "transport.h"
 #include "host_driver.h"
 #include "report.h"
 #include "keyboard.h"
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "wait.h"
 #include "string.h"
 #include "print.h"
 #include "debug.h"
 #include "storage.h"
+#include "output_service.h"
+#include "communication_service.h"
 // #include "rtc_timer.h"
 // #include "keychron_wireless_common.h"
 // #include "keychron_task.h"
@@ -65,13 +66,26 @@ uint16_t connected_idle_time = CONNECTED_IDLE_TIME;
 /* declarations */
 uint8_t wreless_keyboard_leds(void);
 void    wireless_send_keyboard(report_keyboard_t *report);
-void    wireless_send_nkro(report_nkro_t *report);
+// void    wireless_send_nkro(report_nkro_t *report);
 void    wireless_send_mouse(report_mouse_t *report);
 void    wireless_send_extra(report_extra_t *report);
 bool    process_record_wireless(uint16_t keycode);
 
+/* BT LED 回调：BLE 收到 HID Out Report 时由 bt_driver 触发 */
+static void wireless_bt_led_handler(uint8_t state) {
+    led_state = state;
+    dprintf("[WT_LED] state=%02X\n", state);
+
+    /* Caps Lock (bit1) → 通知 output_service 更新物理 LED */
+    if (state & 0x02) {
+        output_service_request_indicator(IND_REQ_CAPS_ON, 0);
+    } else {
+        output_service_request_indicator(IND_REQ_CAPS_OFF, 0);
+    }
+}
+
 /* host struct */
-host_driver_t wireless_driver = {wreless_keyboard_leds, wireless_send_keyboard, wireless_send_nkro, wireless_send_mouse, wireless_send_extra};
+host_driver_t wireless_driver = {wreless_keyboard_leds, wireless_send_keyboard, wireless_send_mouse, wireless_send_extra};
 
 bool wireless_lpm_set(uint8_t *data);
 
@@ -120,10 +134,6 @@ void wireless_init(void) {
 
     wireless_state = WT_INITIALIZED;
 
-#if defined(EECONFIG_BASE_WIRELESS_CONFIG)
-    wireless_config_load();
-#endif
-
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_init();
 #endif
@@ -145,15 +155,18 @@ static const wt_func_t bt_driver_func_table = {
     .pairing_ex = bt_driver_pairing_ex,
     .disconnect = bt_driver_disconnect,
     .send_keyboard = bt_driver_send_keyboard,
-    .send_nkro = bt_driver_send_nkro,
+    // .send_nkro = bt_driver_send_nkro,
     .send_consumer = bt_driver_send_consumer,
     .send_system = bt_driver_send_system,
     .send_mouse = bt_driver_send_mouse,
+    .send_ptp = bt_driver_send_ptp,
+    .get_unack_packets = bt_driver_get_unack_packets,
     .update_bat_level = bt_driver_update_bat_level,
 };
 
 void wireless_switch_to_bt_driver(void) {
     wireless_set_transport((wt_func_t*)&bt_driver_func_table);
+    bt_driver_register_led_cb(wireless_bt_led_handler);
     kc_printf("Wireless: Switched to BT driver\n");
 }
 #endif
@@ -206,7 +219,6 @@ void wireless_pairing_ex(uint8_t host_idx, void *param) {
  */
 void wireless_connect(void) {
     kc_printf("wireless_connect\n\r");
-    // if (battery_is_critical_low() || timer_read32() == 0) return;
 
     wireless_transport.connect_ex(BLE_INDEX_1, 0);
     wireless_state = WT_RECONNECTING;
@@ -217,7 +229,6 @@ void wireless_connect(void) {
  */
 void wireless_connect_ex(uint8_t host_idx, uint16_t timeout) {
     kc_printf("wireless_connect_ex %d\n\r", host_idx);
-    // if (battery_is_critical_low()) return;
 
     if (host_idx != 0) {
 
@@ -241,7 +252,6 @@ void wireless_disconnect(void) {
 void wireless_enter_reset(uint8_t reason) {
     kc_printf("wireless_enter_reset\n\r");
     wireless_state = WT_RESET;
-    // wireless_enter_reset_kb(reason);
 }
 
 /* Enters discoverable state. Upon entering this state we perform the following actions:
@@ -253,7 +263,6 @@ void wireless_enter_discoverable(uint8_t host_idx) {
     host_index = host_idx;
 
     wireless_state = WT_PARING;
-    // wireless_enter_discoverable_kb(host_idx);
 }
 
 /*
@@ -266,7 +275,6 @@ void wireless_enter_reconnecting(uint8_t host_idx) {
 
     kc_printf("wireless_reconnecting %d\n\r", host_idx);
     wireless_state = WT_RECONNECTING;
-    // wireless_enter_reconnecting_kb(host_idx);
 }
 
 /* Enters connected state. Upon entering this state we perform the following actions:
@@ -287,12 +295,8 @@ void wireless_enter_connected(uint8_t host_idx) {
     keymap_config.nkro = false;
 #endif
 
-    // wireless_enter_connected_kb(host_idx);
-    if (battery_is_empty()) {
-        indicator_battery_low_enable(true);
-    }
-    if (wireless_transport.update_bat_level) wireless_transport.update_bat_level(battery_get_percentage());
-    lpm_timer_reset();
+    // if (wireless_transport.update_bat_level) wireless_transport.update_bat_level(battery_get_percentage());
+    //lpm_timer_reset();
 }
 
 /* Enters disconnected state. Upon entering this state we perform the following actions:
@@ -305,12 +309,11 @@ void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
     uint8_t previous_state = wireless_state;
     led_state              = 0;
     if (get_transport() & TRANSPORT_WIRELESS)
-//        led_update_kb((led_t)led_state);
 
     wireless_state = WT_DISCONNECTED;
 
     if (previous_state == WT_CONNECTED) {
-        lpm_timer_reset();
+        //lpm_timer_reset();
     } else {
 #if defined(RGB_MATRIX_ENABLE) || defined(LED_MATRIX_ENABLE)
         if (reason && (get_transport() & TRANSPORT_WIRELESS)) {
@@ -322,8 +325,6 @@ void wireless_enter_disconnected(uint8_t host_idx, uint8_t reason) {
 #ifndef DISABLE_REPORT_BUFFER
     report_buffer_init();
 #endif
-    retry = 0;
-    // wireless_enter_disconnected_kb(host_idx, reason);
 
     indicator_battery_low_enable(false);
 }
@@ -334,7 +335,6 @@ void wireless_enter_bluetooth_pin_code_entry(void) {
     keymap_config.nkro = FALSE;
 #endif
     pincodeEntry = true;
-    // wireless_enter_bluetooth_pin_code_entry_kb();
 }
 
 /* Exit pin code entry state. */
@@ -343,7 +343,6 @@ void wireless_exit_bluetooth_pin_code_entry(void) {
     keymap_config.raw = eeconfig_read_keymap();
 #endif
     pincodeEntry = false;
-    // wireless_exit_bluetooth_pin_code_entry_kb();
 }
 
 /* Enters disconnected state. Upon entering this state we perform the following actions:
@@ -355,24 +354,18 @@ void wireless_enter_sleep(void) {
 
     led_state = 0;
 
-    if (wireless_state == WT_CONNECTED || wireless_state == WT_PARING) {
+    /* WT_RECONNECTING 也必须转为 WT_SUSPEND，否则深度睡眠流程中
+     * SYSTEM_ENTER_DEEP_EVT 会因 wt==WT_RECONNECTING 持续发 WL_REQ_DISCONNECT
+     * + 延迟重试，形成"断连→仍是RECONNECTING→再断连"的死循环 */
+    if (wireless_state == WT_CONNECTED || wireless_state == WT_PARING || wireless_state == WT_RECONNECTING) {
         wireless_state = WT_SUSPEND;
         kc_printf("WT_SUSPEND\n\r");
-        lpm_timer_reset();
 
-        // wireless_enter_sleep_kb();
         indicator_battery_low_enable(false);
     }
 }
 
-__attribute__((weak)) void wireless_enter_reset_kb(uint8_t reason) {}
-__attribute__((weak)) void wireless_enter_discoverable_kb(uint8_t host_idx) {}
-__attribute__((weak)) void wireless_enter_reconnecting_kb(uint8_t host_idx) {}
-__attribute__((weak)) void wireless_enter_connected_kb(uint8_t host_idx) {}
-__attribute__((weak)) void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason) {}
-__attribute__((weak)) void wireless_enter_bluetooth_pin_code_entry_kb(void) {}
-__attribute__((weak)) void wireless_exit_bluetooth_pin_code_entry_kb(void) {}
-__attribute__((weak)) void wireless_enter_sleep_kb(void) {}
+
 
 /*  */
 static void wireless_hid_set_protocol(bool report_protocol) {
@@ -390,62 +383,84 @@ uint8_t wreless_keyboard_leds(void) {
 //extern keymap_config_t keymap_config;
 
 void wireless_send_keyboard(report_keyboard_t *report) {
-    // if (battery_is_critical_low()) return;
-
-    if (wireless_state == WT_PARING && !pincodeEntry) return;
+    if ((wireless_state == WT_PARING || wireless_state == WT_RECONNECTING) && !pincodeEntry) return;
 
     if (wireless_state == WT_CONNECTED || (wireless_state == WT_PARING && pincodeEntry)) {
         if (wireless_transport.send_keyboard) {
-#ifndef DISABLE_REPORT_BUFFER
-            bool empty = report_buffer_is_empty();
-
             report_buffer_t report_buffer;
             report_buffer.type = REPORT_TYPE_KB;
+            report_buffer.payload_len = sizeof(report_keyboard_t);
             memcpy(&report_buffer.keyboard, report, sizeof(report_keyboard_t));
             report_buffer_enqueue(&report_buffer);
 
-            if (empty)
-                report_buffer_task();
-#else
-            wireless_transport.send_keyboard(&report->mods);
-#endif
+            // 触发 OSAL 事件，异步发送
+            OSAL_SetEvent(commu_taskID, REPORT_SEND_EVT);
         }
     } else if (wireless_state != WT_RESET) {
         wireless_connect();
     }
 }
 
-void wireless_send_nkro(report_nkro_t *report) {
-    if (battery_is_critical_low()) return;
+// void wireless_send_nkro(report_nkro_t *report) {
+//     if (battery_is_critical_low()) return;
 
-    if (wireless_state == WT_PARING && !pincodeEntry) return;
+//     if (wireless_state == WT_PARING && !pincodeEntry) return;
 
-    if (wireless_state == WT_CONNECTED || (wireless_state == WT_PARING && pincodeEntry)) {
-        if (wireless_transport.send_nkro) {
-#ifndef DISABLE_REPORT_BUFFER
-            bool empty = report_buffer_is_empty();
+//     if (wireless_state == WT_CONNECTED || (wireless_state == WT_PARING && pincodeEntry)) {
+//         if (wireless_transport.send_nkro) {
+// #ifndef DISABLE_REPORT_BUFFER
+//             bool empty = report_buffer_is_empty();
 
-            report_buffer_t report_buffer;
-            report_buffer.type = REPORT_TYPE_NKRO;
-            memcpy(&report_buffer.nkro, report, sizeof(report_nkro_t));
-            report_buffer_enqueue(&report_buffer);
+//             report_buffer_t report_buffer;
+//             report_buffer.type = REPORT_TYPE_NKRO;
+//             memcpy(&report_buffer.nkro, report, sizeof(report_nkro_t));
+//             report_buffer_enqueue(&report_buffer);
 
-            if (empty)
-                report_buffer_task();
-#else
-            wireless_transport.send_nkro(&report->mods);
-#endif
-        }
-    } else if (wireless_state != WT_RESET) {
-        wireless_connect();
-    }
-}
+//             if (empty)
+//                 report_buffer_task();
+// #else
+//             wireless_transport.send_nkro(&report->mods);
+// #endif
+//         }
+//     } else if (wireless_state != WT_RESET) {
+//         wireless_connect();
+//     }
+// }
 
 void wireless_send_mouse(report_mouse_t *report) {
-    if (battery_is_critical_low()) return;
+    if (wireless_state == WT_PARING || wireless_state == WT_RECONNECTING) return;
 
-    if (wireless_state == WT_CONNECTED) {
-        if (wireless_transport.send_mouse) wireless_transport.send_mouse((uint8_t *)report);
+    if (wireless_state == WT_CONNECTED || (wireless_state == WT_PARING)) {
+        if (wireless_transport.send_mouse) {
+            report_buffer_t report_buffer;
+            report_buffer.type = REPORT_TYPE_MOUSE;
+            report_buffer.payload_len = sizeof(report_mouse_t);
+            memcpy(&report_buffer.mouse, report, sizeof(report_mouse_t));
+            report_buffer_enqueue(&report_buffer);
+
+            // 触发 OSAL 事件，异步发送
+            OSAL_SetEvent(commu_taskID, REPORT_SEND_EVT);
+        }
+    } else if (wireless_state != WT_RESET) {
+        wireless_connect();
+    }
+}
+
+
+void wireless_send_ptp(report_ptp_t *report,uint8_t len) {
+    if (wireless_state == WT_PARING || wireless_state == WT_RECONNECTING) return;
+
+    if (wireless_state == WT_CONNECTED || (wireless_state == WT_PARING)) {
+        if (wireless_transport.send_ptp) {
+            report_buffer_t report_buffer;
+            report_buffer.type = REPORT_TYPE_PTP;
+            report_buffer.payload_len = len;
+            memcpy(&report_buffer.ptp, report, sizeof(report_ptp_t));
+            report_buffer_enqueue(&report_buffer);
+
+            // 触发 OSAL 事件，异步发送
+            OSAL_SetEvent(commu_taskID, REPORT_SEND_EVT);
+        }
     } else if (wireless_state != WT_RESET) {
         wireless_connect();
     }
@@ -461,26 +476,23 @@ void wireless_send_system(uint16_t data) {
 
 void wireless_send_consumer(uint16_t data) {
     if (wireless_state == WT_CONNECTED) {
-#ifndef DISABLE_REPORT_BUFFER
-        if (report_buffer_is_empty() && report_buffer_next_inverval()) {
-            if (wireless_transport.send_consumer) wireless_transport.send_consumer(data);
-            report_buffer_update_timer();
-        } else {
+        if (wireless_transport.send_consumer) {
             report_buffer_t report_buffer;
             report_buffer.type     = REPORT_TYPE_CONSUMER;
+            report_buffer.payload_len = sizeof(uint16_t);
             report_buffer.consumer = data;
             report_buffer_enqueue(&report_buffer);
+
+            // 触发 OSAL 事件，异步发送
+            OSAL_SetEvent(commu_taskID, REPORT_SEND_EVT);
         }
-#else
-        if (wireless_transport.send_consumer) wireless_transport.send_consumer(data);
-#endif
     } else if (wireless_state != WT_RESET) {
         wireless_connect();
     }
 }
 
 void wireless_send_extra(report_extra_t *report) {
-    if (battery_is_critical_low()) return;
+    // if (battery_is_critical_low()) return;
 
     if (report->report_id == REPORT_ID_SYSTEM) {
         wireless_send_system(report->usage);
@@ -491,8 +503,6 @@ void wireless_send_extra(report_extra_t *report) {
 
 void wireless_low_battery_shutdown(void) {
     indicator_battery_low_enable(false);
-
-
     report_buffer_init();
     clear_keyboard(); //
     wait_ms(50);      // wait a while for bt module to free buffer by sending report
@@ -520,22 +530,12 @@ void wireless_low_battery_shutdown(void) {
 
 
 void wireless_task(void) {
-    // 调用当前驱动的任务函数
-#ifndef DISABLE_REPORT_BUFFER
-    report_buffer_task();
-#endif
-//     indicator_task();
-// //    keychron_wireless_common_task();
-//     battery_task();
-//     lpm_task();
+    // report_buffer_task() 已迁移到 commu_process_event 的 REPORT_SEND_EVT 处理
 }
 
 void send_string_task(void) {
     if ((get_transport() & TRANSPORT_WIRELESS) && wireless_get_state() == WT_CONNECTED) {
-        // wireless_transport.task();
-#ifndef DISABLE_REPORT_BUFFER
-        report_buffer_task();
-#endif
+        // report_buffer_task() 已迁移到 commu_process_event 的 REPORT_SEND_EVT 处理
     }
 }
 
@@ -570,7 +570,7 @@ wt_state_t wireless_get_state(void) {
 
 bool process_record_wireless(uint16_t keycode) {
     if (get_transport() & TRANSPORT_WIRELESS) {
-        lpm_timer_reset();
+        //lpm_timer_reset();
 
         if (battery_is_empty() && wireless_get_state() == WT_CONNECTED ) {
             indicator_battery_low_enable(true);
@@ -581,72 +581,3 @@ bool process_record_wireless(uint16_t keycode) {
 
     return true;
 }
-
-#if defined(EECONFIG_BASE_WIRELESS_CONFIG)
-bool wireless_lpm_get(uint8_t *data) {
-    uint8_t index = 1;
-    memcpy(&data[index], &backlit_disable_time, sizeof(backlit_disable_time));
-    index += sizeof(backlit_disable_time);
-    memcpy(&data[index], &connected_idle_time, sizeof(connected_idle_time));
-
-    return true;
-}
-
-bool wireless_lpm_set(uint8_t *data) {
-    uint8_t index = 0;
-
-    memcpy(&backlit_disable_time, &data[index], sizeof(backlit_disable_time));
-    index += sizeof(backlit_disable_time);
-    memcpy(&connected_idle_time, &data[index], sizeof(connected_idle_time));
-
-    if (backlit_disable_time < 5 || connected_idle_time < 60) {
-        wireless_config_load();
-        return false;
-    }
-
-    wireless_config_save();
-
-    // Reset backlight timeout
-    if ((get_transport() & TRANSPORT_WIRELESS) && wireless_state == WT_CONNECTED)
-    {
-        indicator_set_backlit_timeout(backlit_disable_time*1000);
-        indicator_reset_backlit_time();
-
-        // Wiggle mouse to reset bluetooth module timer
-        mousekey_on(KC_MS_LEFT);
-        mousekey_send();
-        wait_ms(10);
-        mousekey_on(KC_MS_RIGHT);
-        mousekey_send();
-        wait_ms(10);
-        mousekey_off((KC_MS_RIGHT));
-        mousekey_send();
-        wait_ms(10);
-    }
-
-    // Update bluetooth module param
-    lkbt51_param_init();
-    return true;
-}
-
-void wireless_raw_hid_rx(uint8_t *data, uint8_t length) {
-    uint8_t cmd     = data[1];
-    bool    success = true;
-
-    switch (cmd) {
-       case WIRELESS_LPM_GET:
-           success = wireless_lpm_get(&data[2]);
-           break;
-
-       case WIRELESS_LPM_SET:
-           success = wireless_lpm_set(&data[2]);
-           break;
-
-       default:
-           data[0] = 0xFF;
-           break;
-    }
-
-    data[2] = success ? 0 : 1;
-}
-#endif

@@ -42,7 +42,7 @@ static debounce_state_t debounce_state = {0};
  */
 void debounce_init(uint8_t num_rows) {
     if (num_rows > MAX_MATRIX_ROWS) {
-        dprintf("Debounce: ERROR - num_rows (%d) exceeds MAX_MATRIX_ROWS (%d)\n", num_rows, MAX_MATRIX_ROWS);
+        LOG_E("[DEBOUNCE] num_rows %d exceeds MAX %d", num_rows, MAX_MATRIX_ROWS);
         num_rows = MAX_MATRIX_ROWS;
     }
 
@@ -51,8 +51,6 @@ void debounce_init(uint8_t num_rows) {
     memset(debounce_state.raw_matrix_row, 0, sizeof(debounce_state.raw_matrix_row));
     memset(debounce_state.last_change_time, 0, sizeof(debounce_state.last_change_time));
     debounce_state.changed = false;
-
-    dprintf("Debounce: Initialized for %d rows\n", num_rows);
 }
 
 /**
@@ -60,7 +58,6 @@ void debounce_init(uint8_t num_rows) {
  */
 void debounce_free(void) {
     memset(&debounce_state, 0, sizeof(debounce_state));
-    dprintf("Debounce: Freed\n");
 }
 
 /**
@@ -233,7 +230,7 @@ static bool debounce_asymmetric_eager_defer_pk(matrix_row_t raw[], matrix_row_t 
 bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool changed) {
     // Validate input
     if (!raw || !cooked || num_rows == 0 || num_rows > MAX_MATRIX_ROWS) {
-        dprintf("Debounce: ERROR - Invalid parameters\n");
+        LOG_E("[DEBOUNCE] invalid parameters");
         return false;
     }
 
@@ -267,23 +264,12 @@ bool debounce(matrix_row_t raw[], matrix_row_t cooked[], uint8_t num_rows, bool 
             break;
 
         default:
-            dprintf("Debounce: ERROR - Unknown algorithm %d, using DEBOUNCE_SYM_DEFER_PK\n", DEBOUNCE_ALGORITHM);
+            LOG_E("[DEBOUNCE] unknown algo %d, fallback", DEBOUNCE_ALGORITHM);
             matrix_changed = debounce_symmetric_defer_pk(raw, cooked, num_rows, changed);
             break;
     }
 
     debounce_state.changed = matrix_changed;
-
-    #ifdef DEBUG_DEBOUNCE
-    if (matrix_changed) {
-        dprintf("Debounce: Matrix changed\n");
-        for (uint8_t row = 0; row < num_rows; row++) {
-            if (cooked[row] != 0) {
-                dprintf("  Row %d: 0x%04X\n", row, cooked[row]);
-            }
-        }
-    }
-    #endif
 
     return matrix_changed;
 }
@@ -316,5 +302,4 @@ void debounce_reset(void) {
     memset(debounce_state.raw_matrix_row, 0, sizeof(debounce_state.raw_matrix_row));
     memset(debounce_state.last_change_time, 0, sizeof(debounce_state.last_change_time));
     debounce_state.changed = false;
-    dprintf("Debounce: Reset\n");
 }

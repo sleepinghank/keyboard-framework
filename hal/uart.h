@@ -4,7 +4,7 @@
 "C" {
 #endif
 
-#include "sys_config.h"
+#include "kb904/config_product.h"
 #include "pin_defs.h"
 #include "pin_mapper.h"
 #include "gpio.h"

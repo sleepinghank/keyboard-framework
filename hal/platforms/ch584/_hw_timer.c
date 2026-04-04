@@ -5,11 +5,12 @@
  *
  * 实现说明:
  * - 映射: HW_TIMER_0 → TMR0, HW_TIMER_1 → TMR1, HW_TIMER_2 → TMR2
- * - CH584 系统时钟 78MHz，最大定时周期 67108864 ticks (~860ms)
+ * - CH584 系统时钟由 FREQ_SYS 指定，最大定时周期 67108864 ticks
  * - 仅支持周期模式，长时间定时请使用 OSAL 软件定时器
  */
 
 #include "hw_timer.h"
+#include "kb904/config_product.h"
 #include "CH58x_common.h"
 #include "debug.h"
 #include "gpio.h"
@@ -17,17 +18,14 @@
  * 常量定义
  *=========================================*/
 
-// 系统时钟频率 78MHz
-#define FREQ_SYS_HZ         78000000UL
-
 // 毫秒转时钟周期
-#define MS_TO_TICKS(ms)     ((uint32_t)(ms) * (FREQ_SYS_HZ / 1000))
+#define MS_TO_TICKS(ms)     ((uint32_t)(ms) * (FREQ_SYS / 1000))
 
 // 最大硬件定时周期 (ticks)
 #define MAX_HW_TIMER_TICKS  67108864UL
 
 // 最大可直接使用硬件定时的毫秒数
-#define MAX_DIRECT_MS       (MAX_HW_TIMER_TICKS / (FREQ_SYS_HZ / 1000))
+#define MAX_DIRECT_MS       (MAX_HW_TIMER_TICKS / (FREQ_SYS / 1000))
 
 /*==========================================
  * 定时器状态管理
@@ -129,7 +127,8 @@ void TMR0_IRQHandler(void)
         TMR0_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_0);
     }
-    // togglePin(B13); /* 调试: 验证 TMR0 中断触发 */
+    // todo：需要在中断唤醒后立马置扫描标志位
+    // togglePin(B21);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 __INTERRUPT
@@ -140,7 +139,7 @@ void TMR1_IRQHandler(void)
         TMR1_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_1);
     }
-    // togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+    // togglePin(B21);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 __INTERRUPT
@@ -151,7 +150,7 @@ void TMR2_IRQHandler(void)
         TMR2_ClearITFlag(TMR0_3_IT_CYC_END);
         timer_irq_handler(HW_TIMER_2);
     }
-    // togglePin(B14);  /* 调试: 验证 TMR1 中断触发 */
+    // togglePin(B21);  /* 调试: 验证 TMR1 中断触发 */
 }
 
 /*==========================================

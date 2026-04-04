@@ -36,14 +36,15 @@
 
 #pragma once
 
-#include "kb904/config.h"
+#include "kb904/config_product.h"
 #include "wireless_event_type.h"
 #include "bt_driver.h"
+#include "report.h"
 #ifdef P2P4G_ENABLE_FLAG
 #include "p24g_driver.h"
 #endif
 
-// #define KC_DEBUG
+#define KC_DEBUG
 
 /* ==================== 调试输出配置 ==================== */
 #ifdef KC_DEBUG
@@ -78,17 +79,6 @@ typedef enum {
     WT_SUSPEND        /**< 挂起，低功耗模式 */
 } wt_state_t;
 
-//系统类型枚举
-enum
-{
-    ANDROID,
-    IOS,
-    WIN,
-    MAC
-};
-#define ALL_SYSTEM 0xff // for combo map, 0xff means trigger for all system
-#define APPLE_SYSTEM (IOS | MAC) // for combo map, 0x0c means trigger for apple system (macOS and iOS), but not trigger for windows and android
-#define OTHER_SYSTEM (ALL_SYSTEM & ~APPLE_SYSTEM) // for combo map, 0x03 means trigger for windows and android, but not trigger for macOS and iOS
 extern uint8_t host_system_type;
 
 /* ==================== 驱动函数表结构 ==================== */
@@ -108,10 +98,12 @@ typedef struct {
     void (*pairing_ex)(uint8_t host_idx, void *param);  /**< 进入配对模式 */
     void (*disconnect)(void);                           /**< 断开连接 */
     uint8_t (*send_keyboard)(uint8_t *report);          /**< 发送键盘报告 */
-    uint8_t (*send_nkro)(uint8_t *report);              /**< 发送 NKRO 报告 */
+    // uint8_t (*send_nkro)(uint8_t *report);              /**< 发送 NKRO 报告 */
     uint8_t (*send_consumer)(uint16_t usage);           /**< 发送消费者键 */
     uint8_t (*send_system)(uint16_t usage);             /**< 发送系统键 */
     uint8_t (*send_mouse)(uint8_t *report);             /**< 发送鼠标报告 */
+    uint8_t (*send_ptp)(uint8_t *report,uint8_t len);             /**< 发送 PTP 报告 */
+    uint32_t (*get_unack_packets)(void);                /**< 查询链路未确认包数 */
     void (*update_bat_level)(uint8_t level);            /**< 更新电池电量 */
 } wt_func_t;
 
@@ -212,30 +204,23 @@ void wireless_pairing(void);
  */
 void wireless_pairing_ex(uint8_t host_idx, void *param);
 
-/* ==================== 状态回调函数（弱定义） ==================== */
-/** @brief 进入复位状态回调 */
-void wireless_enter_reset_kb(uint8_t reason);
 
-/** @brief 进入可发现状态回调 */
-void wireless_enter_discoverable_kb(uint8_t host_idx);
+/* ==================== 报告发送函数 ==================== */
+/**
+ * @brief 发送键盘报告（通过缓冲区异步发送）
+ * @param report 键盘报告指针
+ */
+void wireless_send_keyboard(report_keyboard_t *report);
 
-/** @brief 进入重连状态回调 */
-void wireless_enter_reconnecting_kb(uint8_t host_idx);
+/**
+ * @brief 发送消费者键报告（通过缓冲区异步发送）
+ * @param data 消费者键 usage code
+ */
+void wireless_send_consumer(uint16_t data);
 
-/** @brief 进入已连接状态回调 */
-void wireless_enter_connected_kb(uint8_t host_idx);
+void wireless_send_mouse(report_mouse_t *report);
 
-/** @brief 进入断开状态回调 */
-void wireless_enter_disconnected_kb(uint8_t host_idx, uint8_t reason);
-
-/** @brief 进入 PIN 码输入状态回调 */
-void wireless_enter_bluetooth_pin_code_entry_kb(void);
-
-/** @brief 退出 PIN 码输入状态回调 */
-void wireless_exit_bluetooth_pin_code_entry_kb(void);
-
-/** @brief 进入睡眠状态回调 */
-void wireless_enter_sleep_kb(void);
+void wireless_send_ptp(report_ptp_t *report,uint8_t len);
 
 /* ==================== 任务函数 ==================== */
 /** @brief 无线主任务，应在主循环中调用 */

@@ -123,19 +123,19 @@
 #define CLK_OSC32K                          1   // 该项请勿在此修改，必须在工程配置里的预处理中修改，如包含主机角色必须使用外部32K
 #endif
 #ifndef BLE_MEMHEAP_SIZE
-#define BLE_MEMHEAP_SIZE                    (1024*6)
+#define BLE_MEMHEAP_SIZE                    (1024*8)
 #endif
 #ifndef BLE_BUFF_MAX_LEN
 #define BLE_BUFF_MAX_LEN                    27
 #endif
 #ifndef BLE_BUFF_NUM
-#define BLE_BUFF_NUM                        5
+#define BLE_BUFF_NUM                        20
 #endif
 #ifndef BLE_TX_NUM_EVENT
-#define BLE_TX_NUM_EVENT                    1
+#define BLE_TX_NUM_EVENT                    10
 #endif
 #ifndef BLE_TX_POWER
-#define BLE_TX_POWER                        LL_TX_POWEER_0_DBM
+#define BLE_TX_POWER                        LL_TX_POWEER_4_DBM
 #endif
 #ifndef PERIPHERAL_MAX_CONNECTION
 #define PERIPHERAL_MAX_CONNECTION           1

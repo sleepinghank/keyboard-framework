@@ -25,3 +25,52 @@
   
   通过读取特定芯片api（c\timer_task\hal\timer.c）。发现硬件定时器存在timer_get_tick方法可以获取定时器计数。这样获取就不需要通过main_loop_cnt校准，请使用timer_get_tick优化，请先阐述思路确认后再更改代码。
 
+/pyramid-design
+现在I2C驱动已调通，需要将触控板模块化接入项目中（路径：component\touch_component），模块化中已经有了驱动和部分接口实现，请结合整体架构设计，分析并设计触控板模块化接入的方案，要求如下：
+1. 模块中已经有了驱动，不需要在当前项目下重新实现驱动，只需要在middleware 层增加touchpad实现，并将模块中OSAL_调度事件迁入 middleware 层。负责touchpad完整生命周期管理。
+2. component\touch_component 中允许最小化改动。
+3. 触控板的全局事件应该经过OSAL调度，在input_service中处理，触控板事件通过输入服务分发到应用层。
+4. 
+
+
+请基于设计文档实施触控板模块化接入方案。                                                          
+                                                                                                    
+  ## 设计文档                                                                                     
+                                                                                                    
+  必读文档（实施前完整阅读）：                                                                      
+  - docs/plans/2026-03-20-touchpad-middleware-design.md — 完整设计方案                              
+  - docs/plans/2026-03-20-touchpad-middleware-requirements.md — 需求背景                            
+                                                                                                    
+  ## 实施要求                                                                                       
+                                                                                                    
+  按设计文档第 8 节的 5 个 Step 严格顺序执行，每完成一个 Step 暂停等待我确认后再继续下一步。
+
+  ### Step 1：新建 middleware/touchpad/touchpad.h 和 touchpad.c
+  - 接口和事件定义严格按设计文档第 3 节
+  - touchpad_process_event() 的四个事件分支按第 4.1 节初始化序列实现
+  - FW 轮询计数器上限 50 次（10ms x 50 = 500ms 超时）
+
+  ### Step 2：改动 touch_component
+  - touchpad_service.c：删除 OSAL 逻辑（touch_taskID、touch_process_event、OSAL 调用）
+  - pct1336_driver.c：新增 pct1336_fw_ready()，删除 OSAL 逻辑
+  - 验证：grep 确认无残留 OSAL 注册
+
+  ### Step 3：改动 input_service
+  - 按设计文档第 3.4 节的替换表修改
+  - 增加 #include "touchpad.h"
+
+  ### Step 4：更新 CMakeLists.txt
+  - 取消注释 touch_component 源文件，新增 middleware/touchpad/touchpad.c 和头文件路径
+  - 验证：桌面编译通过
+
+  ### Step 5：集成验证（我来做硬件测试，你做编译验证）
+
+  ## 关键约束
+
+  1. 调用方向：input_service → middleware/touchpad → touch_component（单向，不可反转）
+  2. middleware/touchpad 只管自身生命周期，不直接调用其他 middleware 模块
+  3. HID 报告发送路径暂不改动（保持 touch_component 原有路径），标注 TODO
+  4. 不实现 LPM 集成
+  5. 所有改动在 TOUCH_EN 条件编译宏保护下
+  6. 阻塞 I2C 操作放在 touchpad_power_on() 直接调用路径中，禁止放在 TMOS 事件回调中
+

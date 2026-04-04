@@ -34,7 +34,7 @@
 #define DIODE_DIRECTION       COL2ROW
 
 #define MATRIX_ROW_PINS {     \
-    A9,  /* R0 - U2.7  */     \
+    NO_PIN,  /* R0 - U2.7  */     \
     A8,  /* R1 - U2.8  */     \
     A7,  /* R2 - U2.17 */     \
     A1,  /* R3 - U2.18 */     \
@@ -70,12 +70,10 @@
 #define BACKLIGHT_PIN_B       A13  /* PA13_PWM_B - U2.45 */
 
 /* ========== 指示灯 GPIO 映射 ==========
- * 网络名: PA15_LED1, PB22_LED2, PB23_LED3, PA14_LED4
- * 对应原理图: 4颗独立LED
  */
-#define LED_CAPS_PIN          A15  /* 白灯 - 大写锁定 - U2.43 */
-#define LED_BT_PIN            B22  /* 蓝灯 - 蓝牙状态 - U2.30 */
-#define LED_POWER_PIN         B23  /* 红灯 - 电源/低电量 - U2.31 */
+#define LED_CAPS_PIN          A15  /* 白灯 A15- 大写锁定*/
+#define LED_BT_PIN            B22  /* 蓝灯 B22- 蓝牙状态 */
+#define LED_POWER_PIN         B23  /* 红灯 B23- 电源/低电量*/
 
 /* 兼容别名 */
 #define LED_POWER_RED_PIN     LED_POWER_PIN
@@ -102,8 +100,11 @@ extern const ind_led_def_t ind_led_table[3];
  * 网络名: PB20_SDA, PB21_SCL, PA3_INT
  */
 #define TOUCHPAD_SDA          B20  /* PB20_SDA - U2.28 */
-#define TOUCHPAD_SCL          NO_PIN  /* PB21_SCL - U2.29 */
+#define TOUCHPAD_SCL          B21  /* PB21_SCL - U2.29 */
 #define TOUCHPAD_INT          A3   /* PA3_INT - 下降沿触发 - U2.42 */
+
+#define TOUCHPAD_POWER_PIN        A11  /* PA11 - 供电控制 - U2.44 */
+#define TOUCHPAD_BUTTON_PIN       A10  /* PA10  */
 
 /* ========== 触控板尺寸 ========== */
 #define TOUCHPAD_MAX_X        2048
@@ -113,7 +114,7 @@ extern const ind_led_def_t ind_led_table[3];
 // 按下双击转换为右键开关
 // #define DOUBLE_CLICK_TO_RIGHT_BUTTON
 // 预设手势开关
-#define MCS_GESTURE
+// #define MCS_GESTURE
 // 边缘防误触开关
 #define EDGE_MISTOUCH
 // 贝叶斯防误触开关
@@ -129,5 +130,5 @@ extern const ind_led_def_t ind_led_table[3];
 /* ========== UART 调试 ==========
  * 网络名: PA9_TXD1, PA8_RXD1
  */
-#define DEBUG_UART_TX         A9   /* PA9_TXD1 - U2.47 */
-#define DEBUG_UART_RX         A8   /* PA8_RXD1 - U2.48 */
+#define DEBUG_UART_TX         A9   /* A9_TXD1  B21_TXD3_ */
+#define DEBUG_UART_RX         NO_PIN  /* PA8_RXD1  */
